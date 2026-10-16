@@ -65,4 +65,39 @@ describe('checkStory at level 24 (25 to 50 words)', () => {
       false,
     );
   });
+
+  it('reports every failure, not just the first', () => {
+    const r = checkStory('Lia has a tree.', [q({ evidence: 'Not in the story.' })], 24);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.failures.map((f) => f.code)).toEqual([
+      'too_short',
+      'too_few_questions',
+      'evidence_missing',
+    ]);
+    expect(r.failures.at(-1)?.questionIndex).toBe(0);
+  });
+
+  it('keeps the dropped question failures when the story passes', () => {
+    const r = checkStory(PASSAGE, [q(), q(), q(), q(), q({ options: ['a', 'a', 'b', 'c'] })], 24);
+    expect(r.ok).toBe(true);
+    if (r.ok)
+      expect(r.dropped).toEqual([
+        expect.objectContaining({ code: 'options_not_distinct', questionIndex: 4 }),
+      ]);
+  });
+
+  it('flags a long and a hard passage', () => {
+    const long = Array.from({ length: 60 }, () => 'cat').join(' ');
+    const r = checkStory(long, [], 24);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.failures.map((f) => f.code)).toContain('too_long');
+  });
+
+  it('rejects an answer index that is not an option', () => {
+    const r = checkStory(PASSAGE, [q(), q(), q(), q(), q({ answerIndex: 4 })], 24);
+    expect(r.ok && r.dropped[0]?.code).toBe('answer_out_of_range');
+    const bad = checkStory(PASSAGE, [q({ answerIndex: 1.5 })], 24);
+    expect(!bad.ok && bad.failures.map((f) => f.code)).toContain('bad_shape');
+  });
 });
