@@ -66,10 +66,7 @@ export function MicGate() {
               aria-valuemax={100}
               aria-valuenow={Math.round(mic.level * 100)}
             >
-              <div
-                className={styles.meterFill}
-                style={{ width: `${Math.round(mic.level * 100)}%` }}
-              />
+              <div className={styles.meterFill} style={{ transform: `scaleX(${mic.level})` }} />
             </div>
             <p className={styles.status} aria-live="polite">
               {mic.upload === 'retrying' ? 'Connection is slow. Still trying.' : ''}

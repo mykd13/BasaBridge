@@ -116,9 +116,11 @@
   overflow: hidden;
 }
 .meterFill {
+  width: 100%;
   height: 100%;
   background: var(--accent);
-  transition: width 60ms linear;
+  transform-origin: left;
+  transition: transform 60ms linear;
 }
 .status {
   margin: 0;
