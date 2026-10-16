@@ -20,12 +20,16 @@
     "@basabridge/teacher-ai": "workspace:*",
     "@basabridge/ui": "workspace:*",
     "better-auth": "^1.7.10",
+    "drizzle-orm": "^0.45.4",
     "next": "^16.4.1",
+    "pg": "^8.23.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
     "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0"
   }
