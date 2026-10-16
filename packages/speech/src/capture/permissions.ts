@@ -18,7 +18,8 @@ export type MicState =
 
 export type MicFailure = Exclude<MicState, 'granted'>;
 
-export type MicResult = { state: 'granted'; stream: MediaStream } | { state: MicFailure; stream?: undefined };
+export type MicResult =
+  { state: 'granted'; stream: MediaStream } | { state: MicFailure; stream?: undefined };
 
 export interface PermissionDeps {
   mediaDevices?: Pick<MediaDevices, 'getUserMedia'> | undefined;

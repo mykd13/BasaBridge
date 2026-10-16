@@ -1,0 +1,127 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 19px;
+}
+.level {
+  font-weight: 700;
+  color: var(--muted);
+}
+.main {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  align-items: center;
+}
+.copy {
+  flex: 1 1 440px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  align-items: flex-start;
+}
+.title {
+  font-weight: 600;
+  font-size: clamp(30px, 5vw, 42px);
+}
+.lead {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.5;
+  max-width: 56ch;
+}
+.steps {
+  margin: 0;
+  padding-left: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 19px;
+}
+.notice {
+  background: var(--mark-soft);
+  border-radius: 14px;
+  padding: 14px 18px;
+  font-size: 18px;
+  line-height: 1.5;
+  max-width: 640px;
+}
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.primary,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 62px;
+  padding: 14px 36px;
+  border-radius: 16px;
+  font: inherit;
+  font-size: 21px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 0;
+}
+.secondary {
+  padding: 10px 24px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 18px;
+}
+.art {
+  flex: 1 1 280px;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+}
+.disc {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  display: grid;
+  place-items: center;
+}
+.meter {
+  width: 100%;
+  max-width: 440px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  overflow: hidden;
+}
+.meterFill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 60ms linear;
+}
+.status {
+  margin: 0;
+  font-size: 18px;
+  color: var(--muted);
+}

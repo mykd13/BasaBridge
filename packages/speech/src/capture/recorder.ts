@@ -1,4 +1,9 @@
-import { releaseStream, requestMicrophone, type MicFailure, type PermissionDeps } from './permissions';
+import {
+  releaseStream,
+  requestMicrophone,
+  type MicFailure,
+  type PermissionDeps,
+} from './permissions';
 
 /** Preferred first. Chrome and Edge record webm/opus, Safari records mp4. */
 export const RECORDING_TYPES = [
@@ -116,7 +121,10 @@ export class MicRecorder {
 
     this.levels = (this.deps.createLevelReader ?? browserLevelReader)(stream);
     if (this.events.onLevel) {
-      this.levelTimer = setInterval(() => this.events.onLevel?.(this.levels?.read() ?? 0), LEVEL_MS);
+      this.levelTimer = setInterval(
+        () => this.events.onLevel?.(this.levels?.read() ?? 0),
+        LEVEL_MS,
+      );
     }
     recorder.start(SLICE_MS);
     return { ok: true, mimeType: recorder.mimeType || mimeType };

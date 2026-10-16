@@ -14,8 +14,12 @@ describe('requestMicrophone', () => {
     const getUserMedia = failWith('NotAllowedError');
     const prompt = { query: async () => ({ state: 'prompt' }) as PermissionStatus };
     const denied = { query: async () => ({ state: 'denied' }) as PermissionStatus };
-    expect((await requestMicrophone({ mediaDevices: { getUserMedia }, permissions: prompt })).state).toBe('denied');
-    expect((await requestMicrophone({ mediaDevices: { getUserMedia }, permissions: denied })).state).toBe('blocked');
+    expect(
+      (await requestMicrophone({ mediaDevices: { getUserMedia }, permissions: prompt })).state,
+    ).toBe('denied');
+    expect(
+      (await requestMicrophone({ mediaDevices: { getUserMedia }, permissions: denied })).state,
+    ).toBe('blocked');
   });
 
   it('treats an unsupported permission name as unknown, so denied', async () => {
@@ -28,12 +32,14 @@ describe('requestMicrophone', () => {
   });
 
   it('maps missing and busy devices', async () => {
-    expect((await requestMicrophone({ mediaDevices: { getUserMedia: failWith('NotFoundError') } })).state).toBe(
-      'no-device',
-    );
-    expect((await requestMicrophone({ mediaDevices: { getUserMedia: failWith('NotReadableError') } })).state).toBe(
-      'unavailable',
-    );
+    expect(
+      (await requestMicrophone({ mediaDevices: { getUserMedia: failWith('NotFoundError') } }))
+        .state,
+    ).toBe('no-device');
+    expect(
+      (await requestMicrophone({ mediaDevices: { getUserMedia: failWith('NotReadableError') } }))
+        .state,
+    ).toBe('unavailable');
   });
 });
 
@@ -47,7 +53,10 @@ describe('pickMimeType', () => {
 
 function fakeRig() {
   const track = { stop: vi.fn(), onended: null as null | (() => void) };
-  const stream = { getTracks: () => [track], getAudioTracks: () => [track] } as unknown as MediaStream;
+  const stream = {
+    getTracks: () => [track],
+    getAudioTracks: () => [track],
+  } as unknown as MediaStream;
   const rec = {
     state: 'inactive' as RecordingState,
     mimeType: 'audio/webm;codecs=opus',
@@ -150,7 +159,12 @@ describe('ChunkUploader', () => {
       urls.push(String(url));
       return ok(Number(new URL(String(url), 'http://x').searchParams.get('index')) + 1);
     });
-    const up = new ChunkUploader({ endpoint: '/api/speech/chunks', tryId: 't1', fetchImpl, ...noWait });
+    const up = new ChunkUploader({
+      endpoint: '/api/speech/chunks',
+      tryId: 't1',
+      fetchImpl,
+      ...noWait,
+    });
     up.push(chunk(), 0);
     up.push(chunk(), 1);
     await up.finish(2);
@@ -203,7 +217,13 @@ describe('ChunkUploader', () => {
 
   it('fails visibly after too many failures in a row', async () => {
     const fetchImpl = vi.fn(async () => new Response('no', { status: 503 }));
-    const up = new ChunkUploader({ endpoint: '/e', tryId: 't', fetchImpl, maxAttempts: 3, ...noWait });
+    const up = new ChunkUploader({
+      endpoint: '/e',
+      tryId: 't',
+      fetchImpl,
+      maxAttempts: 3,
+      ...noWait,
+    });
     up.push(chunk(), 0);
     await expect(up.finish(1)).rejects.toThrow(/rejected/);
     expect(fetchImpl).toHaveBeenCalledTimes(3);
