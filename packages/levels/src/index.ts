@@ -30,6 +30,10 @@ export interface StoryResult {
   questionsTotal: number;
 }
 
+/**
+ * Counts correct answers, not a share. A story the verifier cut to four questions still needs three
+ * right. Kept on purpose until the educator review.
+ */
 export function isPass(r: StoryResult): boolean {
   return (
     r.wordsRightShare >= PASS_RULE.minWordsRight &&
@@ -37,7 +41,7 @@ export function isPass(r: StoryResult): boolean {
   );
 }
 
-/** A weak result is one where less than half the questions were right. */
+/** Very weak: at most PASS_RULE.veryWeakShare (40%) of questions right. Moves the learner down one level. */
 export function isVeryWeak(r: StoryResult): boolean {
-  return r.questionsTotal > 0 && r.questionsCorrect / r.questionsTotal <= 0.4;
+  return r.questionsTotal > 0 && r.questionsCorrect / r.questionsTotal <= PASS_RULE.veryWeakShare;
 }
