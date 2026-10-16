@@ -19,6 +19,7 @@
     "@basabridge/story-ai": "workspace:*",
     "@basabridge/teacher-ai": "workspace:*",
     "@basabridge/ui": "workspace:*",
+    "better-auth": "^1.7.10",
     "next": "^16.4.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
