@@ -6,3 +6,4 @@ coverage
 pnpm-lock.yaml
 design
 docs/PLAN.md
+next-env.d.ts

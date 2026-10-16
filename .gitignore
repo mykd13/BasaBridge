@@ -9,5 +9,8 @@ coverage
 .env.*
 !.env.example
 .vercel
-# local Claude Code settings
-.claude
+# local Claude Code settings and worktrees (the skills in .claude/skills are committed)
+.claude/settings.local.json
+.claude/worktrees
+tmp
+next-env.d.ts
