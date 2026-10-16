@@ -14,3 +14,4 @@ coverage
 .claude/worktrees
 tmp
 next-env.d.ts
+*.tsbuildinfo
