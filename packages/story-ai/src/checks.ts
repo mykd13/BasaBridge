@@ -14,9 +14,33 @@ export function syllables(word: string): number {
   return Math.max(1, m ? m.length : 1);
 }
 
+const ABBREVIATION = /\b(?:Mr|Mrs|Ms|Dr|St)\.$/;
+
+/**
+ * Splits text into sentences. A closing quote stays with its sentence, and a quote that is
+ * followed by a lowercase word ("Come here!" she said.) does not end the sentence.
+ */
+export function splitSentences(text: string): string[] {
+  const sentences: string[] = [];
+  const end = /[.!?]+["'”’)\]]*(?=\s|$)/g;
+  let start = 0;
+  let m: RegExpExecArray | null;
+  while ((m = end.exec(text))) {
+    const stop = m.index + m[0].length;
+    if (ABBREVIATION.test(text.slice(0, stop))) continue;
+    const next = text.slice(stop).match(/^\s*(\S)/)?.[1];
+    if (/["'”’]/.test(m[0]) && next && /[a-z]/.test(next)) continue;
+    sentences.push(text.slice(start, stop).trim());
+    start = stop;
+  }
+  const rest = text.slice(start).trim();
+  if (rest) sentences.push(rest);
+  return sentences.filter(Boolean);
+}
+
 /** Flesch-Kincaid grade level. Noisy on very short texts, so tiers use generous caps. */
 export function readingGrade(text: string): number {
-  const sentences = text.split(/[.!?]+(?:\s|$)/).filter((s) => s.trim()).length || 1;
+  const sentences = splitSentences(text).length || 1;
   const words = text.match(/[A-Za-z']+/g) ?? [];
   const syl = words.reduce((a, w) => a + syllables(w), 0);
   return 0.39 * (words.length / sentences) + 11.8 * (syl / Math.max(1, words.length)) - 15.59;
@@ -80,8 +104,42 @@ const OPTION_COUNT = 4;
 const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim() !== '';
 
 /**
+ * Evidence must be one whole sentence of the passage, or a run of adjacent sentences.
+ * Returns 'ok', 'not_sentence' (the text is in the passage but is a fragment) or 'missing'.
+ */
+function matchEvidence(
+  sentences: string[],
+  normalisedPassage: string,
+  evidence: string,
+): 'ok' | 'not_sentence' | 'missing' {
+  const target = normalise(evidence);
+  if (target === '') return 'missing';
+  for (let i = 0; i < sentences.length; i++) {
+    for (let j = i; j < sentences.length; j++) {
+      if (sentences.slice(i, j + 1).join(' ') === target) return 'ok';
+    }
+  }
+  return normalisedPassage.includes(target) ? 'not_sentence' : 'missing';
+}
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** The word on word boundaries, allowing -s, -es, -ed, -d, -ing and the usual spelling changes. */
+function containsWord(normalisedPassage: string, word: string): boolean {
+  const w = normalise(word);
+  if (w === '') return false;
+  const forms = [`${escapeRegExp(w)}(?:s|es|ed|d|ing)?`];
+  const last = w.slice(-1);
+  if (last === 'e') forms.push(`${escapeRegExp(w.slice(0, -1))}ing`);
+  if (last === 'y') forms.push(`${escapeRegExp(w.slice(0, -1))}(?:ies|ied)`);
+  if (/[aeiou][^aeiou]$/.test(w)) forms.push(`${escapeRegExp(w)}${escapeRegExp(last)}(?:ed|ing)`);
+  return new RegExp(`(?<![a-z])(?:${forms.join('|')})(?![a-z])`).test(normalisedPassage);
+}
+
+/**
  * Deterministic checks on a generated story: length range, reading grade cap, valid questions,
- * distinct options, evidence sentence present verbatim, vocabulary word present.
+ * distinct options, evidence is a whole sentence (or adjacent sentences) of the passage,
+ * vocabulary word present on word boundaries, no repeated questions.
  * At least four valid questions must remain. Every failure is reported, not just the first.
  */
 export function checkStory(text: string, rawQuestions: RawQuestion[], level: number): CheckResult {
@@ -105,6 +163,8 @@ export function checkStory(text: string, rawQuestions: RawQuestion[], level: num
   }
 
   const np = normalise(passage);
+  const sentences = splitSentences(passage).map(normalise);
+  const seenQuestions = new Set<string>();
   const kept: StoryQuestion[] = [];
   const dropped: CheckFailure[] = [];
   rawQuestions.forEach((q, index) => {
@@ -126,6 +186,11 @@ export function checkStory(text: string, rawQuestions: RawQuestion[], level: num
       return;
     }
     const before = dropped.length;
+    const questionKey = normalise(q.question as string);
+    if (seenQuestions.has(questionKey)) {
+      fail('duplicate_question', 'The question repeats an earlier question.');
+    }
+    seenQuestions.add(questionKey);
     const opts = options as string[];
     if (new Set(opts.map(normalise)).size !== OPTION_COUNT) {
       fail('options_not_distinct', 'The question has options that repeat.');
@@ -135,10 +200,13 @@ export function checkStory(text: string, rawQuestions: RawQuestion[], level: num
       fail('answer_out_of_range', 'The answer does not point at one of the options.');
     }
     const evidence = q.evidence as string;
-    if (!np.includes(normalise(evidence))) {
+    const evidenceMatch = matchEvidence(sentences, np, evidence);
+    if (evidenceMatch === 'missing') {
       fail('evidence_missing', 'The evidence is not in the passage word for word.');
+    } else if (evidenceMatch === 'not_sentence') {
+      fail('evidence_not_sentence', 'The evidence must be a whole sentence from the passage.');
     }
-    if (skill === 'vocabulary' && !np.includes(normalise(String(q.word)))) {
+    if (skill === 'vocabulary' && !containsWord(np, String(q.word))) {
       fail('vocab_word_missing', 'The vocabulary word is not in the passage.');
     }
     if (dropped.length > before) return;
