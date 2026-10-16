@@ -1,5 +1,5 @@
 {
-  "id": "dbb3827c-3a20-47ed-a906-3f80f7cb6c42",
+  "id": "c52d9f56-a12f-4356-9eb5-404f5bbb0178",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -114,6 +114,42 @@
         },
         "password": {
           "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "access_token": {
+          "name": "access_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token": {
+          "name": "refresh_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id_token": {
+          "name": "id_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "access_token_expires_at": {
+          "name": "access_token_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token_expires_at": {
+          "name": "refresh_token_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scope": {
+          "name": "scope",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -1326,8 +1362,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "username": {
-          "name": "username",
+        "identifier": {
+          "name": "identifier",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -1341,11 +1377,11 @@
         }
       },
       "indexes": {
-        "sign_in_failures_username_idx": {
-          "name": "sign_in_failures_username_idx",
+        "sign_in_failures_identifier_idx": {
+          "name": "sign_in_failures_identifier_idx",
           "columns": [
             {
-              "expression": "username",
+              "expression": "identifier",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1573,6 +1609,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "age_band": {
           "name": "age_band",

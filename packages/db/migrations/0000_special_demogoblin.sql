@@ -22,6 +22,12 @@ CREATE TABLE "accounts" (
 	"account_id" text NOT NULL,
 	"provider_id" text NOT NULL,
 	"password" text,
+	"access_token" text,
+	"refresh_token" text,
+	"id_token" text,
+	"access_token_expires_at" timestamp with time zone,
+	"refresh_token_expires_at" timestamp with time zone,
+	"scope" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -185,7 +191,7 @@ CREATE TABLE "sessions" (
 --> statement-breakpoint
 CREATE TABLE "sign_in_failures" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"username" text NOT NULL,
+	"identifier" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -221,6 +227,7 @@ CREATE TABLE "users" (
 	"email" text NOT NULL,
 	"email_real" boolean DEFAULT false NOT NULL,
 	"email_verified" boolean DEFAULT false NOT NULL,
+	"image" text,
 	"age_band" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -258,4 +265,4 @@ ALTER TABLE "reading_sessions" ADD CONSTRAINT "reading_sessions_learner_user_id_
 ALTER TABLE "reading_sessions" ADD CONSTRAINT "reading_sessions_story_id_stories_id_fk" FOREIGN KEY ("story_id") REFERENCES "public"."stories"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tries" ADD CONSTRAINT "tries_session_id_reading_sessions_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."reading_sessions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "sign_in_failures_username_idx" ON "sign_in_failures" USING btree ("username","created_at");
+CREATE INDEX "sign_in_failures_identifier_idx" ON "sign_in_failures" USING btree ("identifier","created_at");

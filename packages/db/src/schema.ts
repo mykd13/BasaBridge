@@ -48,6 +48,8 @@ export const users = pgTable('users', {
   /** True only when the email can receive mail. Password reset is offered only then. */
   emailReal: boolean('email_real').notNull().default(false),
   emailVerified: boolean('email_verified').notNull().default(false),
+  /** Required by Better Auth. Not used: we have no profile pictures. */
+  image: text('image'),
   /** Birth year band is enough for the age gate. Do not store a full birth date. */
   ageBand: text('age_band'),
   createdAt: createdAt(),
@@ -77,6 +79,13 @@ export const accounts = pgTable('accounts', {
   providerId: text('provider_id').notNull(),
   /** Password hash for the credential provider. Never selected outside the auth module. */
   password: text('password'),
+  /** Better Auth's OAuth columns. We have no OAuth provider, so these stay null. */
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  idToken: text('id_token'),
+  accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+  scope: text('scope'),
   createdAt: createdAt(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -97,15 +106,16 @@ export const rateLimits = pgTable('rate_limits', {
   lastRequest: bigint('last_request', { mode: 'number' }).notNull(),
 });
 
-/** One row per failed sign-in. Lockout counts recent rows per username. No password is stored. */
+/** One row per failed sign-in. Lockout counts recent rows per identifier. No password is stored. */
 export const signInFailures = pgTable(
   'sign_in_failures',
   {
     id: id(),
-    username: text('username').notNull(),
+    /** Lowercased username or email, whatever the person typed to sign in. */
+    identifier: text('identifier').notNull(),
     createdAt: createdAt(),
   },
-  (t) => [index('sign_in_failures_username_idx').on(t.username, t.createdAt)],
+  (t) => [index('sign_in_failures_identifier_idx').on(t.identifier, t.createdAt)],
 );
 
 export const learners = pgTable('learners', {
