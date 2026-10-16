@@ -5,6 +5,7 @@
 import type { Story, StoryQuestion } from '@basabridge/contracts';
 
 export * from './checks';
+export * from './retry';
 
 export interface GenerateStoryInput {
   level: number;
