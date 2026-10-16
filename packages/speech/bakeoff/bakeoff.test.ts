@@ -20,6 +20,9 @@ import {
 } from './data.ts';
 import { formatLog } from './log.ts';
 import { scoreRecording } from './metrics.ts';
+import { passagePhrases } from './providers/assemblyai.ts';
+import { parseAssessment } from './providers/azure.ts';
+import { COMPANIES, PROVIDER_NAMES, companyOf } from './providers/index.ts';
 import { buildReport } from './report.ts';
 import { auroc, clusterBootstrapRatio, cohenKappa, percentile } from './stats.ts';
 import { normaliseWords } from './text.ts';
@@ -295,5 +298,41 @@ describe('report', () => {
     expect(withResults).toContain('| ageBand | 15-17 | fewer than 5 |');
     expect(withResults).toMatch(/\| deepgram plain batch \| hidden \| 0\.0% \/ 0\.0% \|/);
     expect(withResults).not.toContain('R01');
+  });
+});
+
+describe('adapter helpers', () => {
+  it('cuts a passage into phrases of at most six words', () => {
+    const phrases = passagePhrases('The cat sat on the big red mat today. It slept.');
+    expect(phrases).toEqual(['The cat sat on the big', 'red mat today', 'It slept']);
+  });
+
+  it('turns Azure assessment words into heard words and one verdict per passage word', () => {
+    const tick = 1e7;
+    const pa = (AccuracyScore: number, ErrorType: string) => ({
+      PronunciationAssessment: { AccuracyScore, ErrorType },
+    });
+    const { words, assessment } = parseAssessment([
+      { Word: 'the', Offset: 0, Duration: tick / 2, ...pa(98, 'None') },
+      { Word: 'cat', Offset: tick, Duration: tick / 2, ...pa(40, 'Mispronunciation') },
+      { Word: 'um', Offset: 2 * tick, Duration: tick / 4, ...pa(0, 'Insertion') },
+      { Word: 'sat', Offset: 0, Duration: 0, ...pa(0, 'Omission') },
+      {
+        Word: 'down',
+        Offset: 3 * tick,
+        Duration: tick / 2,
+        AccuracyScore: 90,
+        ErrorType: 'UnexpectedBreak',
+      },
+    ]);
+    expect(assessment).toEqual(['ok', 'miscue', 'miscue', 'ok']);
+    expect(words.map((w) => w.text)).toEqual(['the', 'cat', 'um', 'down']);
+    expect(words[1]).toMatchObject({ start: 1, end: 1.5, confidence: 0.4 });
+  });
+
+  it('maps both Azure adapters to the same company for consent', () => {
+    expect(companyOf('azure-pa')).toBe('azure');
+    expect(companyOf('deepgram')).toBe('deepgram');
+    expect(PROVIDER_NAMES.map(companyOf).every((c) => COMPANIES.includes(c))).toBe(true);
   });
 });

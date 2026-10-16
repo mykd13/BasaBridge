@@ -87,6 +87,10 @@ export interface BakeoffProvider extends SpeechProvider {
   readonly biasing: string;
   /** Whether the provider streams with word timings. */
   readonly streaming: boolean;
+  /** Modes it can run. Assessment providers need the reference text, so only `biased`. */
+  readonly modes: readonly Mode[];
+  /** Longest recording the batch call accepts. Longer ones are recorded as too_long, not sent. */
+  readonly maxSeconds?: number;
   /** Batch call returning words plus any assessment. */
   run(audio: Blob, options: BakeoffOptions): Promise<ProviderResult>;
   /** Streaming call that feeds the PCM at real-time pace. */

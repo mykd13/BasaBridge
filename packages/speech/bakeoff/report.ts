@@ -102,6 +102,7 @@ export function buildReport(
   const recById = new Map(dataset.recordings.map((r) => [r.recordingId, r]));
   const runs = new Map<string, Scored[]>();
   const failures = new Map<string, number>();
+  const tooLong = new Map<string, number>();
   for (const result of results) {
     if (result.provider === 'oracle' && !opts.includeOracle) continue;
     const key = runKey(result);
@@ -109,7 +110,8 @@ export function buildReport(
     const rows = dataset.truth.get(result.recordingId);
     if (!recording || !rows) continue;
     if (!result.ok) {
-      failures.set(key, (failures.get(key) ?? 0) + 1);
+      const bucket = result.error === 'too_long' ? tooLong : failures;
+      bucket.set(key, (bucket.get(key) ?? 0) + 1);
       if (!runs.has(key)) runs.set(key, []);
       continue;
     }
@@ -235,20 +237,44 @@ export function buildReport(
   );
   out.push('');
 
-  const assessed = keys.filter((k) => commonOnly(k).some((s) => s.score.assessment !== null));
+  out.push('### Each run on all of its recordings');
+  out.push('');
+  out.push(
+    'Some runs cover fewer recordings (no consent for that company, a failed call, or audio longer than the provider accepts, shown as too long). This table uses every recording each run has, so rows are not directly comparable.',
+  );
+  out.push('');
+  out.push(
+    '| Run | Recordings | Too long | Word error rate | False error rate | Missed error rate |',
+  );
+  out.push('| --- | --- | --- | --- | --- | --- |');
+  for (const k of keys) {
+    const items = runs.get(k)!;
+    const edits = items.reduce((n, s) => n + s.score.wordEdits, 0);
+    const refLen = items.reduce((n, s) => n + s.score.wordRefLength, 0);
+    const c = sumCounts(items.map((s) => s.score.errors));
+    out.push(
+      `| ${k} | ${items.length} | ${tooLong.get(k) ?? 0} | ${pct(ratio(edits, refLen))} | ${pct(ratio(c.falseErrors, c.readWords))} | ${pct(ratio(c.missedErrors, c.miscueWords))} |`,
+    );
+  }
+  out.push('');
+
+  const assessed = keys.filter((k) => runs.get(k)!.some((s) => s.score.assessment !== null));
   if (assessed.length > 0) {
     out.push('## Built-in reading assessment');
     out.push('');
-    out.push("The provider's own miscue flags against the human verdicts, on the same recordings.");
+    out.push(
+      "The provider's own miscue flags against the human verdicts, on all of that run's recordings.",
+    );
     out.push('');
-    out.push('| Run | False error rate | Missed error rate |');
-    out.push('| --- | --- | --- |');
+    out.push('| Run | Recordings | False error rate | Missed error rate |');
+    out.push('| --- | --- | --- | --- |');
     for (const k of assessed) {
-      const c = sumCounts(
-        commonOnly(k).flatMap((s) => (s.score.assessment ? [s.score.assessment] : [])),
-      );
+      const withAssessment = runs
+        .get(k)!
+        .flatMap((s) => (s.score.assessment ? [s.score.assessment] : []));
+      const c = sumCounts(withAssessment);
       out.push(
-        `| ${k} | ${pct(ratio(c.falseErrors, c.readWords))} | ${pct(ratio(c.missedErrors, c.miscueWords))} |`,
+        `| ${k} | ${withAssessment.length} | ${pct(ratio(c.falseErrors, c.readWords))} | ${pct(ratio(c.missedErrors, c.miscueWords))} |`,
       );
     }
     out.push('');

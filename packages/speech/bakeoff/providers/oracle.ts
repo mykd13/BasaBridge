@@ -31,6 +31,7 @@ export function createOracle(): BakeoffProvider {
     name: 'oracle',
     biasing: 'none (offline test double)',
     streaming: false,
+    modes: ['plain', 'biased'],
     run,
     transcribe: async (audio, options) => (await run(audio, options)).words,
   };

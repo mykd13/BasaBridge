@@ -35,11 +35,11 @@ Please tick each box you agree to.
 - [ ] I am the parent or legal guardian of the child taking part.
 - [ ] I agree that my child can be recorded reading short stories for this test.
 - [ ] I agree that the recordings can be sent to these companies for testing only (tick each one you agree to):
-  - [ ] Microsoft (Azure AI Speech) [region and country to confirm]
-  - [ ] Deepgram [country to confirm]
-  - [ ] AssemblyAI [country to confirm]
-  - [ ] Google (Cloud Speech-to-Text) [region and country to confirm]
-  - [ ] Speechmatics [country to confirm]
+  - [ ] Microsoft (Azure AI Speech), processed in Singapore
+  - [ ] Deepgram, processed in the United States
+  - [ ] AssemblyAI, processed in the United States
+  - [ ] Google (Cloud Speech-to-Text), processed in the United States
+  - [ ] Speechmatics, processed in the European Union
 - [ ] I understand my child can stop at any time and I can withdraw at any time before [DATE].
 
 Guardian's name: ______________________

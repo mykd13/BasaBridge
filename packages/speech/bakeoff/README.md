@@ -27,6 +27,22 @@ Throwaway scripts that compare speech providers on recordings of children readin
    plus the keys for the providers you test (see the top of each file in `providers/`).
 
 3. The harness refuses a data folder inside a repository. It also refuses a OneDrive, Dropbox or Google Drive path unless you set `BAKEOFF_ALLOW_SYNCED=1`, which you should only do for an encrypted container.
+4. Before the first AssemblyAI run, turn on the model-training opt-out in the AssemblyAI dashboard. The API has no switch for it.
+
+## Providers
+
+| Name           | Company      | Env                                           | Batch | Stream | Limits found on 2026-10-17                                     |
+| -------------- | ------------ | --------------------------------------------- | ----- | ------ | -------------------------------------------------------------- |
+| `azure-pa`     | azure        | `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`     | yes   | no     | 30 s maximum, en-US only, biased mode only, no word confidence |
+| `azure`        | azure        | same                                          | yes   | no     | en-PH, no word confidence (phrase confidence used)             |
+| `deepgram`     | deepgram     | `DEEPGRAM_API_KEY`, `DEEPGRAM_HOST`           | yes   | yes    | no Southeast Asia region                                       |
+| `assemblyai`   | assemblyai   | `ASSEMBLYAI_API_KEY`, `ASSEMBLYAI_HOST`       | yes   | yes    | no Asia region                                                 |
+| `google`       | google       | `GOOGLE_ACCESS_TOKEN`, `GOOGLE_PROJECT`       | yes   | no     | 60 s maximum, streaming is gRPC only, confidence not reliable  |
+| `speechmatics` | speechmatics | `SPEECHMATICS_API_KEY`, `SPEECHMATICS_REGION` | yes   | yes    | no Asia region; batch path from memory, try `--limit 1` first  |
+
+No child-speech specialist has a self-serve API: SoapBox Labs is no longer offered, and KidSense is licensed to device makers only. Speechace has an oral reading fluency product and a Singapore endpoint, but it needs a paid subscription and is not built for children. It is listed in `vendors.json` and not tested.
+
+Recordings longer than a provider's limit are recorded as `too_long` without being sent.
 
 ## Run
 

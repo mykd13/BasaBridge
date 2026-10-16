@@ -30,7 +30,7 @@ import {
 } from './data.ts';
 import type { Dataset } from './data.ts';
 import { ProviderError, log } from './log.ts';
-import { PROVIDER_NAMES, createProvider } from './providers/index.ts';
+import { COMPANIES, PROVIDER_NAMES, companyOf, createProvider } from './providers/index.ts';
 import { buildReport } from './report.ts';
 import type { VendorFacts } from './report.ts';
 import type { Mode, StoredResult } from './types.ts';
@@ -52,7 +52,7 @@ function today(): string {
 }
 
 function check(dir: string) {
-  const ds = loadDataset(dir, PROVIDER_NAMES);
+  const ds = loadDataset(dir, COMPANIES);
   const missingAudio = ds.recordings.filter((r) => !existsSync(audioPath(dir, r.recordingId)));
   const missingTruth = ds.recordings.filter((r) => !ds.truth.has(r.recordingId));
   const timed = [...ds.truth.values()].filter((rows) => rows.some((r) => r.start !== null));
@@ -71,7 +71,7 @@ function templates(dir: string) {
   const recordings = parseManifest(
     readFileSync(join(dir, 'manifest.csv'), 'utf8'),
     passages,
-    PROVIDER_NAMES,
+    COMPANIES,
   );
   mkdirSync(join(dir, 'transcripts'), { recursive: true });
   let written = 0;
@@ -114,7 +114,7 @@ async function runProviders(ds: Dataset, args: string[], env: NodeJS.ProcessEnv)
     let done = 0;
     for (const rec of ds.recordings) {
       if (done >= limit) break;
-      if (name !== 'oracle' && !rec.vendors.includes(name)) {
+      if (name !== 'oracle' && !rec.vendors.includes(companyOf(name))) {
         log('skip_no_consent', { recordingId: rec.recordingId, provider: name });
         continue;
       }
@@ -132,11 +132,26 @@ async function runProviders(ds: Dataset, args: string[], env: NodeJS.ProcessEnv)
           ? (ds.truth.get(rec.recordingId) ?? []).flatMap((r) => r.said)
           : undefined;
       for (const mode of modes) {
-        if (mode === 'biased' && provider.biasing === 'none') continue;
+        if (!provider.modes.includes(mode)) continue;
         for (const transport of transports) {
           if (transport === 'stream' && !provider.runStream) continue;
           const t = transport as 'batch' | 'stream';
           if (!force && hasResult(ds.dir, name, mode, t, rec.recordingId)) continue;
+          if (t === 'batch' && provider.maxSeconds && wav.seconds > provider.maxSeconds) {
+            writeResult(ds.dir, {
+              words: [],
+              provider: name,
+              mode,
+              transport: t,
+              recordingId: rec.recordingId,
+              latencyMs: 0,
+              audioSeconds: wav.seconds,
+              ok: false,
+              error: 'too_long',
+            });
+            log('call', { recordingId: rec.recordingId, provider: name, mode, status: 'too_long' });
+            continue;
+          }
           const options = {
             referenceText: passage.text,
             bias: mode === 'biased',
@@ -262,7 +277,7 @@ async function selftest() {
   }
   writeFileSync(join(dir, 'manifest.csv'), rows.join('\n') + '\n');
   const env = { ...process.env, BAKEOFF_DATA_DIR: dir };
-  const ds = loadDataset(dataDir(env), PROVIDER_NAMES);
+  const ds = loadDataset(dataDir(env), COMPANIES);
   await runProviders(ds, ['--provider', 'oracle', '--mode', 'both'], env);
   const md = buildReport(ds, readAllResults(dir), loadVendors(), {
     generatedOn: today(),
@@ -284,9 +299,9 @@ async function main() {
     case 'labels':
       return labels(dir, args[0]);
     case 'run':
-      return runProviders(loadDataset(dir, PROVIDER_NAMES), args, process.env);
+      return runProviders(loadDataset(dir, COMPANIES), args, process.env);
     case 'report':
-      return report(loadDataset(dir, PROVIDER_NAMES), args);
+      return report(loadDataset(dir, COMPANIES), args);
     default:
       throw new DataError('Commands: check, templates, labels <id>, run, report, selftest.');
   }

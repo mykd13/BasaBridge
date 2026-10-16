@@ -67,7 +67,7 @@ export function writeWav(pcm: Uint8Array, sampleRate: number): Uint8Array {
 }
 
 /** Split PCM into chunks of the given length, for real-time streaming. */
-export function* chunks(wav: Wav, ms: number): Generator<Uint8Array> {
+export function* chunks(wav: Wav, ms: number): Generator<Uint8Array<ArrayBuffer>> {
   const size = Math.max(2, Math.round((wav.sampleRate * wav.channels * 2 * ms) / 1000) & ~1);
-  for (let o = 0; o < wav.pcm.length; o += size) yield wav.pcm.subarray(o, o + size);
+  for (let o = 0; o < wav.pcm.length; o += size) yield wav.pcm.slice(o, o + size);
 }
