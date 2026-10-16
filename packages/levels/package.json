@@ -11,6 +11,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
-    "@basabridge/contracts": "workspace:*"
+    "@basabridge/contracts": "workspace:*",
+    "@types/node": "^26.6.5"
   }
 }
