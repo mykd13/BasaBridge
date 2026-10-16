@@ -328,9 +328,6 @@ button.bb-option:hover {
   flex-direction: column;
   gap: 0.875rem;
 }
-.bb-level > p {
-  margin: 0;
-}
 .bb-level--card {
   padding: 1.5rem;
   border: 1px solid var(--line);
@@ -375,6 +372,10 @@ button.bb-option:hover {
   border-radius: var(--radius-xl);
   background: var(--surface);
   color: var(--ink);
+}
+.bb-card > p,
+.bb-level > p {
+  margin: 0;
 }
 .bb-card--strong {
   border-width: 2px;
