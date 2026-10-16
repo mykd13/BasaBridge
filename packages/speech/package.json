@@ -9,8 +9,15 @@
   "dependencies": {
     "@basabridge/contracts": "workspace:*"
   },
+  "devDependencies": {
+    "@basabridge/levels": "workspace:*",
+    "@types/node": "^26.6.5"
+  },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "typecheck": "tsc -p tsconfig.json && tsc -p bakeoff/tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "bakeoff": "node --env-file-if-exists=../../.env.local bakeoff/run.ts",
+    "bakeoff:templates": "node --env-file-if-exists=../../.env.local bakeoff/run.ts templates",
+    "bakeoff:labels": "node --env-file-if-exists=../../.env.local bakeoff/run.ts labels"
   }
 }
