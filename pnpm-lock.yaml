@@ -196,7 +196,11 @@ importers:
         specifier: ^0.31.11
         version: 0.31.11
 
-  packages/levels: {}
+  packages/levels:
+    devDependencies:
+      '@basabridge/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/mastery:
     dependencies:
