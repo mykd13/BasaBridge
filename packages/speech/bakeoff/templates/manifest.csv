@@ -1,0 +1,2 @@
+recording_id,reader_code,passage_id,age_band,first_language,device,noise,vendors
+rec-0001,R01,P01,6-8,cebuano,phone,quiet,azure;deepgram;assemblyai;google;speechmatics
