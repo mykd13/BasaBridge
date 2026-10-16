@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkStory, countWords, readingGrade, syllables } from './index';
+import { checkStory, countWords, readingGrade, syllables } from './checks';
 
 const PASSAGE =
   'Lia and her grandfather have a mango tree. Every morning, Lia checks the tree. The mangoes are still green. One day, the wind blows hard. Three mangoes fall. Lia picks them up, but they are too sour. Grandfather smiles. "We must be patient," he says.';
