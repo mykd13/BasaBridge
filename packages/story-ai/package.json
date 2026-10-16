@@ -8,7 +8,9 @@
   },
   "dependencies": {
     "@basabridge/contracts": "workspace:*",
-    "@basabridge/levels": "workspace:*"
+    "@basabridge/levels": "workspace:*",
+    "ai": "^7.0.142",
+    "zod": "^4.6.7"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
