@@ -46,7 +46,7 @@ describe('pickTopic', () => {
 describe('isRecentTitle', () => {
   it('ignores case, punctuation and a leading article', () => {
     expect(isRecentTitle('The Mango Tree!', ['mango tree'])).toBe(true);
-    expect(isRecentTitle('A Rainy Day', ["an rainy day."])).toBe(true);
+    expect(isRecentTitle('A Rainy Day', ['an rainy day.'])).toBe(true);
   });
 
   it('is false for different titles and empty titles', () => {
