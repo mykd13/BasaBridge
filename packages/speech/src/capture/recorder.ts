@@ -95,7 +95,8 @@ export class MicRecorder {
     const mimeType = pickMimeType(this.deps.isTypeSupported);
     if (!mimeType) return { ok: false, state: 'unsupported' };
 
-    const result = await requestMicrophone(this.deps);
+    // With nothing injected, let requestMicrophone use the browser's own mediaDevices.
+    const result = await requestMicrophone(this.deps.mediaDevices ? this.deps : undefined);
     if (result.state !== 'granted') return { ok: false, state: result.state };
 
     const stream = result.stream;

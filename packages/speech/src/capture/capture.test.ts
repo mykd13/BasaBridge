@@ -146,6 +146,18 @@ describe('MicRecorder', () => {
     );
     expect(await recorder.start()).toEqual({ ok: false, state: 'no-device' });
   });
+
+  it("uses the browser's own microphone API when nothing is injected", async () => {
+    const getUserMedia = vi.fn(failWith('NotFoundError'));
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+    try {
+      const recorder = new MicRecorder({ onChunk: () => {} }, { isTypeSupported: () => true });
+      expect(await recorder.start()).toEqual({ ok: false, state: 'no-device' });
+      expect(getUserMedia).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 const ok = (next: number) => new Response(JSON.stringify({ next }), { status: 200 });
