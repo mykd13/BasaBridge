@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Find my starting level</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="background:#F4F6F2;color:#14212B;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:17px;line-height:1.55;min-height:780px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #D9DED6">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Lexend',sans-serif;font-weight:700;font-size:19px"><svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#0C6B63"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>
+    <span style="font-weight:700;color:#56646E">Welcome</span>
+  </header>
+  <main style="max-width:1040px;margin:0 auto;padding:56px 40px;display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start">
+    <section style="flex:1 1 460px;min-width:0;display:flex;flex-direction:column;gap:22px;align-items:flex-start">
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <h1 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:42px;line-height:1.15">Let us find your starting level</h1>
+        <button aria-label="Listen to this page" style="flex:none;width:52px;height:52px;border-radius:50%;border:2px solid #0C6B63;background:#DCEEEA;display:grid;place-items:center"><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="#0C6B63"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" fill="none" stroke="#0C6B63" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <p style="margin:0;font-size:22px;line-height:1.5;max-width:44ch">Read a few short stories and answer questions. This shows where to start so the stories are not too hard or too easy. It takes about 10 minutes.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <a href="S3-Loading.dc.html" style="display:inline-flex;align-items:center;justify-content:center;min-height:62px;padding:14px 40px;border-radius:16px;background:#0C6B63;color:#FFFFFF;font-size:21px;font-weight:700;text-decoration:none">Start</a>
+        <a href="S2-Home.dc.html" style="display:inline-flex;align-items:center;min-height:62px;padding:10px 24px;border-radius:16px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B;font-weight:700;font-size:18px;text-decoration:none">Do this later</a>
+      </div>
+      <p style="margin:0;color:#56646E;font-size:16px;max-width:52ch">If you do it later, we start you at an easy level for your grade and ask again.</p>
+    </section>
+    <aside style="flex:1 1 340px;min-width:0;display:flex;flex-direction:column;gap:16px">
+      <div style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:16px">
+        <h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:20px">What will happen</h2>
+        <div style="display:flex;gap:14px;align-items:center"><span style="flex:none;width:44px;height:44px;border-radius:50%;background:#DCEEEA;color:#0C6B63;display:grid;place-items:center;font-family:'Lexend',sans-serif;font-weight:700">1</span><span style="font-size:19px">Read a story out loud</span></div>
+        <div style="display:flex;gap:14px;align-items:center"><span style="flex:none;width:44px;height:44px;border-radius:50%;background:#DCEEEA;color:#0C6B63;display:grid;place-items:center;font-family:'Lexend',sans-serif;font-weight:700">2</span><span style="font-size:19px">Answer questions about it</span></div>
+        <div style="display:flex;gap:14px;align-items:center"><span style="flex:none;width:44px;height:44px;border-radius:50%;background:#DCEEEA;color:#0C6B63;display:grid;place-items:center;font-family:'Lexend',sans-serif;font-weight:700">3</span><span style="font-size:19px">Get your starting level</span></div>
+        <div style="color:#56646E;font-size:16px;border-top:1px solid #D9DED6;padding-top:12px">You read each story once. There are no hints in this test. You can stop and come back.</div>
+      </div>
+      <div style="background:#FBEFCF;border-radius:14px;padding:14px 18px;font-size:16px">Your grown-up has not said yes to the microphone yet, so you will read silently for now. We will check again when they say yes.</div>
+    </aside>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

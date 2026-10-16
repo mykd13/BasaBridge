@@ -32,7 +32,20 @@
     "P3-Readings.dc.html": { "x": 2720, "y": 5920, "w": 1280, "h": 1560, "title": "F3 Readings and AI analysis", "expand": "fill", "is_interactive": true },
     "P6-Levels.dc.html": { "x": 0, "y": 7900, "w": 1280, "h": 1320, "title": "F4 Levels and tries", "expand": "fill", "is_interactive": true },
     "P4-Decisions.dc.html": { "x": 1360, "y": 7900, "w": 1280, "h": 1000, "title": "F5 AI decisions", "expand": "fill", "is_interactive": true },
-    "P5-Data.dc.html": { "x": 2720, "y": 7900, "w": 1280, "h": 940, "title": "F6 Linked children and privacy", "expand": "fill", "is_interactive": true }
+    "P5-Data.dc.html": { "x": 2720, "y": 7900, "w": 1280, "h": 940, "title": "F6 Linked children and privacy", "expand": "fill", "is_interactive": true },
+
+    "G1-PlacementIntro.dc.html": { "x": 0, "y": 9700, "w": 1280, "h": 780, "title": "G1 Find my starting level", "expand": "fill", "is_interactive": true },
+    "G2-PlacementBetween.dc.html": { "x": 1360, "y": 9700, "w": 1280, "h": 780, "title": "G2 Between placement stories", "expand": "fill", "is_interactive": true },
+    "G3-PlacementResult.dc.html": { "x": 2720, "y": 9700, "w": 1280, "h": 780, "title": "G3 Your starting level", "expand": "fill", "is_interactive": true },
+
+    "H1-ResultNotPassed.dc.html": { "x": 0, "y": 10840, "w": 1280, "h": 780, "title": "H1 Result: not passed yet, with Learn", "expand": "fill", "is_interactive": true },
+    "H2-LearnHome.dc.html": { "x": 1360, "y": 10840, "w": 1280, "h": 900, "title": "H2 Learn home", "expand": "fill", "is_interactive": true },
+    "H3-Lesson.dc.html": { "x": 2720, "y": 10840, "w": 1280, "h": 780, "title": "H3 Lesson: explain", "expand": "fill", "is_interactive": true },
+    "H4-Practice.dc.html": { "x": 4080, "y": 10840, "w": 1280, "h": 780, "title": "H4 Lesson: practice", "expand": "fill", "is_interactive": true },
+
+    "H5-LessonDone.dc.html": { "x": 0, "y": 12060, "w": 1280, "h": 780, "title": "H5 Lesson done", "expand": "fill", "is_interactive": true },
+    "H6-SayIt.dc.html": { "x": 1360, "y": 12060, "w": 1280, "h": 780, "title": "H6 Word practice: Say it", "expand": "fill", "is_interactive": true },
+    "I1-ReadingHelp.dc.html": { "x": 2720, "y": 12060, "w": 1280, "h": 900, "title": "I1 Reading help", "expand": "fill", "is_interactive": true }
   },
   "order": [
     "Main.dc.html", "A2-CreateAccount.dc.html", "S2-Home.dc.html",
@@ -40,7 +53,10 @@
     "S8-Question.dc.html", "S9-Feedback.dc.html", "S11-Result.dc.html", "S12-LevelUp.dc.html",
     "S7-StoppedEarly.dc.html", "S10-NewPhrase.dc.html", "S13-MicBlocked.dc.html",
     "S14-MyProgress.dc.html", "A4-MyAccount.dc.html", "A3-ShareWithParent.dc.html",
-    "P1-AddLearner.dc.html", "P2-Progress.dc.html", "P3-Readings.dc.html", "P6-Levels.dc.html", "P4-Decisions.dc.html", "P5-Data.dc.html"
+    "P1-AddLearner.dc.html", "P2-Progress.dc.html", "P3-Readings.dc.html", "P6-Levels.dc.html", "P4-Decisions.dc.html", "P5-Data.dc.html",
+    "G1-PlacementIntro.dc.html", "G2-PlacementBetween.dc.html", "G3-PlacementResult.dc.html",
+    "H1-ResultNotPassed.dc.html", "H2-LearnHome.dc.html", "H3-Lesson.dc.html", "H4-Practice.dc.html", "H5-LessonDone.dc.html", "H6-SayIt.dc.html",
+    "I1-ReadingHelp.dc.html"
   ],
   "notes": {
     "s0": { "x": 0, "y": -700, "w": 900, "fill": "gray", "text": "How to read this canvas\nFlows run left to right, then top to bottom.\nA Getting started, B and C One reading session, D When things go differently, E My progress and account.\nF is the optional parent flow. It only exists if a student shares a link code.", "size": "m" },
@@ -51,6 +67,12 @@
     "t5": { "x": 0, "y": 4400, "text": "E. Student: my progress, my account, sharing with a parent", "kind": "title1", "maxW": 4000 },
     "t6": { "x": 0, "y": 5660, "text": "F. Optional parent flow (1 of 2): link, see progress, read the analysis", "kind": "title1", "maxW": 4000 },
     "t7": { "x": 0, "y": 7640, "text": "F. Optional parent flow (2 of 2): levels, AI decisions, privacy", "kind": "title1", "maxW": 4000 },
+    "t8": { "x": 0, "y": 9440, "text": "G. Placement test: find the starting level before the main course", "kind": "title1", "maxW": 4000 },
+    "t9": { "x": 0, "y": 10580, "text": "H. Learn (1 of 2): from a missed question to a lesson", "kind": "title1", "maxW": 5360 },
+    "t10": { "x": 0, "y": 11800, "text": "H. Learn (2 of 2), and I. Reading help", "kind": "title1", "maxW": 4000 },
+    "s7": { "x": 4080, "y": 9700, "w": 440, "fill": "purple", "text": "Placement rules (ADR 0003):\n- 2 to 4 calibrated stories, one try each, no hints, no Learn button.\n- Next story is chosen from the answers so far; stops when sure enough.\n- Start a little below the estimate.\n- Under-13 without guardian approval: silent only, flagged, re-checked later.\n- Retake after 30 days. Skipping starts at the grade default." },
+    "s8": { "x": 5440, "y": 10840, "w": 440, "fill": "green", "text": "Learn rules (ADR 0003):\n- A small Learn link under a wrong answer (once per quiz). A big Learn button on a result that did not pass.\n- Lessons come from the skills the learner missed, found by code.\n- Practice never changes the level. 'Learned' shows only after fresh questions in the next real story.\n- No free chat with a model." },
+    "s9": { "x": 4080, "y": 12060, "w": 440, "fill": "blue", "text": "Reading support (ADR 0004): speaker buttons on instructions and questions, English or Filipino instructions, short and simple wording, reading ruler, big type. Stories stay English. Every support is recorded on the answers it affects. Tested with children in M6." },
     "s1": { "x": 4080, "y": 0, "w": 420, "fill": "teal", "text": "Names, the story and the scores on these screens are examples to show layout. The real app shows only what a learner has actually done, and empty states until then." },
     "s5": { "x": 4580, "y": 0, "w": 440, "fill": "red", "text": "Check before building: children's data law. Under the Philippine Data Privacy Act, a young child usually cannot give consent alone. A2 asks under-13s for a grown-up's approval before the microphone turns on. Remove it only after legal advice. Everyone 13 and over uses the app with no parent at all." },
     "s3": { "x": 5440, "y": 1240, "w": 420, "fill": "blue", "text": "Reading aloud shows the child reached the end and how accurately and smoothly they read. It does not show understanding. Comprehension still comes from the questions in C, and the story is hidden while answering." },

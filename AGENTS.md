@@ -26,6 +26,10 @@ These are not style preferences. Breaking one is a bug, even if tests pass.
 7. **Generated stories pass the checks before a learner sees them.** AI output is validated against the zod schemas in `packages/contracts`, and anything invalid falls back to standard wording or fails visibly.
 8. **No fake data.** Screens start empty and fill from real activity. No seeded demo users in app code.
 9. **Never commit secrets.** Use `.env.local` (gitignored) and `example.env`.
+10. **Practice in Learn never changes a level.** Level moves only on story evidence, and a lesson counts as learned only after fresh questions in a real story.
+11. **Learners never chat freely with a model.** Text shown to a learner comes from fixed, validated formats.
+12. **Every accommodation is recorded.** Question read-aloud, listen-then-read and word tap are logged on the answers they affect, never hidden.
+13. **All interface text goes through the i18n catalog** in English and Filipino, with a simple and a standard wording. No hard-coded strings.
 
 ## Locked areas
 
@@ -43,12 +47,12 @@ UI screens, copy and app structure change freely within the design canvas.
 
 ## Owners and areas
 
-| Area                           | Folders                                                                                       | Owner |
-| ------------------------------ | --------------------------------------------------------------------------------------------- | ----- |
-| Platform and accounts          | `packages/db/**`, `packages/contracts/**`, `.github/**`, root config, `docs/adr/**`           | Rhett |
-| Speech and reading analysis    | `packages/speech/**`                                                                          | James |
-| AI teacher and learning engine | `packages/levels/**`, `packages/mastery/**`, `packages/story-ai/**`, `packages/teacher-ai/**` | Jhade |
-| Product experience             | `apps/web/**`, `packages/ui/**`, `design/**`, `docs/**` (except `docs/adr`)                   | Sean  |
+| Area                           | Folders                                                                                                            | Owner |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------ | ----- |
+| Platform and accounts          | `packages/db/**`, `packages/contracts/**`, `.github/**`, root config, `docs/adr/**`                                | Rhett |
+| Speech and reading analysis    | `packages/speech/**`                                                                                               | James |
+| AI teacher and learning engine | `packages/levels/**`, `packages/mastery/**`, `packages/learn/**`, `packages/story-ai/**`, `packages/teacher-ai/**` | Jhade |
+| Product experience             | `apps/web/**`, `packages/ui/**`, `design/**`, `docs/**` (except `docs/adr`)                                        | Sean  |
 
 ## Repository map
 
@@ -57,8 +61,9 @@ UI screens, copy and app structure change freely within the design canvas.
 | `apps/web`            | Next.js app: student and parent screens, route handlers          |
 | `packages/contracts`  | zod schemas shared by everything                                 |
 | `packages/db`         | Drizzle schema and migrations                                    |
-| `packages/levels`     | Level table, tries tiers, pass rule                              |
-| `packages/mastery`    | Skill estimates, focus skill, level movement                     |
+| `packages/levels`     | Level table, tries tiers, pass and evidence rules                |
+| `packages/mastery`    | Ability model, placement logic, focus skill, level movement      |
+| `packages/learn`      | Gap mapping, lesson recommendation, Learn rules                  |
 | `packages/story-ai`   | Story generation, deterministic checks, verifier                 |
 | `packages/teacher-ai` | Teacher notes and standard fallbacks                             |
 | `packages/speech`     | Speech provider interface, alignment, pace                       |

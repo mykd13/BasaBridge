@@ -116,3 +116,5 @@ export function isVeryWeak(r: StoryResult): boolean {
 
 /** First level for a new learner. Everyone starts at the bottom. */
 export const STARTING_LEVEL = 1;
+
+export * from './evidence';

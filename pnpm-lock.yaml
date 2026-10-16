@@ -139,6 +139,9 @@ importers:
       '@basabridge/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@basabridge/learn':
+        specifier: workspace:*
+        version: link:../../packages/learn
       '@basabridge/levels':
         specifier: workspace:*
         version: link:../../packages/levels
@@ -195,6 +198,12 @@ importers:
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
+
+  packages/learn:
+    dependencies:
+      '@basabridge/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/levels: {}
 

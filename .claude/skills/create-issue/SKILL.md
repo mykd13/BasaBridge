@@ -46,12 +46,12 @@ The Linear tools may be named `mcp__linear__*` or `mcp__claude_ai_Linear__*`, de
 
 Each problem becomes one issue in one area:
 
-| Area                           | Folders                                                                                       | Owner |
-| ------------------------------ | --------------------------------------------------------------------------------------------- | ----- |
-| Platform and accounts          | `packages/db/**`, `packages/contracts/**`, `.github/**`, root config, `docs/adr/**`           | Rhett |
-| Speech and reading analysis    | `packages/speech/**`                                                                          | James |
-| AI teacher and learning engine | `packages/levels/**`, `packages/mastery/**`, `packages/story-ai/**`, `packages/teacher-ai/**` | Jhade |
-| Product experience             | `apps/web/**`, `packages/ui/**`, `design/**`, `docs/**` (except `docs/adr`)                   | Sean  |
+| Area                           | Folders                                                                                                            | Owner |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------ | ----- |
+| Platform and accounts          | `packages/db/**`, `packages/contracts/**`, `.github/**`, root config, `docs/adr/**`                                | Rhett |
+| Speech and reading analysis    | `packages/speech/**`                                                                                               | James |
+| AI teacher and learning engine | `packages/levels/**`, `packages/mastery/**`, `packages/learn/**`, `packages/story-ai/**`, `packages/teacher-ai/**` | Jhade |
+| Product experience             | `apps/web/**`, `packages/ui/**`, `design/**`, `docs/**` (except `docs/adr`)                                        | Sean  |
 
 - **Area:** pick the area that owns most of the files the fix touches.
 - **Reviewer:** the owner of the other area the change touches most. If it stays in one area, ask Sean to review, or Rhett when Sean owns the area.

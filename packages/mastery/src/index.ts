@@ -6,6 +6,14 @@
 import type { ComprehensionSkill } from '@basabridge/contracts';
 import { MAX_LEVEL, MIN_LEVEL, PASS_RULE } from '@basabridge/levels';
 
+export * from './ability';
+export * from './placement';
+
+/**
+ * The simple estimate and level rule below are the first seed. The ability model in `ability.ts`
+ * and the evidence-based movement in `levelReadiness` replace them as BB-19 lands. They stay as a
+ * fallback and a reference for tests.
+ */
 export const COMPREHENSION_SKILLS: readonly ComprehensionSkill[] = [
   'vocabulary',
   'literal',

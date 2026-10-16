@@ -12,6 +12,7 @@
   "dependencies": {
     "@basabridge/contracts": "workspace:*",
     "@basabridge/db": "workspace:*",
+    "@basabridge/learn": "workspace:*",
     "@basabridge/levels": "workspace:*",
     "@basabridge/mastery": "workspace:*",
     "@basabridge/speech": "workspace:*",

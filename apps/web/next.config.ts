@@ -5,6 +5,7 @@ const config: NextConfig = {
   transpilePackages: [
     '@basabridge/contracts',
     '@basabridge/db',
+    '@basabridge/learn',
     '@basabridge/levels',
     '@basabridge/mastery',
     '@basabridge/speech',
