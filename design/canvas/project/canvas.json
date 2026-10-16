@@ -1,0 +1,61 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-17T00:30:00Z" },
+  "title": "BasaBridge Flow Canvas",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1280, "h": 780, "title": "A1 Sign in", "expand": "fill", "is_interactive": true },
+    "A2-CreateAccount.dc.html": { "x": 1360, "y": 0, "w": 1280, "h": 880, "title": "A2 Create an account", "expand": "fill", "is_interactive": true },
+    "S2-Home.dc.html": { "x": 2720, "y": 0, "w": 1280, "h": 780, "title": "A3 Student home and level", "expand": "fill", "is_interactive": true },
+
+    "S3-Loading.dc.html": { "x": 0, "y": 1240, "w": 1280, "h": 780, "title": "B1 Making a story", "expand": "fill", "is_interactive": true },
+    "S4-Mic.dc.html": { "x": 1360, "y": 1240, "w": 1280, "h": 780, "title": "B2 Turn on microphone", "expand": "fill", "is_interactive": true },
+    "S5-ReadAloud.dc.html": { "x": 2720, "y": 1240, "w": 1280, "h": 780, "title": "B3 Reading aloud", "expand": "fill", "is_interactive": true },
+    "S6-Analysis.dc.html": { "x": 4080, "y": 1240, "w": 1280, "h": 780, "title": "B4 AI reading analysis", "expand": "fill", "is_interactive": true },
+
+    "S8-Question.dc.html": { "x": 0, "y": 2380, "w": 1280, "h": 780, "title": "C1 Question", "expand": "fill", "is_interactive": true },
+    "S9-Feedback.dc.html": { "x": 1360, "y": 2380, "w": 1280, "h": 780, "title": "C2 Answer feedback", "expand": "fill", "is_interactive": true },
+    "S11-Result.dc.html": { "x": 2720, "y": 2380, "w": 1280, "h": 780, "title": "C3 Result and level progress", "expand": "fill", "is_interactive": true },
+    "S12-LevelUp.dc.html": { "x": 4080, "y": 2380, "w": 1280, "h": 780, "title": "C4 Level up", "expand": "fill", "is_interactive": true },
+
+    "S7-StoppedEarly.dc.html": { "x": 0, "y": 3520, "w": 1280, "h": 780, "title": "D1 Stopped early (from B3)", "expand": "fill", "is_interactive": true },
+    "S10-NewPhrase.dc.html": { "x": 1360, "y": 3520, "w": 1280, "h": 780, "title": "D2 Tries used up (from B4)", "expand": "fill", "is_interactive": true },
+    "S13-MicBlocked.dc.html": { "x": 2720, "y": 3520, "w": 1280, "h": 780, "title": "D3 Microphone blocked (from B2)", "expand": "fill", "is_interactive": true },
+
+    "S14-MyProgress.dc.html": { "x": 0, "y": 4660, "w": 1280, "h": 900, "title": "E1 My progress", "expand": "fill", "is_interactive": true },
+    "A4-MyAccount.dc.html": { "x": 1360, "y": 4660, "w": 1280, "h": 880, "title": "E2 My account", "expand": "fill", "is_interactive": true },
+    "A3-ShareWithParent.dc.html": { "x": 2720, "y": 4660, "w": 1280, "h": 880, "title": "E3 Share with a parent (optional)", "expand": "fill", "is_interactive": true },
+
+    "P1-AddLearner.dc.html": { "x": 0, "y": 5920, "w": 1280, "h": 800, "title": "F1 Parent links a child with the code", "expand": "fill", "is_interactive": true },
+    "P2-Progress.dc.html": { "x": 1360, "y": 5920, "w": 1280, "h": 1620, "title": "F2 Parent sees progress", "expand": "fill", "is_interactive": true },
+    "P3-Readings.dc.html": { "x": 2720, "y": 5920, "w": 1280, "h": 1560, "title": "F3 Readings and AI analysis", "expand": "fill", "is_interactive": true },
+    "P6-Levels.dc.html": { "x": 0, "y": 7900, "w": 1280, "h": 1320, "title": "F4 Levels and tries", "expand": "fill", "is_interactive": true },
+    "P4-Decisions.dc.html": { "x": 1360, "y": 7900, "w": 1280, "h": 1000, "title": "F5 AI decisions", "expand": "fill", "is_interactive": true },
+    "P5-Data.dc.html": { "x": 2720, "y": 7900, "w": 1280, "h": 940, "title": "F6 Linked children and privacy", "expand": "fill", "is_interactive": true }
+  },
+  "order": [
+    "Main.dc.html", "A2-CreateAccount.dc.html", "S2-Home.dc.html",
+    "S3-Loading.dc.html", "S4-Mic.dc.html", "S5-ReadAloud.dc.html", "S6-Analysis.dc.html",
+    "S8-Question.dc.html", "S9-Feedback.dc.html", "S11-Result.dc.html", "S12-LevelUp.dc.html",
+    "S7-StoppedEarly.dc.html", "S10-NewPhrase.dc.html", "S13-MicBlocked.dc.html",
+    "S14-MyProgress.dc.html", "A4-MyAccount.dc.html", "A3-ShareWithParent.dc.html",
+    "P1-AddLearner.dc.html", "P2-Progress.dc.html", "P3-Readings.dc.html", "P6-Levels.dc.html", "P4-Decisions.dc.html", "P5-Data.dc.html"
+  ],
+  "notes": {
+    "s0": { "x": 0, "y": -700, "w": 900, "fill": "gray", "text": "How to read this canvas\nFlows run left to right, then top to bottom.\nA Getting started, B and C One reading session, D When things go differently, E My progress and account.\nF is the optional parent flow. It only exists if a student shares a link code.", "size": "m" },
+    "t1": { "x": 0, "y": -260, "text": "A. Getting started: sign in or create an account", "kind": "title1", "maxW": 4000 },
+    "t2": { "x": 0, "y": 980, "text": "B. One reading session (1 of 2): story, microphone, reading aloud, analysis", "kind": "title1", "maxW": 5360 },
+    "t3": { "x": 0, "y": 2120, "text": "C. One reading session (2 of 2): questions, result, level up", "kind": "title1", "maxW": 5360 },
+    "t4": { "x": 0, "y": 3260, "text": "D. When things go differently", "kind": "title1", "maxW": 4000 },
+    "t5": { "x": 0, "y": 4400, "text": "E. Student: my progress, my account, sharing with a parent", "kind": "title1", "maxW": 4000 },
+    "t6": { "x": 0, "y": 5660, "text": "F. Optional parent flow (1 of 2): link, see progress, read the analysis", "kind": "title1", "maxW": 4000 },
+    "t7": { "x": 0, "y": 7640, "text": "F. Optional parent flow (2 of 2): levels, AI decisions, privacy", "kind": "title1", "maxW": 4000 },
+    "s1": { "x": 4080, "y": 0, "w": 420, "fill": "teal", "text": "Names, the story and the scores on these screens are examples to show layout. The real app shows only what a learner has actually done, and empty states until then." },
+    "s5": { "x": 4580, "y": 0, "w": 440, "fill": "red", "text": "Check before building: children's data law. Under the Philippine Data Privacy Act, a young child usually cannot give consent alone. A2 asks under-13s for a grown-up's approval before the microphone turns on. Remove it only after legal advice. Everyone 13 and over uses the app with no parent at all." },
+    "s3": { "x": 5440, "y": 1240, "w": 420, "fill": "blue", "text": "Reading aloud shows the child reached the end and how accurately and smoothly they read. It does not show understanding. Comprehension still comes from the questions in C, and the story is hidden while answering." },
+    "s4": { "x": 5440, "y": 1900, "w": 420, "fill": "purple", "text": "AI reading analysis (B4): code aligns what the child said to the passage and counts the misses. The AI then explains patterns in plain words and says how sure it is. Speech recognition can be wrong for some voices and accents, so the learner or a linked parent can mark a word as misheard." },
+    "s6": { "x": 4080, "y": 3520, "w": 420, "fill": "yellow", "text": "Open decisions:\n- Level numbers, tries per tier and the pass rule are placeholders to tune.\n- The microphone needs a speech service behind the page. The Claude artifact cannot record.\n- Audio off by default: analyse, then discard.\n- Under-13 approval rule (see the red note at the top)." }
+  },
+  "designSystems": []
+}

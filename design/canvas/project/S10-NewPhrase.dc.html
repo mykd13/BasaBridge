@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tries used up, new phrase</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="background:#F4F6F2;color:#14212B;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:17px;line-height:1.55;min-height:780px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #D9DED6">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Lexend',sans-serif;font-weight:700;font-size:19px"><svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#0C6B63"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>
+    <span style="color:#56646E;font-weight:700">Level 24</span>
+  </header>
+  <main style="max-width:900px;margin:0 auto;padding:48px 40px;display:flex;flex-direction:column;gap:26px">
+    <h1 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:40px;line-height:1.2">You used all 5 tries</h1>
+    <p style="margin:0;font-size:22px;line-height:1.5;max-width:56ch">Your best try was Try 4, and that one counts. Next you will answer the questions, then read a new story at the same level.</p>
+    <div style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:18px;padding:20px 24px;display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:13px;font-weight:700;color:#56646E;text-transform:uppercase;letter-spacing:.06em">Words read right on each try</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div style="flex:1 1 120px;border:1.5px solid #D9DED6;border-radius:14px;padding:12px 14px"><div style="color:#56646E">Try 1</div><div style="font-family:'Lexend',sans-serif;font-weight:600;font-size:26px">78%</div></div>
+        <div style="flex:1 1 120px;border:1.5px solid #D9DED6;border-radius:14px;padding:12px 14px"><div style="color:#56646E">Try 2</div><div style="font-family:'Lexend',sans-serif;font-weight:600;font-size:26px">85%</div></div>
+        <div style="flex:1 1 120px;border:1.5px solid #D9DED6;border-radius:14px;padding:12px 14px"><div style="color:#56646E">Try 3</div><div style="font-family:'Lexend',sans-serif;font-weight:600;font-size:26px">89%</div></div>
+        <div style="flex:1 1 120px;border:2px solid #0C6B63;background:#DCEEEA;border-radius:14px;padding:12px 14px"><div style="color:#0C6B63;font-weight:700">Try 4 · best</div><div style="font-family:'Lexend',sans-serif;font-weight:600;font-size:26px">94%</div></div>
+        <div style="flex:1 1 120px;border:1.5px solid #D9DED6;border-radius:14px;padding:12px 14px"><div style="color:#56646E">Try 5</div><div style="font-family:'Lexend',sans-serif;font-weight:600;font-size:26px">91%</div></div>
+      </div>
+    </div>
+    <div style="background:#FFFFFF;border:2px solid #D9DED6;border-radius:20px;padding:20px 24px;font-size:20px;line-height:1.5;max-width:720px">
+      <div style="font-size:13px;font-weight:700;color:#0C6B63;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Your teacher says</div>
+      You kept going and got better every time at the hard words. Your new story will have the same kind of words, so you can use what you learned.
+    </div>
+    <a href="S8-Question.dc.html" style="align-self:flex-start;display:inline-flex;align-items:center;justify-content:center;min-height:62px;padding:14px 36px;border-radius:16px;background:#0C6B63;color:#FFFFFF;font-size:20px;font-weight:700;text-decoration:none">Answer the questions</a>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

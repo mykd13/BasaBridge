@@ -1,0 +1,30 @@
+{
+  "name": "@basabridge/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@basabridge/contracts": "workspace:*",
+    "@basabridge/db": "workspace:*",
+    "@basabridge/levels": "workspace:*",
+    "@basabridge/mastery": "workspace:*",
+    "@basabridge/speech": "workspace:*",
+    "@basabridge/story-ai": "workspace:*",
+    "@basabridge/teacher-ai": "workspace:*",
+    "@basabridge/ui": "workspace:*",
+    "next": "^16.4.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
+  }
+}

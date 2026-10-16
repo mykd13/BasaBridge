@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Result and level progress</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="background:#F4F6F2;color:#14212B;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:17px;line-height:1.55;min-height:780px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #D9DED6">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Lexend',sans-serif;font-weight:700;font-size:19px"><svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#0C6B63"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>
+    <span style="color:#56646E;font-weight:700">Level 24</span>
+  </header>
+  <main style="max-width:1080px;margin:0 auto;padding:44px 40px;display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start">
+    <section style="flex:3 1 480px;min-width:0;display:flex;flex-direction:column;gap:20px">
+      <h1 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:42px;line-height:1.15">You answered 4 of 5</h1>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <span style="background:#DCEEEA;color:#0C6B63;padding:7px 16px;border-radius:999px;font-weight:700">Read to the end</span>
+        <span style="background:#DCEEEA;color:#0C6B63;padding:7px 16px;border-radius:999px;font-weight:700">Words read right 94%</span>
+        <span style="background:#DCEEEA;color:#0C6B63;padding:7px 16px;border-radius:999px;font-weight:700">Word meanings 1/2</span>
+        <span style="background:#DCEEEA;color:#0C6B63;padding:7px 16px;border-radius:999px;font-weight:700">Finding facts 2/2</span>
+        <span style="background:#DCEEEA;color:#0C6B63;padding:7px 16px;border-radius:999px;font-weight:700">Reading between the lines 1/1</span>
+      </div>
+      <div style="background:#FFFFFF;border:2px solid #D9DED6;border-radius:20px;padding:20px 24px;font-size:21px;line-height:1.5">
+        <div style="font-size:13px;font-weight:700;color:#0C6B63;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Your teacher says</div>
+        You read the whole story smoothly and found the facts. Next we will practice what words mean when you read them.
+      </div>
+    </section>
+    <aside style="flex:2 1 300px;min-width:0;background:#FFFFFF;border:1px solid #D9DED6;border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:13px;font-weight:700;color:#56646E;text-transform:uppercase;letter-spacing:.06em">Level 24</div>
+      <div style="display:flex;gap:8px;align-items:center" aria-label="3 of 3 stories passed">
+        <span style="flex:1;height:14px;border-radius:7px;background:#0C6B63"></span><span style="flex:1;height:14px;border-radius:7px;background:#0C6B63"></span><span style="flex:1;height:14px;border-radius:7px;background:#0C6B63"></span>
+      </div>
+      <p style="margin:0;font-weight:700">This story passed. 3 of 3 passed!</p>
+      <p style="margin:0;color:#56646E">You reached Level 25.</p>
+      <a href="S12-LevelUp.dc.html" style="display:inline-flex;align-items:center;justify-content:center;min-height:62px;padding:14px 28px;border-radius:16px;background:#0C6B63;color:#FFFFFF;font-size:20px;font-weight:700;text-decoration:none">See my new level</a>
+      <a href="S2-Home.dc.html" style="min-height:46px;display:inline-flex;align-items:center;justify-content:center;padding:10px 20px;border-radius:12px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B;font-weight:700;text-decoration:none">I am done</a>
+    </aside>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

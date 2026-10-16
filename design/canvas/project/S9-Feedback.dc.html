@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Answer feedback</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="background:#F4F6F2;color:#14212B;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:17px;line-height:1.55;min-height:780px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #D9DED6">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Lexend',sans-serif;font-weight:700;font-size:19px"><svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#0C6B63"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>
+    <div style="display:flex;gap:14px;align-items:center"><span style="display:flex;gap:8px" aria-label="Question 3 of 5"><span style="width:14px;height:14px;border-radius:50%;background:#0C6B63"></span><span style="width:14px;height:14px;border-radius:50%;background:#0C6B63"></span><span style="width:14px;height:14px;border-radius:50%;background:#0C6B63"></span><span style="width:14px;height:14px;border-radius:50%;background:#D9DED6"></span><span style="width:14px;height:14px;border-radius:50%;background:#D9DED6"></span></span><span style="color:#56646E">Question 3 of 5</span></div>
+  </header>
+  <main style="max-width:820px;margin:0 auto;padding:48px 40px;display:flex;flex-direction:column;gap:22px">
+    <div style="font-family:'Lexend',sans-serif;font-weight:500;font-size:30px;line-height:1.4;max-width:30ch">In the story, what does the word “patient” mean?</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:14px;align-items:center;padding:14px 20px;border:2px solid #23724A;border-radius:16px;background:#DDF0E4;font-size:21px"><span style="flex:none;width:36px;height:36px;border-radius:50%;background:#23724A;color:#FFFFFF;display:grid;place-items:center;font-weight:700;font-family:'Lexend',sans-serif">A</span>Able to wait calmly</div>
+      <div style="display:flex;gap:14px;align-items:center;padding:14px 20px;border:2px solid #D9DED6;border-radius:16px;background:#FFFFFF;font-size:21px;opacity:.6"><span style="flex:none;width:36px;height:36px;border-radius:50%;background:#DCEEEA;color:#0C6B63;display:grid;place-items:center;font-weight:700;font-family:'Lexend',sans-serif">B</span>Very hungry</div>
+      <div style="display:flex;gap:14px;align-items:center;padding:14px 20px;border:2px solid #A9322B;border-radius:16px;background:#F7E0DD;font-size:21px"><span style="flex:none;width:36px;height:36px;border-radius:50%;background:#A9322B;color:#FFFFFF;display:grid;place-items:center;font-weight:700;font-family:'Lexend',sans-serif">C</span>Full of energy</div>
+      <div style="display:flex;gap:14px;align-items:center;padding:14px 20px;border:2px solid #D9DED6;border-radius:16px;background:#FFFFFF;font-size:21px;opacity:.6"><span style="flex:none;width:36px;height:36px;border-radius:50%;background:#DCEEEA;color:#0C6B63;display:grid;place-items:center;font-weight:700;font-family:'Lexend',sans-serif">D</span>Afraid of the wind</div>
+    </div>
+    <div style="padding:14px 20px;border-radius:14px;background:#FFFFFF;border:2px solid #D9DED6;font-size:20px"><b style="font-family:'Lexend',sans-serif">Not quite.</b> The answer is A: able to wait calmly.</div>
+    <a href="S11-Result.dc.html" style="align-self:flex-start;display:inline-flex;align-items:center;justify-content:center;min-height:62px;padding:14px 36px;border-radius:16px;background:#0C6B63;color:#FFFFFF;font-size:20px;font-weight:700;text-decoration:none">Next question</a>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

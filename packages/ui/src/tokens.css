@@ -1,0 +1,61 @@
+/* Design tokens taken from the design canvas (design/canvas). Owner: Sean (BB-05). */
+:root {
+  --bg: #f4f6f2;
+  --surface: #ffffff;
+  --ink: #14212b;
+  --muted: #56646e;
+  --line: #d9ded6;
+  --accent: #0c6b63;
+  --accent-ink: #ffffff;
+  --accent-soft: #dceeea;
+  --mark: #f3b93b;
+  --mark-soft: #fbefcf;
+  --good: #23724a;
+  --good-soft: #ddf0e4;
+  --bad: #a9322b;
+  --bad-soft: #f7e0dd;
+  --warn: #9a5a07;
+  --font-display: 'Lexend', 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --font-body: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0f1615;
+    --surface: #162120;
+    --ink: #e7eeec;
+    --muted: #9baaa6;
+    --line: #2b3937;
+    --accent: #52c4b5;
+    --accent-ink: #04201c;
+    --accent-soft: #17332f;
+    --mark: #e9b24a;
+    --mark-soft: #3a2f15;
+    --good: #6cc48f;
+    --good-soft: #173525;
+    --bad: #f08c82;
+    --bad-soft: #3c1e1b;
+    --warn: #f0a64b;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0f1615;
+  --surface: #162120;
+  --ink: #e7eeec;
+  --muted: #9baaa6;
+  --line: #2b3937;
+  --accent: #52c4b5;
+  --accent-ink: #04201c;
+  --accent-soft: #17332f;
+  --mark: #e9b24a;
+  --mark-soft: #3a2f15;
+  --good: #6cc48f;
+  --good-soft: #173525;
+  --bad: #f08c82;
+  --bad-soft: #3c1e1b;
+  --warn: #f0a64b;
+  color-scheme: dark;
+}

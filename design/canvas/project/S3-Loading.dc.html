@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Making a story</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="background:#F4F6F2;color:#14212B;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:17px;line-height:1.55;min-height:780px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #D9DED6">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Lexend',sans-serif;font-weight:700;font-size:19px"><svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#0C6B63"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>
+    <span style="font-weight:700;color:#56646E">Level 24</span>
+  </header>
+  <main style="max-width:720px;margin:0 auto;padding:72px 40px;display:flex;flex-direction:column;gap:28px;align-items:flex-start">
+    <svg width="72" height="72" viewBox="0 0 64 64" role="img" aria-label="Working"><circle cx="32" cy="32" r="26" fill="none" stroke="#D9DED6" stroke-width="7"/><path d="M32 6a26 26 0 0 1 26 26" fill="none" stroke="#0C6B63" stroke-width="7" stroke-linecap="round"/></svg>
+    <h1 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:38px;line-height:1.2">Checking every question against the story…</h1>
+    <ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:14px;font-size:21px">
+      <li style="display:flex;gap:12px;align-items:center;color:#23724A"><svg width="28" height="28" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="12" fill="#DDF0E4"/><path d="M7 13.5l4 4 8-9" fill="none" stroke="#23724A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Choosing a new story at your level</li>
+      <li style="display:flex;gap:12px;align-items:center;font-weight:700"><svg width="28" height="28" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="12" fill="#FBEFCF" stroke="#F3B93B" stroke-width="2"/></svg>Checking every question</li>
+      <li style="display:flex;gap:12px;align-items:center;color:#56646E"><svg width="28" height="28" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="11" fill="none" stroke="#D9DED6" stroke-width="2"/></svg>Getting the microphone ready</li>
+    </ol>
+    <p style="margin:0;color:#56646E">This can take up to a minute. A good story is worth the wait.</p>
+    <a href="S2-Home.dc.html" style="min-height:46px;display:inline-flex;align-items:center;padding:10px 20px;border-radius:12px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B;font-weight:700;text-decoration:none">Cancel</a>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

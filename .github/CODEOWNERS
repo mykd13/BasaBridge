@@ -1,0 +1,16 @@
+# Code owners. Replace the placeholders with each person's GitHub username, then uncomment.
+# Rhett: platform and accounts   James: speech and reading analysis
+# Jhade: AI teacher and engine   Sean: product experience (mykd13)
+
+# /.github/              @RHETT_GITHUB
+# /packages/db/          @RHETT_GITHUB
+# /packages/speech/      @JAMES_GITHUB
+# /packages/levels/      @JHADE_GITHUB
+# /packages/mastery/     @JHADE_GITHUB
+# /packages/story-ai/    @JHADE_GITHUB
+# /packages/teacher-ai/  @JHADE_GITHUB
+# /packages/ui/          @mykd13
+# /apps/web/             @mykd13
+
+# Shared contracts need review from the owners on both sides of any change.
+# /packages/contracts/   @RHETT_GITHUB @JAMES_GITHUB @JHADE_GITHUB @mykd13

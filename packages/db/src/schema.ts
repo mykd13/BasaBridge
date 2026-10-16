@@ -1,0 +1,195 @@
+/**
+ * First cut of the data model (docs/PLAN.md section 5). Owner: Rhett (BB-03).
+ * Every table that holds a learner id must be read through the authorization layer (BB-10):
+ * parents see learner data only through an active parent_links row and its share flags.
+ * Nothing here stores audio unless audio_objects is used, which only happens when retention is on.
+ */
+import {
+  boolean,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  real,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
+
+export const roleEnum = pgEnum('role', ['student', 'parent']);
+export const linkStatusEnum = pgEnum('link_status', ['pending', 'active', 'revoked']);
+export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approved', 'declined']);
+export const skillEnum = pgEnum('skill', ['vocabulary', 'literal', 'inferential']);
+export const storySourceEnum = pgEnum('story_source', ['generated', 'bank']);
+export const sessionStatusEnum = pgEnum('session_status', ['reading', 'answering', 'done']);
+export const decisionKindEnum = pgEnum('decision_kind', [
+  'story',
+  'level',
+  'plan',
+  'analysis',
+  'tries',
+]);
+
+const id = () => uuid('id').primaryKey().defaultRandom();
+const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
+
+export const users = pgTable('users', {
+  id: id(),
+  role: roleEnum('role').notNull(),
+  username: text('username').notNull().unique(),
+  email: text('email'),
+  passwordHash: text('password_hash').notNull(),
+  /** Birth year band is enough for the age gate. Do not store a full birth date. */
+  ageBand: text('age_band'),
+  createdAt: createdAt(),
+});
+
+export const learners = pgTable('learners', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  grade: integer('grade'),
+  level: integer('level').notNull().default(1),
+  levelPasses: integer('level_passes').notNull().default(0),
+  keepAudio: boolean('keep_audio').notNull().default(false),
+});
+
+export const parentLinks = pgTable('parent_links', {
+  id: id(),
+  parentUserId: uuid('parent_user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  learnerUserId: uuid('learner_user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  status: linkStatusEnum('status').notNull().default('pending'),
+  sharesProgress: boolean('shares_progress').notNull().default(true),
+  sharesAnalysis: boolean('shares_analysis').notNull().default(true),
+  createdAt: createdAt(),
+});
+
+export const linkCodes = pgTable('link_codes', {
+  code: text('code').primaryKey(),
+  learnerUserId: uuid('learner_user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+});
+
+export const guardianApprovals = pgTable('guardian_approvals', {
+  id: id(),
+  learnerUserId: uuid('learner_user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  guardianEmail: text('guardian_email').notNull(),
+  status: approvalStatusEnum('status').notNull().default('pending'),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+export const consents = pgTable('consents', {
+  id: id(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  kind: text('kind').notNull(),
+  version: integer('version').notNull(),
+  givenAt: timestamp('given_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const stories = pgTable('stories', {
+  id: id(),
+  level: integer('level').notNull(),
+  title: text('title').notNull(),
+  text: text('text').notNull(),
+  words: integer('words').notNull(),
+  readingGrade: real('reading_grade').notNull(),
+  source: storySourceEnum('source').notNull(),
+  checks: jsonb('checks').notNull().default({}),
+  createdAt: createdAt(),
+});
+
+export const questions = pgTable('questions', {
+  id: id(),
+  storyId: uuid('story_id')
+    .notNull()
+    .references(() => stories.id, { onDelete: 'cascade' }),
+  skill: skillEnum('skill').notNull(),
+  word: text('word'),
+  text: text('text').notNull(),
+  options: jsonb('options').notNull(),
+  answerIndex: integer('answer_index').notNull(),
+  evidence: text('evidence').notNull(),
+});
+
+export const readingSessions = pgTable('reading_sessions', {
+  id: id(),
+  learnerUserId: uuid('learner_user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  storyId: uuid('story_id')
+    .notNull()
+    .references(() => stories.id),
+  triesAllowed: integer('tries_allowed'),
+  triesUsed: integer('tries_used').notNull().default(0),
+  countedTryId: uuid('counted_try_id'),
+  status: sessionStatusEnum('status').notNull().default('reading'),
+  createdAt: createdAt(),
+});
+
+export const tries = pgTable('tries', {
+  id: id(),
+  sessionId: uuid('session_id')
+    .notNull()
+    .references(() => readingSessions.id, { onDelete: 'cascade' }),
+  completed: boolean('completed').notNull(),
+  wordsTotal: integer('words_total').notNull(),
+  wordsRight: integer('words_right').notNull(),
+  wordsPerMinute: integer('words_per_minute').notNull(),
+  /** TryAnalysis from @basabridge/contracts. */
+  analysis: jsonb('analysis').notNull(),
+  createdAt: createdAt(),
+});
+
+export const answers = pgTable('answers', {
+  id: id(),
+  sessionId: uuid('session_id')
+    .notNull()
+    .references(() => readingSessions.id, { onDelete: 'cascade' }),
+  questionId: uuid('question_id')
+    .notNull()
+    .references(() => questions.id),
+  chosen: integer('chosen').notNull(),
+  correct: boolean('correct').notNull(),
+});
+
+export const decisions = pgTable('decisions', {
+  id: id(),
+  learnerUserId: uuid('learner_user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  kind: decisionKindEnum('kind').notNull(),
+  title: text('title').notNull(),
+  summary: text('summary').notNull(),
+  evidence: jsonb('evidence').notNull().default({}),
+  createdAt: createdAt(),
+});
+
+/** Only written when the learner turned audio retention on. Rows expire after 30 days. */
+export const audioObjects = pgTable('audio_objects', {
+  id: id(),
+  tryId: uuid('try_id')
+    .notNull()
+    .references(() => tries.id, { onDelete: 'cascade' }),
+  storageKey: text('storage_key').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+});
+
+export const auditLog = pgTable('audit_log', {
+  id: id(),
+  actorUserId: uuid('actor_user_id'),
+  action: text('action').notNull(),
+  target: text('target'),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+});

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>My account</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="background:#F4F6F2;color:#14212B;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:17px;line-height:1.55;min-height:880px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #D9DED6">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Lexend',sans-serif;font-weight:700;font-size:19px"><svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#0C6B63"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>
+    <nav style="display:flex;gap:6px;flex-wrap:wrap" aria-label="Main"><a href="S2-Home.dc.html" style="padding:8px 16px;border-radius:999px;font-weight:700;color:#14212B;text-decoration:none">Home</a><a href="S14-MyProgress.dc.html" style="padding:8px 16px;border-radius:999px;font-weight:700;color:#14212B;text-decoration:none">My progress</a><span style="padding:8px 16px;border-radius:999px;font-weight:700;background:#14212B;color:#F4F6F2">My account</span><a href="Main.dc.html" style="padding:8px 16px;border-radius:999px;font-weight:700;color:#56646E;text-decoration:none">Sign out</a></nav>
+  </header>
+  <main style="max-width:900px;margin:0 auto;padding:44px 40px;display:flex;flex-direction:column;gap:24px">
+    <h1 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:36px;line-height:1.2">My account</h1>
+    <section style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:20px;padding:6px 26px">
+      <div style="display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid #D9DED6"><span><div style="color:#56646E;font-size:15px">Username</div><b>[username]</b></span><span style="color:#56646E;font-size:15px">Cannot be changed</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid #D9DED6"><span><div style="color:#56646E;font-size:15px">Email, for password reset</div><b>[email]</b></span><button style="font:inherit;font-weight:700;min-height:44px;padding:6px 18px;border-radius:10px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B">Change</button></div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;justify-content:space-between;padding:16px 0"><span><div style="color:#56646E;font-size:15px">Password</div><b>••••••••••</b></span><button style="font:inherit;font-weight:700;min-height:44px;padding:6px 18px;border-radius:10px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B">Change password</button></div>
+    </section>
+    <section style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:20px;padding:24px 26px;display:flex;flex-direction:column;gap:14px">
+      <h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:20px">My voice</h2>
+      <p style="margin:0;color:#56646E">When you read aloud, your voice is turned into text to follow along. The audio is then thrown away.</p>
+      <label for="keep" style="display:flex;gap:12px;align-items:flex-start;font-weight:400"><input id="keep" type="checkbox" style="width:22px;height:22px;margin-top:2px;flex:none;accent-color:#0C6B63"><span><b>Keep my recordings for 30 days</b><br><span style="color:#56646E">Off. When on, you can listen to your own tries, then they are deleted.</span></span></label>
+    </section>
+    <section style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:20px;padding:24px 26px;display:flex;flex-direction:column;gap:12px">
+      <h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:20px">Parent or guardian</h2>
+      <p style="margin:0;color:#56646E">Optional. You choose whether anyone else sees your progress.</p>
+      <div><a href="A3-ShareWithParent.dc.html" style="display:inline-flex;align-items:center;min-height:46px;padding:8px 20px;border-radius:12px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B;font-weight:700;text-decoration:none">Share my progress</a></div>
+    </section>
+    <section style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:20px;padding:24px 26px;display:flex;flex-direction:column;gap:12px">
+      <h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:20px">My data</h2>
+      <div style="display:flex;gap:12px;flex-wrap:wrap"><button style="font:inherit;font-weight:700;min-height:46px;padding:8px 20px;border-radius:12px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B">Download my data</button><button style="font:inherit;font-weight:700;min-height:46px;padding:8px 20px;border-radius:12px;border:1.5px solid #A9322B;background:#FFFFFF;color:#A9322B">Delete my account</button></div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":880}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

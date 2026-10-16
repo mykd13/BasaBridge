@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Turn on microphone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="background:#F4F6F2;color:#14212B;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:17px;line-height:1.55;min-height:780px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #D9DED6">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Lexend',sans-serif;font-weight:700;font-size:19px"><svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#0C6B63"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>
+    <span style="font-weight:700;color:#56646E">Level 24</span>
+  </header>
+  <main style="max-width:1000px;margin:0 auto;padding:56px 40px;display:flex;flex-wrap:wrap;gap:40px;align-items:center">
+    <section style="flex:1 1 440px;min-width:0;display:flex;flex-direction:column;gap:22px;align-items:flex-start">
+      <h1 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:42px;line-height:1.2">Read the story out loud</h1>
+      <p style="margin:0;font-size:22px;line-height:1.5">Your teacher will listen while you read. Press the button, then choose Allow when your browser asks about the microphone.</p>
+      <div style="background:#FBEFCF;border-radius:14px;padding:14px 18px;font-size:18px;line-height:1.5">Find a quiet spot. Read at your own speed. Your voice is used to follow along and is not kept.</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <a href="S5-ReadAloud.dc.html" style="display:inline-flex;align-items:center;justify-content:center;min-height:62px;padding:14px 36px;border-radius:16px;background:#0C6B63;color:#FFFFFF;font-size:21px;font-weight:700;text-decoration:none">Turn on microphone</a>
+        <a href="S13-MicBlocked.dc.html" style="min-height:62px;display:inline-flex;align-items:center;padding:10px 20px;border-radius:16px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B;font-weight:700;text-decoration:none">I cannot use a microphone</a>
+      </div>
+    </section>
+    <div style="flex:1 1 280px;min-width:0;display:grid;place-items:center">
+      <div style="width:200px;height:200px;border-radius:50%;background:#DCEEEA;display:grid;place-items:center">
+        <svg width="96" height="96" viewBox="0 0 52 52" role="img" aria-label="Microphone"><rect x="18" y="5" width="16" height="28" rx="8" fill="#0C6B63"/><path d="M10 25c0 9 7 15 16 15s16-6 16-15M26 40v8M18 48h16" fill="none" stroke="#0C6B63" stroke-width="3.2" stroke-linecap="round"/></svg>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

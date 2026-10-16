@@ -1,0 +1,748 @@
+<title>BasaBridge</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>
+/* Layout: one slim top bar with a Student/Parent switch; student side is one task per screen in large type, parent side is dense rows and plain tables of evidence. */
+:root{
+  --bg:#F4F6F2; --surface:#FFFFFF; --ink:#14212B; --muted:#56646E; --line:#D9DED6;
+  --accent:#0C6B63; --accent-ink:#FFFFFF; --accent-soft:#DCEEEA;
+  --mark:#F3B93B; --mark-soft:#FBEFCF;
+  --good:#23724A; --good-soft:#DDF0E4; --bad:#A9322B; --bad-soft:#F7E0DD; --warn:#9A5A07;
+  --display:'Lexend','Atkinson Hyperlegible',system-ui,sans-serif;
+  --body:'Atkinson Hyperlegible',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --fs:1;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1615; --surface:#162120; --ink:#E7EEEC; --muted:#9BAAA6; --line:#2B3937;
+    --accent:#52C4B5; --accent-ink:#04201C; --accent-soft:#17332F;
+    --mark:#E9B24A; --mark-soft:#3A2F15;
+    --good:#6CC48F; --good-soft:#173525; --bad:#F08C82; --bad-soft:#3C1E1B; --warn:#F0A64B;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1615; --surface:#162120; --ink:#E7EEEC; --muted:#9BAAA6; --line:#2B3937;
+  --accent:#52C4B5; --accent-ink:#04201C; --accent-soft:#17332F;
+  --mark:#E9B24A; --mark-soft:#3A2F15;
+  --good:#6CC48F; --good-soft:#173525; --bad:#F08C82; --bad-soft:#3C1E1B; --warn:#F0A64B;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink); font:400 16px/1.55 var(--body); margin:0;
+  padding-block:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+h1,h2,h3{font-family:var(--display);line-height:1.2;margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:1.75rem} h2{font-size:1.2rem} h3{font-size:1rem}
+p{margin:0}
+.wrap{max-width:980px;margin:0 auto;padding-bottom:64px}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--mark);outline-offset:2px}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:1.15rem;letter-spacing:.01em}
+.brand svg{width:34px;height:34px;flex:none}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:8px 18px;border-radius:999px;font-weight:700;min-height:40px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+
+main{padding-top:28px;display:flex;flex-direction:column;gap:28px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:10px 20px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);font-weight:700}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.btn.danger.solid{background:var(--bad);color:#fff}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn.big{min-height:60px;font-size:1.2rem;padding:14px 28px;border-radius:16px}
+
+/* parent chips */
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 16px;font-weight:700;min-height:42px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.add{border-style:dashed;color:var(--accent)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{border:0;background:transparent;padding:10px 14px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+
+/* sections */
+.sec{display:flex;flex-direction:column;gap:12px}
+.sec>header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px}
+.notice{border-left:4px solid var(--mark);background:var(--mark-soft);padding:12px 16px;border-radius:0 12px 12px 0}
+.empty{border:1.5px dashed var(--line);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px}
+
+/* skills */
+.skill{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:8px 24px;padding:16px 0;border-top:1px solid var(--line)}
+.skill:first-of-type{border-top:0}
+.skill .name{font-weight:700}
+.bar{height:12px;border-radius:6px;background:var(--line);overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent)}
+.bar.low>i{opacity:.5}
+.bar.none{background:transparent;border:1.5px dashed var(--line)}
+.meta{display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center;margin-top:6px;font-size:.9rem}
+.tag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.8rem;font-weight:700;background:var(--accent-soft);color:var(--accent)}
+.tag.warn{background:var(--mark-soft);color:var(--warn)}
+.tag.up{background:var(--good-soft);color:var(--good)}
+.tag.down{background:var(--bad-soft);color:var(--bad)}
+@media (max-width:640px){.skill{grid-template-columns:minmax(0,1fr)}}
+
+/* lists */
+.entry{border-top:1px solid var(--line);padding:14px 0}
+.entry:first-of-type{border-top:0}
+details>summary{cursor:pointer;list-style:none;display:flex;gap:12px;justify-content:space-between;align-items:baseline;flex-wrap:wrap}
+details>summary::-webkit-details-marker{display:none}
+details>summary::after{content:'Show';font-size:.85rem;font-weight:700;color:var(--accent)}
+details[open]>summary::after{content:'Hide'}
+.q{padding:10px 0;border-top:1px dashed var(--line)}
+.q .mark{font-weight:700}
+.q .ok{color:var(--good)} .q .no{color:var(--bad)}
+.quote{border-left:3px solid var(--mark);padding-left:12px;color:var(--muted);margin-top:4px}
+ol.steps{margin:6px 0 0;padding-left:1.3rem;display:flex;flex-direction:column;gap:6px}
+
+/* forms */
+label{font-weight:700;display:block;margin-bottom:4px}
+input[type=text],select{font:inherit;width:100%;min-height:46px;padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
+.check{display:flex;gap:12px;align-items:flex-start;font-weight:400}
+.check input{width:22px;height:22px;margin-top:2px;flex:none;accent-color:var(--accent)}
+.form{max-width:560px;display:flex;flex-direction:column;gap:16px}
+
+/* student */
+.stu{--fs-base:1.15rem;font-size:1.15rem}
+.stu h1{font-size:2.1rem}
+.hello{display:flex;flex-direction:column;gap:18px;align-items:flex-start;max-width:640px}
+.note{background:var(--surface);border:2px solid var(--line);border-radius:20px;padding:20px 22px;font-size:1.25rem;max-width:640px;position:relative}
+.note small{display:block;font-size:.85rem;font-weight:700;color:var(--accent);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
+.passage{font-size:calc(1.35rem*var(--fs));line-height:1.8;max-width:62ch;display:flex;flex-direction:column;gap:1em}
+.sizes{display:flex;gap:8px}
+.sizes button{min-width:48px;min-height:44px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);font-weight:700}
+.sizes button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.dots{display:flex;gap:8px;align-items:center}
+.dots i{width:14px;height:14px;border-radius:50%;background:var(--line);display:block}
+.dots i.done{background:var(--accent)} .dots i.now{background:var(--mark);outline:2px solid var(--ink)}
+.opts{display:flex;flex-direction:column;gap:12px;max-width:680px}
+.opt{display:flex;gap:14px;align-items:flex-start;width:100%;text-align:left;padding:16px 18px;border:2px solid var(--line);border-radius:16px;background:var(--surface);font-size:1.2rem;min-height:60px}
+.opt .ltr{flex:none;width:34px;height:34px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-family:var(--display)}
+.opt:hover:not([disabled]){border-color:var(--accent)}
+.opt.right{border-color:var(--good);background:var(--good-soft)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.opt[disabled]{cursor:default}
+.opt.dim{opacity:.6}
+.qtext{font-size:1.5rem;font-family:var(--display);font-weight:500;line-height:1.4;max-width:34ch}
+.feedback{max-width:680px;padding:14px 18px;border-radius:14px;background:var(--surface);border:2px solid var(--line)}
+.feedback b{font-family:var(--display)}
+.hl{background:var(--mark-soft);box-shadow:inset 0 -.45em 0 var(--mark-soft);padding:0 .15em;border-radius:3px}
+.spin{width:28px;height:28px;border-radius:50%;border:4px solid var(--line);border-top-color:var(--accent);animation:sp 1s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.spin{animation:none;border-top-color:var(--mark);border-right-color:var(--mark)}}
+.skills-chips{display:flex;gap:10px;flex-wrap:wrap}
+.skills-chips .tag{font-size:1rem;padding:6px 14px}
+.who{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.who button{padding:22px;border:2px solid var(--line);border-radius:18px;background:var(--surface);font-family:var(--display);font-size:1.4rem;font-weight:600;text-align:left}
+.who button:hover{border-color:var(--accent)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:12px;max-width:min(92vw,520px);z-index:20;font-weight:700}
+#toast[hidden]{display:none}
+.mono{font-variant-numeric:tabular-nums}
+</style>
+
+<div class="wrap" id="app"></div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- constants ---------- */
+const SKILLS = {
+  decoding:    { label:'Decoding',                 blurb:'Sounding out words accurately',             measured:false },
+  fluency:     { label:'Fluency',                  blurb:'Reading smoothly at a steady pace',          measured:false },
+  vocabulary:  { label:'Vocabulary',               blurb:'Knowing what words mean in context',        measured:true, kid:'Word meanings' },
+  literal:     { label:'Literal comprehension',    blurb:'Finding what the text says directly',       measured:true, kid:'Finding facts' },
+  inferential: { label:'Inferential comprehension',blurb:'Working out what the text suggests',        measured:true, kid:'Reading between the lines' }
+};
+const ORDER = ['decoding','fluency','vocabulary','literal','inferential'];
+const MEASURED = ['vocabulary','literal','inferential'];
+const LEVELS = {
+  1:{min:40, max:75,  fk:3.0, desc:'a child in Grades 1-2: very short sentences (5-8 words), everyday words, at most two less common words'},
+  2:{min:60, max:100, fk:4.5, desc:'a child in Grade 3: sentences of up to 12 words, simple past and present tense, a few new words explained by context'},
+  3:{min:90, max:140, fk:6.0, desc:'a child in Grade 4: mostly simple sentences with some joined by "and", "but" or "because", a few topic words'},
+  4:{min:120,max:180, fk:7.5, desc:'a child in Grade 5: varied sentences, some compound sentences, several topic words that context helps explain'},
+  5:{min:150,max:220, fk:9.0, desc:'a child in Grade 6: some complex sentences, a range of topic words, details that must be connected'}
+};
+const START_LEVEL = {1:1,2:1,3:1,4:2,5:3,6:4};
+const TOPICS = ['market day with grandmother','walking to school in the rainy season','a lost slipper','a fishing boat at sunrise','planting vegetables in a school garden','a jeepney ride','baking pandesal','a barangay fiesta','a stray cat that follows a child home','a typhoon drill at school','a mango tree','helping at a sari-sari store','a school library corner','a firefly at night','recycling bottles into plant pots','a river cleanup day','learning to ride a bicycle','a power outage and a candle story','a village basketball game','a pet carabao'];
+const HOME_RULES = {
+  vocabulary:{title:'Word detective',minutes:5,steps:['Pick three words from the story that felt tricky.','Ask: "What do you think it means? Which words nearby help you?"','Use each word in a new sentence about your day.'],tip:'Say the meaning in your own words before you reach for a dictionary.'},
+  literal:{title:'Find it in the text',minutes:5,steps:['Reread one paragraph of the story together.','Ask a who, what or where question about it.','Have your child point to the exact words that answer it.'],tip:'Pointing at the words trains the habit of checking the text.'},
+  inferential:{title:'Clue hunt',minutes:7,steps:['Read two or three sentences together.','Ask: "What is not said, but you can tell?"','Ask: "Which words gave you that clue?" and find them.'],tip:'There is no single right answer if the child can name a clue from the text.'}
+};
+const CONSENT_VERSION = 1;
+
+/* ---------- small helpers ---------- */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s ?? '').toLowerCase().replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/\s+/g,' ').trim();
+const fmtDate = ms => ms ? new Date(ms).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : '';
+const fmtTime = ms => ms ? new Date(ms).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+const pct = x => Math.round(x*100);
+const store = (k,v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k,v); } catch(e){} return null; };
+const shuffle = a => { a = a.slice(); for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const chains = new Map();
+const enqueue = (key, fn) => { const p = chains.get(key) || Promise.resolve(); const n = p.catch(()=>{}).then(fn); chains.set(key,n); return n; };
+
+function syllables(w){
+  w = w.toLowerCase().replace(/[^a-z]/g,'');
+  if (!w) return 0; if (w.length <= 3) return 1;
+  w = w.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/,'').replace(/^y/,'');
+  const m = w.match(/[aeiouy]{1,2}/g); return Math.max(1, m ? m.length : 1);
+}
+function fkGrade(text){
+  const sentences = text.split(/[.!?]+(?:\s|$)/).filter(s => s.trim()).length || 1;
+  const words = text.match(/[A-Za-z']+/g) || [];
+  const syl = words.reduce((a,w)=>a+syllables(w),0);
+  return 0.39*(words.length/sentences) + 11.8*(syl/Math.max(1,words.length)) - 15.59;
+}
+
+/* ---------- mastery model (deterministic: no AI involved) ---------- */
+function estimates(attempts){
+  const out = {}; MEASURED.forEach(s => out[s] = {c:0,t:0,wc:0,wt:0});
+  const N = attempts.length;
+  attempts.forEach((a,i) => {
+    const w = Math.pow(0.85, N-1-i);
+    (a.questions||[]).forEach(q => { const o = out[q.skill]; if (!o) return; o.t++; o.wt += w; if (q.correct){ o.c++; o.wc += w; } });
+  });
+  MEASURED.forEach(s => { const o = out[s]; o.est = o.t ? (1+o.wc)/(2+o.wt) : null; o.conf = o.t>=10 ? 'steady' : o.t>=4 ? 'building' : o.t>0 ? 'early' : 'none'; });
+  return out;
+}
+function focusSkill(est){
+  const c = MEASURED.filter(s => est[s].t > 0);
+  if (!c.length) return null;
+  c.sort((a,b) => est[a].est - est[b].est || est[a].t - est[b].t);
+  return c[0];
+}
+function nextLevel(level, correct, total){
+  const r = correct/total;
+  if (total >= 4 && r >= 0.8) return Math.min(5, level+1);
+  if (r <= 0.4) return Math.max(1, level-1);
+  return level;
+}
+const CONF_TEXT = {none:'Not measured yet', early:'Too early to say', building:'Building a picture', steady:'Steady evidence'};
+
+/* ---------- state ---------- */
+const S = {
+  unavailable:false, db:null, sample:null, dl:null, uid:null, ready:false, dbError:null,
+  learners:[], activeId:null, attempts:[], plans:[], log:[],
+  mode: store('bb.mode') === 'student' ? 'student' : 'parent',
+  pTab:'progress', adding:false, form:{name:'',grade:'3',consent:false},
+  open:{}, confirmDelete:false, busy:{},
+  fs: Number(store('bb.fs')) || 1,
+  stu: freshStu()
+};
+function freshStu(){ return {phase:'home', picked:false, reading:null, qi:0, answers:[], step:'', result:null, error:null, ctl:null}; }
+let subs = [];
+const app = document.getElementById('app');
+const toastEl = document.getElementById('toast');
+let toastTimer;
+function toast(msg){ toastEl.textContent = msg; toastEl.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(()=>{ toastEl.hidden = true; }, 5000); }
+
+const learnersCol = () => S.db.doc('data/users/'+S.uid+'/profile').collection('learners');
+const learnerRef = id => learnersCol().doc(id);
+const activeLearner = () => S.learners.find(l => l.id === S.activeId) || null;
+const latestPlan = () => S.plans.length ? S.plans.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0] : null;
+
+function errCopy(e){
+  const c = e && e.code;
+  const m = {
+    not_granted:'Claude access was declined for this page, so stories cannot be made. Allow it and try again.',
+    rate_limited:'Too many requests just now. Wait a minute, then try again.',
+    session_expired:'Your Claude session ended. Sign in again, then retry.',
+    sampling_disabled:'Claude is not available for this account.',
+    invalid_json:'Claude replied in a form this page could not read. Try again.',
+    upstream_error:'Connection problem. Try again.',
+    quality:(e && e.message) || 'No story passed the quality checks. Try again.'
+  };
+  return m[c] || 'Something went wrong. Try again.';
+}
+const saveFail = () => toast('Could not save. This page needs Contributor access to store learner data.');
+
+/* ---------- data subscriptions ---------- */
+function unsubActive(){ subs.forEach(u => { try{u();}catch(e){} }); subs = []; }
+function setActive(id){
+  if (S.activeId === id && subs.length) return;
+  unsubActive(); S.activeId = id; S.attempts = []; S.plans = []; S.log = []; S.confirmDelete = false;
+  if (!id) return;
+  const lr = learnerRef(id);
+  const watch = (name, order, dir, key) => subs.push(lr.collection(name).orderBy(order,dir).onSnapshot(
+    snap => { if (S.activeId !== id) return; S[key] = snap.docs.map(d => ({id:d.id, ...d.data()})); render({snap:true}); },
+    e => { if (e && e.code !== 'revoked') toast('Could not read '+name+'.'); }
+  ));
+  watch('attempts','createdAt','asc','attempts');
+  watch('plans','createdAt','asc','plans');
+  watch('log','at','asc','log');
+}
+
+/* ---------- AI Teacher: story generation with checks ---------- */
+function mixFor(focus){
+  if (focus && MEASURED.includes(focus)){ const m = {vocabulary:1,literal:1,inferential:1}; m[focus] = 3; return m; }
+  return {vocabulary:2,literal:2,inferential:1};
+}
+function promptStory(level, mix, avoidTitles, topic, note){
+  const L = LEVELS[level];
+  const n = mix.vocabulary + mix.literal + mix.inferential;
+  return `You write short English reading passages and multiple-choice questions for children who are learning to read. Reply with JSON only.
+
+Reader: ${L.desc}.
+Passage: ${L.min}-${L.max} words in one or two short paragraphs. Topic idea: ${topic}. An everyday Philippine setting is welcome; avoid stereotypes. No violence, frightening events, romance, religion, politics, brand names or real people.${avoidTitles.length ? ' Do not reuse these titles: '+avoidTitles.join('; ')+'.' : ''}
+
+Write exactly ${n} questions: ${mix.vocabulary} vocabulary, ${mix.literal} literal, ${mix.inferential} inferential.
+- vocabulary: ask what a word from the passage means in context. Put that word in "word" and use it exactly as written in the passage inside the question.
+- literal: the answer is stated directly in the passage.
+- inferential: the answer is not stated; it must be worked out from clues in the passage.
+Every question has 4 options (one correct, three plausible but clearly wrong according to the passage), "answerIndex" (0-3, vary it), and "evidence": one sentence copied word for word from the passage that supports the correct answer.
+
+Format: {"title":"...","passage":"...","questions":[{"skill":"vocabulary","word":"...","question":"...","options":["...","...","...","..."],"answerIndex":1,"evidence":"..."}]}${note ? '\n\nThe previous try failed: '+note+' Fix this.' : ''}`;
+}
+function promptVerify(passage, qs){
+  const lines = qs.map((q,i) => `${i+1}. ${q.question}\n   A) ${q.options[0]}\n   B) ${q.options[1]}\n   C) ${q.options[2]}\n   D) ${q.options[3]}`).join('\n');
+  return `You are checking questions written for a children's reading passage. Use only the passage.
+
+Passage:
+"""
+${passage}
+"""
+
+Questions:
+${lines}
+
+For each question give the index (0-3) of the single best answer according to the passage. Also say whether the passage is safe and suitable for children aged 6-12 (no violence, fear, sexual content, hate, religion, politics, brand names or personal data).
+Reply with JSON only: {"answers":[0,1],"safeForChildren":true,"concerns":""}`;
+}
+function checkStory(gen, level, mix){
+  const L = LEVELS[level];
+  if (!gen || typeof gen.passage !== 'string' || !Array.isArray(gen.questions)) return {ok:false, reason:'The reply was not in the expected format.'};
+  const passage = gen.passage.replace(/\r/g,'').trim();
+  const words = (passage.match(/[A-Za-z']+/g) || []).length;
+  if (words < L.min || words > L.max) return {ok:false, reason:`The passage had ${words} words but must have ${L.min}-${L.max}.`};
+  const fk = fkGrade(passage);
+  if (fk > L.fk) return {ok:false, reason:`The passage was too hard (reading grade ${fk.toFixed(1)}, maximum ${L.fk}). Use shorter sentences and simpler words.`};
+  const np = norm(passage);
+  const kept = []; let badFormat = 0, badEvidence = 0;
+  for (const q of gen.questions){
+    const okShape = q && MEASURED.includes(q.skill) && typeof q.question === 'string' && q.question.trim() && Array.isArray(q.options) && q.options.length === 4 && q.options.every(o => typeof o === 'string' && o.trim()) && new Set(q.options.map(norm)).size === 4 && Number.isInteger(q.answerIndex) && q.answerIndex >= 0 && q.answerIndex <= 3 && typeof q.evidence === 'string';
+    if (!okShape){ badFormat++; continue; }
+    if (!np.includes(norm(q.evidence)) || (q.skill === 'vocabulary' && !(typeof q.word === 'string' && np.includes(norm(q.word))))){ badEvidence++; continue; }
+    kept.push({skill:q.skill, word:q.skill==='vocabulary' ? String(q.word).trim() : null, question:q.question.trim(), options:q.options.map(o=>o.trim()), answerIndex:q.answerIndex, evidence:q.evidence.trim()});
+  }
+  if (kept.length < 4) return {ok:false, reason:`Only ${kept.length} questions were valid; questions must have four distinct options and evidence copied exactly from the passage.`};
+  return {ok:true, title:String(gen.title || 'A short story').trim().slice(0,80), passage, words, fk, questions:kept, made:gen.questions.length, badFormat, badEvidence};
+}
+async function buildStory(L, focus, signal, onStep){
+  const level = L.level || START_LEVEL[L.grade] || 1;
+  const mix = mixFor(focus);
+  const avoid = S.attempts.slice(-6).map(a => a.title).filter(Boolean);
+  let note = '', last = '';
+  for (let tries = 1; tries <= 3; tries++){
+    onStep(tries === 1 ? 'Choosing a story for you' : 'Trying a different story');
+    const topic = TOPICS[Math.floor(Math.random()*TOPICS.length)];
+    const gen = await S.sample.json(promptStory(level, mix, avoid, topic, note), {signal, cache:false});
+    const chk = checkStory(gen, level, mix);
+    if (!chk.ok){ note = last = chk.reason; continue; }
+    onStep('Checking every question against the story');
+    const ver = await S.sample.json(promptVerify(chk.passage, chk.questions), {signal, cache:false, modelTier:'default'});
+    if (!ver || !Array.isArray(ver.answers) || ver.answers.length !== chk.questions.length){ note = last = 'The checker could not answer every question.'; continue; }
+    if (ver.safeForChildren !== true){ note = last = 'The checker found the passage unsuitable for children.'; continue; }
+    const agreed = chk.questions.filter((q,i) => ver.answers[i] === q.answerIndex);
+    const focusKept = focus ? agreed.filter(q => q.skill === focus).length : 99;
+    if (agreed.length < 4 || focusKept < (focus ? 2 : 0)){ note = last = `Only ${agreed.length} questions had an answer a second reader agreed with.`; continue; }
+    const qs = agreed.map(q => {
+      const correct = q.options[q.answerIndex]; const opts = shuffle(q.options);
+      return {...q, options:opts, answerIndex:opts.indexOf(correct)};
+    });
+    const pending = {title:chk.title, passage:chk.passage, questions:qs, level, focus:focus||null, words:chk.words, fk:Math.round(chk.fk*10)/10, createdAt:Date.now(),
+      checks:{tries, made:chk.made, kept:agreed.length, droppedFormat:chk.badFormat, droppedEvidence:chk.badEvidence, droppedDisagree:chk.questions.length-agreed.length}};
+    const logEntry = {at:Date.now(), kind:'story', title:`Chose a level ${level} story`,
+      summary:`${chk.words} words, reading grade ${pending.fk}. ${agreed.length} of ${chk.made} questions passed the checks.`
+        + (focus ? ` Extra questions on ${SKILLS[focus].label.toLowerCase()}, the lowest measured skill.` : ' First reading, so questions are spread evenly.'),
+      detail:pending.checks, evidenceAttempts:S.attempts.slice(-3).map(a=>a.id)};
+    return {pending, logEntry};
+  }
+  throw {code:'quality', message:'Claude could not produce a story that passed every check. '+(last ? 'Last problem: '+last : '')};
+}
+
+/* ---------- AI Teacher: plan wording (facts computed in code) ---------- */
+function ruleActivity(focus){ const k = HOME_RULES[focus] ? focus : 'literal'; return {...HOME_RULES[k], source:'standard'}; }
+function validPlanText(p){
+  const str = (v,max) => typeof v === 'string' && v.trim() && v.length <= max;
+  const h = p && p.homeActivity;
+  if (!p || !str(p.childMessage,320) || !str(p.whatHappened,500) || !str(p.whyFocus,320) || !h || !str(h.title,60) || !Array.isArray(h.steps) || h.steps.length < 2 || h.steps.length > 4 || !h.steps.every(s => str(s,240)) || !str(h.tip,240)) return false;
+  return true;
+}
+async function buildPlan(ctx){
+  const {focus, est, qs, levelFrom, levelTo, correct, total, grade, signal} = ctx;
+  const missed = qs.filter(q => !q.correct).map(q => `- [${q.skill}] ${q.q} | child chose: "${q.options[q.chosen]}" | correct: "${q.options[q.answerIndex]}" | evidence: "${q.evidence}"`).join('\n') || '- none';
+  const fe = focus ? est[focus] : null;
+  const facts = {
+    whatHappened:`This reading: ${correct} of ${total} correct.`,
+    whyFocus: focus ? `${SKILLS[focus].label} is the lowest measured skill so far (${fe.c} of ${fe.t} correct across all readings).` : ''
+  };
+  const rule = {
+    childMessage: correct === total ? 'You answered every question. Great reading! Next we will try something a little different.' : `Thanks for reading today. Next we will practice ${focus ? SKILLS[focus].kid.toLowerCase() : 'reading'} together.`,
+    whatHappened:facts.whatHappened+(levelTo>levelFrom?' The next story will be a bit harder.':levelTo<levelFrom?' The next story will be a bit easier.':' The next story stays at the same level.'),
+    whyFocus:facts.whyFocus || 'There is not enough evidence yet to pick a focus.',
+    homeActivity:ruleActivity(focus), source:'rule'
+  };
+  if (!S.sample) return rule;
+  const prompt = `You are the AI Teacher in a reading-practice app for a child in Grade ${grade}. Write short notes from the data below. Do not invent scores or facts. Reply with JSON only.
+
+Data
+- Reading level: ${levelFrom} -> ${levelTo} (of 5)
+- This reading: ${correct} of ${total} correct
+- Per skill this reading: ${MEASURED.map(s => { const b = ctx.bySkill[s]; return b && b.t ? `${s} ${b.c}/${b.t}` : null; }).filter(Boolean).join(', ')}
+- Focus skill for next time: ${focus ? focus+' ('+SKILLS[focus].blurb.toLowerCase()+')' : 'not enough evidence yet'}${fe ? `, ${fe.c} of ${fe.t} correct over all readings` : ''}
+- Questions missed:
+${missed}
+
+Format: {"childMessage":"one or two short warm sentences to the child, praising something specific they did and saying in kid words what you will practice next; no numbers","whatHappened":"two sentences for the parent using only the counts above","whyFocus":"one sentence for the parent on why this skill is the focus","homeActivity":{"title":"3-5 words","minutes":5,"steps":["...","...","..."],"tip":"one sentence"}}
+The home activity needs no device, no reading-aloud scoring, and can be done by a parent who reads at any level.`;
+  try{
+    const p = await S.sample.json(prompt, {signal, modelTier:'quick', cache:false});
+    if (!validPlanText(p)) return rule;
+    return {childMessage:p.childMessage.trim(), whatHappened:p.whatHappened.trim(), whyFocus:p.whyFocus.trim(),
+      homeActivity:{title:p.homeActivity.title.trim(), minutes:Math.min(15,Math.max(3,Number(p.homeActivity.minutes)||5)), steps:p.homeActivity.steps.map(s=>s.trim()), tip:p.homeActivity.tip.trim(), source:'ai'}, source:'ai'};
+  }catch(e){ if (e && e.code === 'cancelled') throw e; return rule; }
+}
+
+/* ---------- student flow ---------- */
+async function startReading(){
+  const L = activeLearner(); if (!L || !S.sample) return;
+  const st = S.stu; st.error = null;
+  if (L.pending){ beginRead(L.pending); return; }
+  st.phase = 'loading'; st.step = 'Choosing a story for you'; st.ctl = new AbortController(); render(); window.scrollTo(0,0);
+  try{
+    const plan = latestPlan();
+    const r = await buildStory(L, st.result && st.result.plan ? st.result.plan.focusSkill : (plan && plan.focusSkill) || null, st.ctl.signal, s => { st.step = s; render(); });
+    await enqueue('l:'+L.id, () => learnerRef(L.id).update({pending:r.pending}));
+    await enqueue('log:'+L.id, () => learnerRef(L.id).collection('log').add(r.logEntry));
+    beginRead(r.pending);
+  }catch(e){
+    if (e && e.code === 'cancelled'){ st.phase = 'home'; }
+    else if (e && (e.code === 'invalid_argument' || e.code === 'unavailable')){ st.phase = 'home'; saveFail(); }
+    else { st.phase = 'error'; st.error = errCopy(e); }
+    render();
+  }
+}
+function beginRead(p){ const st = S.stu; st.reading = p; st.qi = 0; st.answers = []; st.result = null; st.phase = 'read'; render(); window.scrollTo(0,0); }
+function answer(i){ const st = S.stu; if (st.answers[st.qi] !== undefined) return; st.answers[st.qi] = i; render(); }
+function nextQ(){ const st = S.stu; if (st.qi < st.reading.questions.length-1){ st.qi++; render(); window.scrollTo(0,0); } else finishReading(); }
+
+async function finishReading(){
+  const st = S.stu, L = activeLearner(), p = st.reading;
+  const qs = p.questions.map((q,i) => ({skill:q.skill, q:q.question, word:q.word||null, options:q.options, answerIndex:q.answerIndex, chosen:st.answers[i], correct:st.answers[i] === q.answerIndex, evidence:q.evidence}));
+  const bySkill = {}; MEASURED.forEach(s => bySkill[s] = {c:0,t:0});
+  qs.forEach(q => { bySkill[q.skill].t++; if (q.correct) bySkill[q.skill].c++; });
+  const correct = qs.filter(q => q.correct).length, total = qs.length;
+  const levelFrom = L.level || p.level, levelTo = nextLevel(p.level, correct, total);
+  st.phase = 'result'; st.result = {correct, total, bySkill, levelFrom, levelTo, plan:null, loading:true, saveFailed:false}; st.ctl = new AbortController(); render(); window.scrollTo(0,0);
+  const attempt = {createdAt:Date.now(), level:p.level, focusSkill:p.focus||null, title:p.title, passage:p.passage, words:p.words, fk:p.fk, questions:qs, bySkill, levelFrom, levelTo, checks:p.checks};
+  let aid;
+  try{
+    const ref = await enqueue('att:'+L.id, () => learnerRef(L.id).collection('attempts').add(attempt)); aid = ref.id;
+    await enqueue('l:'+L.id, () => learnerRef(L.id).update({level:levelTo, pending:null}));
+  }catch(e){ st.result.saveFailed = true; st.result.loading = false; saveFail(); render(); return; }
+  const prior = S.attempts.filter(a => a.id !== aid);
+  const est = estimates([...prior, {...attempt, id:aid}]);
+  const focus = focusSkill(est);
+  try{
+    const txt = await buildPlan({focus, est, qs, levelFrom, levelTo, correct, total, bySkill, grade:L.grade, signal:st.ctl.signal});
+    const plan = {createdAt:Date.now(), attemptId:aid, focusSkill:focus, levelFrom, levelTo, source:txt.source, childMessage:txt.childMessage, whatHappened:txt.whatHappened, whyFocus:txt.whyFocus, homeActivity:txt.homeActivity,
+      evidence:Object.fromEntries(MEASURED.map(s => [s, {c:est[s].c, t:est[s].t}]))};
+    await enqueue('plan:'+L.id, () => learnerRef(L.id).collection('plans').doc(aid).set(plan));
+    const lc = learnerRef(L.id).collection('log');
+    await enqueue('log:'+L.id, () => lc.add({at:Date.now(), kind:'level', title: levelTo>levelFrom ? `Moved up to level ${levelTo}` : levelTo<levelFrom ? `Moved down to level ${levelTo}` : `Stayed at level ${levelTo}`,
+      summary:`${correct} of ${total} correct. Rule: move up at 80% or more, down at 40% or less, otherwise stay.`, detail:{correct,total,levelFrom,levelTo}, evidenceAttempts:[aid]}));
+    await enqueue('log:'+L.id, () => lc.add({at:Date.now(), kind:'plan', title: focus ? `Next focus: ${SKILLS[focus].label.toLowerCase()}` : 'No focus yet',
+      summary: txt.source === 'ai' ? 'Notes written by the AI Teacher. The focus skill itself was chosen by rule: lowest measured estimate.' : 'The AI Teacher could not be reached, so standard wording was used. The focus skill was chosen by rule: lowest measured estimate.',
+      detail:plan.evidence, evidenceAttempts:[aid]}));
+    st.result.plan = plan;
+  }catch(e){ if (!(e && e.code === 'cancelled')) toast('The reading is saved, but the plan could not be saved.'); }
+  st.result.loading = false; render();
+}
+
+/* ---------- parent actions ---------- */
+async function saveLearner(){
+  const f = S.form, name = f.name.trim();
+  if (!name || !f.consent || S.busy.add) return;
+  S.busy.add = true; render();
+  try{
+    const grade = Number(f.grade);
+    const ref = await enqueue('learners', () => learnersCol().add({name, grade, level:START_LEVEL[grade] || 1, createdAt:Date.now(), consent:{at:Date.now(), version:CONSENT_VERSION}, pending:null}));
+    S.form = {name:'',grade:'3',consent:false}; S.adding = false; setActive(ref.id); S.pTab = 'progress';
+    toast('Learner added.');
+  }catch(e){ saveFail(); }
+  S.busy.add = false; render();
+}
+async function deleteLearner(id){
+  if (S.busy.del) return; S.busy.del = true; render();
+  try{
+    const lr = learnerRef(id);
+    for (const name of ['attempts','plans','log']){
+      const snap = await lr.collection(name).get();
+      for (const d of snap.docs) await lr.collection(name).doc(d.id).delete();
+    }
+    await lr.delete(); S.confirmDelete = false; toast('Learner and all their data were deleted.');
+  }catch(e){ toast('Deletion did not finish. Try again.'); }
+  S.busy.del = false; render();
+}
+async function exportLearner(){
+  const L = activeLearner(); if (!L || !S.dl) return;
+  const {pending, ...learner} = L;
+  const body = JSON.stringify({exportedAt:new Date().toISOString(), learner, attempts:S.attempts, plans:S.plans, decisionLog:S.log}, null, 2);
+  try{ await S.dl.save({filename:'basabridge-'+L.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.json', data:body}); }
+  catch(e){ if (e && e.code !== 'declined') toast('The file could not be saved here.'); }
+}
+
+/* ---------- views ---------- */
+function brand(){
+  return `<div class="brand"><svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="var(--accent)"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="var(--accent-ink)" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>`;
+}
+function topBar(){
+  return `<header class="top">${brand()}<div class="seg" role="group" aria-label="Who is using this">
+    <button data-act="mode" data-m="student" aria-pressed="${S.mode==='student'}">Student</button>
+    <button data-act="mode" data-m="parent" aria-pressed="${S.mode==='parent'}">Parent</button></div></header>`;
+}
+function render(opts){
+  if (opts && opts.snap){ const a = document.activeElement; if (a && app.contains(a) && a.matches('input,select,textarea')) return; }
+  app.style.setProperty('--fs', S.fs);
+  let body;
+  if (S.unavailable) body = `<main><div class="notice"><b>This page needs to run inside Claude.</b><p>Open it from claude.ai so it can store learner data and reach the AI Teacher.</p></div></main>`;
+  else if (!S.db) body = `<main><div class="notice"><b>Sign in to use BasaBridge.</b><p>Learner data is stored privately under your Claude account, so the page needs you signed in.</p></div></main>`;
+  else if (!S.ready) body = `<main><p class="muted" role="status">Loading your learners…</p></main>`;
+  else body = S.mode === 'student' ? studentView() : parentView();
+  app.className = 'wrap' + (S.mode === 'student' ? ' stu' : '');
+  app.innerHTML = topBar() + body;
+}
+
+/* parent */
+function parentView(){
+  const chips = S.learners.map(l => `<button class="chip" data-act="select" data-id="${esc(l.id)}" aria-pressed="${l.id===S.activeId && !S.adding}">${esc(l.name)}</button>`).join('');
+  const nav = S.learners.length ? `<nav class="chips" aria-label="Learners">${chips}<button class="chip add" data-act="addForm">+ Add learner</button></nav>` : '';
+  if (!S.learners.length || S.adding) return `<main>${nav}${addForm()}</main>`;
+  return `<main>${nav}${learnerDetail()}</main>`;
+}
+function addForm(){
+  const f = S.form, first = !S.learners.length;
+  const grades = [1,2,3,4,5,6].map(g => `<option value="${g}" ${String(g)===String(f.grade)?'selected':''}>Grade ${g}</option>`).join('');
+  const ok = f.name.trim() && f.consent && !S.busy.add;
+  return `<section class="sec"><h1>${first ? 'Start with your learner' : 'Add a learner'}</h1>
+    ${first ? `<p class="muted" style="max-width:62ch">Your child reads a short English story and answers five questions. The AI Teacher chooses the next story from the results, and you see the evidence behind every step here. Nothing appears on this page until it has really happened.</p>` : ''}
+    <form class="form" data-form="add" onsubmit="return false">
+      <div><label for="f-name">First name or nickname</label><input id="f-name" type="text" maxlength="40" autocomplete="off" data-field="name" value="${esc(f.name)}"><p class="small muted">Use a first name only. It is never sent to Claude.</p></div>
+      <div><label for="f-grade">Grade</label><select id="f-grade" data-field="grade">${grades}</select><p class="small muted">The first story starts one band below this grade, then adjusts to what your child shows.</p></div>
+      <label class="check" for="f-consent"><input id="f-consent" type="checkbox" data-field="consent" ${f.consent?'checked':''}><span>I am this child's parent or legal guardian. I agree that BasaBridge stores their first name, grade and reading results privately under my account, and that stories and questions are generated by Claude. No audio is recorded or stored. I can export or delete this data at any time.</span></label>
+      <div class="row"><button class="btn primary" id="addBtn" data-act="saveLearner" ${ok?'':'disabled'}>${S.busy.add?'Saving…':'Add learner'}</button>${S.learners.length?`<button class="btn" data-act="cancelAdd">Cancel</button>`:''}</div>
+    </form></section>`;
+}
+function tabsBar(){
+  const t = [['progress','Progress'],['readings','Readings'],['log','AI decisions'],['data','Data and privacy']];
+  return `<div class="tabs" role="tablist">${t.map(([k,l]) => `<button role="tab" data-act="tab" data-t="${k}" aria-selected="${S.pTab===k}">${l}</button>`).join('')}</div>`;
+}
+function learnerDetail(){
+  const L = activeLearner(); if (!L) return '';
+  const n = S.attempts.length;
+  const head = `<section class="sec"><header><div><h1>${esc(L.name)}</h1><p class="muted">Grade ${esc(L.grade)} · Reading level ${esc(L.level||1)} of 5 · ${n} reading${n===1?'':'s'}${L.consent ? ' · Consent given '+fmtDate(L.consent.at) : ''}</p></div>
+    <button class="btn primary" data-act="startWith" data-id="${esc(L.id)}" ${S.sample?'':'disabled'}>Start reading with ${esc(L.name)}</button></header></section>`;
+  let body = '';
+  if (S.pTab === 'progress') body = progressTab(L);
+  else if (S.pTab === 'readings') body = readingsTab();
+  else if (S.pTab === 'log') body = logTab();
+  else body = dataTab(L);
+  return head + tabsBar() + body;
+}
+function skillRows(){
+  const est = estimates(S.attempts);
+  const prev = S.attempts.length > 1 ? estimates(S.attempts.slice(0,-1)) : null;
+  return ORDER.map(k => {
+    const sk = SKILLS[k];
+    if (!sk.measured) return `<div class="skill"><div><div class="name">${sk.label}</div><div class="small muted">${sk.blurb}</div></div>
+      <div><div class="bar none" aria-hidden="true"></div><div class="meta"><span class="tag warn">Not measured yet</span><span class="muted">Needs read-aloud scoring from a speech service. It is not connected, so no number is shown.</span></div></div></div>`;
+    const e = est[k];
+    if (!e.t) return `<div class="skill"><div><div class="name">${sk.label}</div><div class="small muted">${sk.blurb}</div></div>
+      <div><div class="bar none" aria-hidden="true"></div><div class="meta"><span class="tag warn">${CONF_TEXT.none}</span><span class="muted">Appears after the first reading.</span></div></div></div>`;
+    let delta = '';
+    if (prev && prev[k].t){ const d = pct(e.est) - pct(prev[k].est); if (d !== 0) delta = `<span class="tag ${d>0?'up':'down'}">${d>0?'+':''}${d} since the last reading</span>`; }
+    return `<div class="skill"><div><div class="name">${sk.label}</div><div class="small muted">${sk.blurb}</div></div>
+      <div><div class="bar ${e.conf==='early'?'low':''}" role="img" aria-label="${sk.label} estimate ${pct(e.est)} percent"><i style="width:${pct(e.est)}%"></i></div>
+      <div class="meta mono"><b>${pct(e.est)}%</b><span>${e.c} of ${e.t} correct</span><span class="tag ${e.conf==='early'?'warn':''}">${CONF_TEXT[e.conf]}</span>${delta}</div></div></div>`;
+  }).join('');
+}
+function progressTab(L){
+  const plan = latestPlan();
+  const skills = `<section class="sec"><header><h2>Reading skills</h2><span class="small muted">Estimates come only from answered questions, weighted toward recent readings.</span></header><div class="panel" style="padding-block:6px">${skillRows()}</div></section>`;
+  let planSec, homeSec;
+  if (plan){
+    const f = plan.focusSkill;
+    planSec = `<section class="sec"><header><h2>Current plan</h2><span class="small muted">${fmtTime(plan.createdAt)}</span></header>
+      <div class="panel stack"><p>${esc(plan.whatHappened)}</p>
+      <p><b>Focus:</b> ${f ? SKILLS[f].label : 'not enough evidence yet'}. ${esc(plan.whyFocus)}</p>
+      <p class="small muted">Evidence used: ${MEASURED.map(s => plan.evidence && plan.evidence[s] && plan.evidence[s].t ? `${SKILLS[s].label} ${plan.evidence[s].c}/${plan.evidence[s].t}` : null).filter(Boolean).join(' · ')}. The focus is chosen by rule (lowest measured estimate). ${plan.source === 'ai' ? 'The AI Teacher wrote the wording.' : 'Standard wording was used.'}</p></div></section>`;
+    const h = plan.homeActivity;
+    homeSec = `<section class="sec"><header><h2>Home activity</h2><span class="small muted">${esc(h.minutes)} minutes · ${h.source === 'ai' ? 'Written by the AI Teacher' : 'Standard activity'}</span></header>
+      <div class="panel stack"><h3>${esc(h.title)}</h3><ol class="steps">${h.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol><p class="small muted">${esc(h.tip)}</p></div></section>`;
+  } else {
+    planSec = `<section class="sec"><h2>Current plan</h2><div class="empty"><b>No plan yet</b><p class="muted">After ${esc(L.name)} finishes the first reading, the AI Teacher's plan and the evidence behind it appear here.</p></div></section>`;
+    homeSec = `<section class="sec"><h2>Home activity</h2><div class="empty"><b>Nothing to practice yet</b><p class="muted">A short activity for home appears after the first reading.</p></div></section>`;
+  }
+  const limits = `<section class="notice small"><b>What this does and does not tell you.</b> Each reading has about five questions, so early numbers can move a lot. This supports reading practice. It is not a diagnosis, a grade, or a replacement for school, and a few readings cannot show lasting learning gains.</section>`;
+  return `<div class="stack" style="gap:28px">${skills}${planSec}${homeSec}${limits}</div>`;
+}
+function readingsTab(){
+  if (!S.attempts.length) return `<section class="sec"><div class="empty"><b>No readings yet</b><p class="muted">Each finished reading is listed here with the passage, every question and the sentence that answers it.</p></div></section>`;
+  const items = S.attempts.slice().reverse().map(a => {
+    const c = (a.questions||[]).filter(q => q.correct).length, t = (a.questions||[]).length;
+    const key = 'a:'+a.id;
+    const qs = (a.questions||[]).map((q,i) => `<div class="q"><div class="mark">${i+1}. ${esc(q.q)} <span class="${q.correct?'ok':'no'}">${q.correct?'Correct':'Missed'}</span> <span class="tag">${esc(SKILLS[q.skill] ? SKILLS[q.skill].label : q.skill)}</span></div>
+      <div class="small">Chose: ${esc(q.options[q.chosen])}${q.correct ? '' : ' · Answer: '+esc(q.options[q.answerIndex])}</div><div class="quote small">${esc(q.evidence)}</div></div>`).join('');
+    return `<div class="entry"><details data-key="${esc(key)}" ${S.open[key]?'open':''}><summary><span><b>${esc(a.title)}</b> <span class="muted small">· ${fmtTime(a.createdAt)} · level ${esc(a.level)}</span></span><span class="mono"><b>${c} of ${t}</b></span></summary>
+      <div class="stack" style="margin-top:12px"><p class="small muted">${esc(a.words)} words · reading grade ${esc(a.fk)}${a.checks ? ` · ${esc(a.checks.kept)} of ${esc(a.checks.made)} questions passed the checks` : ''}</p>
+      <div class="panel" style="white-space:pre-line">${esc(a.passage)}</div>${qs}</div></details></div>`;
+  }).join('');
+  return `<section class="sec"><h2>Readings</h2><div>${items}</div></section>`;
+}
+function logTab(){
+  if (!S.log.length) return `<section class="sec"><div class="empty"><b>No decisions yet</b><p class="muted">Every choice the AI Teacher makes (which story, which level, which focus) is recorded here with the evidence it used.</p></div></section>`;
+  const label = {story:'Story', level:'Level', plan:'Plan'};
+  const items = S.log.slice().reverse().map(e => `<div class="entry"><div class="row" style="justify-content:space-between"><span><span class="tag">${label[e.kind]||'Decision'}</span> <b>${esc(e.title)}</b></span><span class="small muted">${fmtTime(e.at)}</span></div>
+    <p class="small" style="margin-top:6px">${esc(e.summary)}</p>${(e.evidenceAttempts||[]).length ? `<p class="small muted">Based on ${e.evidenceAttempts.map(id => { const a = S.attempts.find(x => x.id === id); return a ? esc(a.title)+' ('+fmtDate(a.createdAt)+')' : null; }).filter(Boolean).join('; ') || 'earlier readings'}</p>` : ''}</div>`).join('');
+  return `<section class="sec"><header><h2>AI decisions</h2><span class="small muted">You are the human check on these. Counts are in code, not guessed.</span></header><div>${items}</div></section>`;
+}
+function dataTab(L){
+  const confirm = S.confirmDelete;
+  return `<section class="sec"><h2>Data and privacy</h2><div class="panel stack">
+    <p><b>Where it lives.</b> ${esc(L.name)}'s name, grade and results are stored privately under your Claude account. No other viewer, including the owner of this page, can read them.</p>
+    <p><b>What Claude sees.</b> Stories and questions are generated by Claude on your own usage. Prompts contain reading levels and question text. They never contain the child's name.</p>
+    <p><b>Audio.</b> None is recorded or stored in this version.</p>
+    <p><b>Consent.</b> Given ${fmtDate(L.consent && L.consent.at)} (version ${esc(L.consent && L.consent.version)}).</p>
+    <div class="row"><button class="btn" data-act="export" ${S.dl?'':'disabled'}>Export all data (JSON)</button>
+    ${confirm ? `<button class="btn danger solid" data-act="delete" data-id="${esc(L.id)}" ${S.busy.del?'disabled':''}>${S.busy.del?'Deleting…':'Yes, delete everything'}</button><button class="btn" data-act="cancelDelete">Keep</button>` : `<button class="btn danger" data-act="askDelete">Delete ${esc(L.name)} and all data</button>`}</div>
+    ${confirm ? `<p class="small" style="color:var(--bad)">This permanently removes ${esc(L.name)}, ${S.attempts.length} reading${S.attempts.length===1?'':'s'}, plans and the decision log.</p>` : ''}
+  </div></section>`;
+}
+
+/* student */
+function studentView(){
+  const st = S.stu;
+  if (!S.learners.length) return `<main><div class="hello"><h1>Hello!</h1><p style="font-size:1.25rem">A parent needs to add you first. Switch to Parent, add a learner, then come back.</p><button class="btn big primary" data-act="mode" data-m="parent">Go to Parent</button></div></main>`;
+  if (!st.picked && S.learners.length > 1) return `<main><h1>Who is reading?</h1><div class="who">${S.learners.map(l => `<button data-act="pick" data-id="${esc(l.id)}">${esc(l.name)}</button>`).join('')}</div></main>`;
+  if (!st.picked){ st.picked = true; if (S.activeId !== S.learners[0].id) setActive(S.learners[0].id); }
+  const L = activeLearner(); if (!L) return `<main><p class="muted">Loading…</p></main>`;
+  if (!S.sample) return `<main><div class="notice"><b>The AI Teacher is not available here.</b><p>Stories are written by Claude, which this view cannot reach. Open the page from claude.ai and allow Claude when asked.</p></div></main>`;
+  if (st.phase === 'loading') return `<main><div class="hello"><div class="row"><div class="spin" aria-hidden="true"></div><h1 role="status">${esc(st.step)}…</h1></div><p class="muted">This can take up to a minute. A good story is worth the wait.</p><button class="btn" data-act="cancelLoad">Cancel</button></div></main>`;
+  if (st.phase === 'error') return `<main><div class="hello"><h1>That did not work</h1><p style="font-size:1.2rem">${esc(st.error)}</p><div class="row"><button class="btn big primary" data-act="start">Try again</button><button class="btn big" data-act="home">Back</button></div></div></main>`;
+  if (st.phase === 'read') return readView();
+  if (st.phase === 'quiz') return quizView();
+  if (st.phase === 'result') return resultView(L);
+  const plan = latestPlan();
+  const first = !S.attempts.length;
+  return `<main><div class="hello"><h1>Hi, ${esc(L.name)}!</h1>
+    <div class="note"><small>${plan ? 'Your teacher says' : 'Your first story'}</small>${plan ? esc(plan.childMessage) : 'Read one short story and answer five questions. This shows where to start.'}</div>
+    <button class="btn big primary" data-act="start">${L.pending ? 'Continue my story' : first ? 'Start my first story' : 'Read a new story'}</button>
+    ${S.learners.length > 1 ? `<button class="btn" data-act="switchReader">Not ${esc(L.name)}?</button>` : ''}
+    <p class="muted small">${S.attempts.length} stor${S.attempts.length===1?'y':'ies'} read so far</p></div></main>`;
+}
+function readView(){
+  const p = S.stu.reading;
+  const paras = p.passage.split(/\n{2,}|\n/).filter(x => x.trim()).map(x => `<p>${esc(x)}</p>`).join('');
+  return `<main><div class="row" style="justify-content:space-between"><h1>${esc(p.title)}</h1>
+    <div class="sizes" role="group" aria-label="Text size">${[[0.9,'A'],[1,'A+'],[1.25,'A++']].map(([v,l]) => `<button data-act="size" data-v="${v}" aria-pressed="${S.fs===v}">${l}</button>`).join('')}</div></div>
+    <div class="passage">${paras}</div>
+    <div class="row"><button class="btn big primary" data-act="toQuiz">I am ready for the questions</button><button class="btn" data-act="home">Save for later</button></div></main>`;
+}
+function quizView(){
+  const st = S.stu, p = st.reading, q = p.questions[st.qi], chosen = st.answers[st.qi], done = chosen !== undefined;
+  const dots = p.questions.map((_,i) => `<i class="${i<st.qi||(i===st.qi&&done)?'done':i===st.qi?'now':''}"></i>`).join('');
+  const opts = q.options.map((o,i) => {
+    const cls = !done ? '' : i === q.answerIndex ? 'right' : i === chosen ? 'wrong' : 'dim';
+    return `<button class="opt ${cls}" data-act="answer" data-i="${i}" ${done?'disabled':''}><span class="ltr">${'ABCD'[i]}</span><span>${esc(o)}</span></button>`;
+  }).join('');
+  const right = chosen === q.answerIndex;
+  const fb = done ? `<div class="feedback" role="status"><b>${right ? 'Yes!' : 'Not quite.'}</b> ${right ? 'The story says:' : 'Look back at the story:'}<div class="quote" style="margin-top:6px;font-size:1.1rem"><span class="hl">${esc(q.evidence)}</span></div></div>` : '';
+  const paras = p.passage.split(/\n{2,}|\n/).filter(x => x.trim()).map(x => `<p>${esc(x)}</p>`).join('');
+  return `<main><div class="row" style="justify-content:space-between"><div class="dots" aria-label="Question ${st.qi+1} of ${p.questions.length}">${dots}</div><span class="muted">Question ${st.qi+1} of ${p.questions.length}</span></div>
+    <div class="qtext">${esc(q.question)}</div><div class="opts">${opts}</div>${fb}
+    ${done ? `<div><button class="btn big primary" data-act="next">${st.qi === p.questions.length-1 ? 'See how I did' : 'Next question'}</button></div>` : ''}
+    <details data-key="story" ${S.open.story?'open':''}><summary><b>Show the story</b></summary><div class="passage" style="margin-top:12px">${paras}</div></details></main>`;
+}
+function resultView(L){
+  const r = S.stu.result;
+  const chips = MEASURED.filter(s => r.bySkill[s].t).map(s => `<span class="tag">${SKILLS[s].kid} ${r.bySkill[s].c}/${r.bySkill[s].t}</span>`).join('');
+  const lvl = r.levelTo > r.levelFrom ? 'Your next story will be a little harder.' : r.levelTo < r.levelFrom ? 'Your next story will be a little easier.' : 'Your next story will be at the same level.';
+  const note = r.saveFailed ? `<div class="notice"><b>This reading could not be saved.</b><p>Ask a parent to check that this page can store data, then read again.</p></div>`
+    : r.loading ? `<div class="note"><div class="row"><div class="spin" aria-hidden="true"></div><span role="status">Your teacher is writing you a note…</span></div></div>`
+    : r.plan ? `<div class="note"><small>Your teacher says</small>${esc(r.plan.childMessage)}</div>` : '';
+  return `<main><div class="hello"><h1>You answered ${r.correct} of ${r.total}</h1><div class="skills-chips">${chips}</div>${note}${r.loading || r.saveFailed ? '' : `<p>${lvl}</p>`}
+    <div class="row"><button class="btn big primary" data-act="start" ${r.loading?'disabled':''}>Next story</button><button class="btn big" data-act="home" ${r.loading?'disabled':''}>I am done</button></div></div></main>`;
+}
+
+/* ---------- events ---------- */
+const ACT = {
+  mode(d){ if (S.stu.ctl) S.stu.ctl.abort(); S.mode = d.m; store('bb.mode', d.m); S.stu = freshStu(); S.adding = false; render(); },
+  select(d){ S.adding = false; setActive(d.id); S.pTab = 'progress'; render(); },
+  addForm(){ S.adding = true; render(); },
+  cancelAdd(){ S.adding = false; render(); },
+  saveLearner(){ saveLearner(); },
+  tab(d){ S.pTab = d.t; S.confirmDelete = false; render(); },
+  startWith(d){ if (S.stu.ctl) S.stu.ctl.abort(); setActive(d.id); S.mode = 'student'; store('bb.mode','student'); S.stu = freshStu(); S.stu.picked = true; render(); window.scrollTo(0,0); },
+  askDelete(){ S.confirmDelete = true; render(); },
+  cancelDelete(){ S.confirmDelete = false; render(); },
+  delete(d){ deleteLearner(d.id); },
+  export(){ exportLearner(); },
+  pick(d){ setActive(d.id); S.stu = freshStu(); S.stu.picked = true; render(); },
+  switchReader(){ S.stu = freshStu(); render(); },
+  start(){ startReading(); },
+  cancelLoad(){ if (S.stu.ctl) S.stu.ctl.abort(); },
+  home(){ S.stu.phase = 'home'; S.stu.result = null; render(); window.scrollTo(0,0); },
+  toQuiz(){ S.stu.phase = 'quiz'; S.stu.qi = 0; S.stu.answers = []; render(); window.scrollTo(0,0); },
+  answer(d){ answer(Number(d.i)); },
+  next(){ nextQ(); },
+  size(d){ S.fs = Number(d.v); store('bb.fs', String(S.fs)); render(); }
+};
+app.addEventListener('click', e => { const t = e.target.closest('[data-act]'); if (!t || t.disabled) return; const f = ACT[t.dataset.act]; if (f) f(t.dataset, e); });
+function syncForm(){
+  const b = document.getElementById('addBtn'); if (b) b.disabled = !(S.form.name.trim() && S.form.consent && !S.busy.add);
+}
+function onField(e){
+  const t = e.target; if (!t.dataset || !t.dataset.field) return;
+  S.form[t.dataset.field] = t.type === 'checkbox' ? t.checked : t.value; syncForm();
+}
+app.addEventListener('input', onField); app.addEventListener('change', onField);
+app.addEventListener('toggle', e => { const d = e.target; if (d && d.dataset && d.dataset.key) S.open[d.dataset.key] = d.open; }, true);
+app.addEventListener('submit', e => e.preventDefault());
+
+/* ---------- start ---------- */
+async function init(){
+  render();
+  if (!(window.claude && window.claude.use)){ S.unavailable = true; render(); return; }
+  const [db, user, sample, dl] = await Promise.all([claude.use('db'), claude.use('user'), claude.use('sample'), claude.use('downloads')]);
+  S.sample = sample; S.dl = dl;
+  S.uid = user ? await user.id() : null;
+  if (!db || !S.uid){ S.db = null; render(); return; }
+  S.db = db;
+  learnersCol().orderBy('createdAt','asc').onSnapshot(snap => {
+    S.learners = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    S.ready = true;
+    if (!S.activeId || !S.learners.some(l => l.id === S.activeId)) setActive(S.learners.length ? S.learners[0].id : null);
+    render({snap:true});
+  }, e => { S.ready = true; S.dbError = e; toast('Could not read learner data.'); render(); });
+}
+init();
+})();
+</script>

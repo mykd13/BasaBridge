@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign in</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="background:#F4F6F2;color:#14212B;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:17px;line-height:1.55;min-height:780px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #D9DED6">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Lexend',sans-serif;font-weight:700;font-size:19px"><svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#0C6B63"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>
+    <a href="A2-CreateAccount.dc.html" style="color:#0C6B63;font-weight:700">New here? Create an account</a>
+  </header>
+  <main style="max-width:1080px;margin:0 auto;padding:64px 40px;display:flex;flex-wrap:wrap;gap:48px;align-items:center">
+    <section style="flex:1 1 420px;min-width:0;display:flex;flex-direction:column;gap:20px">
+      <h1 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:46px;line-height:1.12">Read out loud. Understand more.</h1>
+      <p style="margin:0;font-size:21px;color:#56646E;max-width:40ch">Read a short story at your own level. Your AI teacher listens, helps with tricky words, then asks what you understood.</p>
+      <ul style="margin:0;padding-left:1.2rem;display:flex;flex-direction:column;gap:6px;font-size:18px"><li>Read aloud and get help right away</li><li>Stories that get harder as you improve</li><li>See your own progress, no one else needed</li></ul>
+    </section>
+    <section style="flex:1 1 380px;min-width:0;background:#FFFFFF;border:1px solid #D9DED6;border-radius:20px;padding:30px;display:flex;flex-direction:column;gap:16px">
+      <h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:26px">Sign in</h2>
+      <form onsubmit="return false" style="display:flex;flex-direction:column;gap:14px">
+        <div><label for="si-user" style="display:block;font-weight:700;margin-bottom:4px">Username or email</label><input id="si-user" type="text" style="font:inherit;width:100%;box-sizing:border-box;min-height:48px;padding:10px 12px;border-radius:10px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B"></div>
+        <div><label for="si-pass" style="display:block;font-weight:700;margin-bottom:4px">Password</label><input id="si-pass" type="password" style="font:inherit;width:100%;box-sizing:border-box;min-height:48px;padding:10px 12px;border-radius:10px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B"></div>
+        <a href="S2-Home.dc.html" style="display:flex;align-items:center;justify-content:center;min-height:54px;padding:10px 28px;border-radius:14px;background:#0C6B63;color:#FFFFFF;font-size:19px;font-weight:700;text-decoration:none">Sign in</a>
+        <a href="A2-CreateAccount.dc.html" style="align-self:flex-start;color:#0C6B63;font-weight:700">Create an account</a>
+      </form>
+      <div style="border-top:1px solid #D9DED6;padding-top:14px;color:#56646E;font-size:15px">Parent or guardian? Sign in here with your own account to see a child's progress.</div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

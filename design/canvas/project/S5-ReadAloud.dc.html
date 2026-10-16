@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reading aloud</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="background:#F4F6F2;color:#14212B;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:17px;line-height:1.55;min-height:780px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #D9DED6">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Lexend',sans-serif;font-weight:700;font-size:19px"><svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#0C6B63"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>
+    <div style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;background:#F7E0DD;color:#A9322B;font-weight:700"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="5" fill="#A9322B"/></svg>Listening 0:23</div>
+  </header>
+  <main style="max-width:1100px;margin:0 auto;padding:40px;display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start">
+    <section style="flex:2 1 520px;min-width:0;display:flex;flex-direction:column;gap:20px">
+      <h1 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:30px">The Mango Tree</h1>
+      <div style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:20px;padding:32px;font-size:28px;line-height:1.85;max-width:62ch">
+        <span style="color:#14212B">Lia and her grandfather have a mango tree. Every morning, Lia checks the tree. The mangoes are still green. One day, the wind blows hard. Three mangoes fall.</span> <span style="background:#F3B93B;color:#14212B;padding:0 .2em;border-radius:4px;font-weight:700">Lia</span> <span style="color:#56646E">picks them up, but they are too sour. Grandfather smiles. “We must be patient,” he says.</span>
+      </div>
+    </section>
+    <aside style="flex:1 1 260px;min-width:0;display:flex;flex-direction:column;gap:16px">
+      <div style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:6px">
+        <div style="font-size:13px;font-weight:700;color:#56646E;text-transform:uppercase;letter-spacing:.06em">Tries</div>
+        <div style="font-family:'Lexend',sans-serif;font-weight:600;font-size:28px">Try 2 of 5</div>
+        <div style="color:#56646E">Level 24 gives you 5 tries on each story.</div>
+      </div>
+      <div style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:13px;font-weight:700;color:#56646E;text-transform:uppercase;letter-spacing:.06em">Microphone</div>
+        <div style="display:flex;align-items:flex-end;gap:5px;height:44px" role="img" aria-label="Microphone level">
+          <span style="width:9px;height:14px;border-radius:4px;background:#0C6B63"></span><span style="width:9px;height:28px;border-radius:4px;background:#0C6B63"></span><span style="width:9px;height:40px;border-radius:4px;background:#0C6B63"></span><span style="width:9px;height:24px;border-radius:4px;background:#0C6B63"></span><span style="width:9px;height:32px;border-radius:4px;background:#0C6B63"></span><span style="width:9px;height:12px;border-radius:4px;background:#0C6B63"></span><span style="width:9px;height:6px;border-radius:4px;background:#D9DED6"></span><span style="width:9px;height:6px;border-radius:4px;background:#D9DED6"></span><span style="width:9px;height:6px;border-radius:4px;background:#D9DED6"></span>
+        </div>
+      </div>
+      <a href="S6-Analysis.dc.html" style="display:flex;align-items:center;justify-content:center;min-height:62px;padding:14px 28px;border-radius:16px;background:#0C6B63;color:#FFFFFF;font-size:20px;font-weight:700;text-decoration:none">I am finished reading</a>
+      <a href="S7-StoppedEarly.dc.html" style="display:flex;align-items:center;justify-content:center;min-height:46px;border-radius:12px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B;font-weight:700;text-decoration:none">Stop here</a>
+    </aside>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

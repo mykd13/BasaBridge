@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Microphone blocked</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="background:#F4F6F2;color:#14212B;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:17px;line-height:1.55;min-height:780px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #D9DED6">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Lexend',sans-serif;font-weight:700;font-size:19px"><svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#0C6B63"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>
+    <span style="color:#56646E;font-weight:700">Level 24</span>
+  </header>
+  <main style="max-width:880px;margin:0 auto;padding:56px 40px;display:flex;flex-direction:column;gap:24px;align-items:flex-start">
+    <h1 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:40px;line-height:1.2">The microphone is turned off</h1>
+    <p style="margin:0;font-size:22px;line-height:1.5;max-width:56ch">Your teacher needs to hear you read. Turn the microphone on for this website, then try again.</p>
+    <ol style="margin:0;padding-left:1.4rem;display:flex;flex-direction:column;gap:8px;font-size:19px">
+      <li>Click the lock or settings icon next to the web address.</li>
+      <li>Find Microphone and choose Allow.</li>
+      <li>Come back here and press Try again.</li>
+    </ol>
+    <div style="background:#FBEFCF;border-radius:14px;padding:14px 18px;max-width:640px">No microphone on this computer? You can still read stories and answer questions, but reading aloud and the AI reading analysis need a microphone.</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <a href="S4-Mic.dc.html" style="display:inline-flex;align-items:center;justify-content:center;min-height:62px;padding:14px 36px;border-radius:16px;background:#0C6B63;color:#FFFFFF;font-size:20px;font-weight:700;text-decoration:none">Try again</a>
+      <a href="S2-Home.dc.html" style="display:inline-flex;align-items:center;min-height:62px;padding:10px 24px;border-radius:16px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B;font-weight:700;font-size:18px;text-decoration:none">Back</a>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

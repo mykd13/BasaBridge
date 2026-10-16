@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Parent linked children and privacy</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="background:#F4F6F2;color:#14212B;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:17px;line-height:1.55;min-height:940px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #D9DED6">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Lexend',sans-serif;font-weight:700;font-size:19px"><svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#0C6B63"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>
+    <nav style="display:flex;gap:6px;flex-wrap:wrap" aria-label="Main"><span style="padding:8px 16px;border-radius:999px;font-weight:700;background:#14212B;color:#F4F6F2">Parent account</span><a href="Main.dc.html" style="padding:8px 16px;border-radius:999px;font-weight:700;color:#56646E;text-decoration:none">Sign out</a></nav>
+  </header>
+  <main style="max-width:1040px;margin:0 auto;padding:32px 40px;display:flex;flex-direction:column;gap:24px">
+    <div><h1 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:36px;line-height:1.2">[Learner name]</h1><p style="margin:4px 0 0;color:#56646E">Grade 3 · Level 24 of 100 · 12 readings</p></div>
+    <div style="display:flex;border-bottom:1px solid #D9DED6;overflow-x:auto" role="tablist">
+      <a href="P2-Progress.dc.html" role="tab" style="padding:10px 16px;font-weight:700;color:#56646E;text-decoration:none;white-space:nowrap">Progress</a>
+      <a href="P3-Readings.dc.html" role="tab" style="padding:10px 16px;font-weight:700;color:#56646E;text-decoration:none;white-space:nowrap">Readings</a>
+      <a href="P6-Levels.dc.html" role="tab" style="padding:10px 16px;font-weight:700;color:#56646E;text-decoration:none;white-space:nowrap">Levels and tries</a>
+      <a href="P4-Decisions.dc.html" role="tab" style="padding:10px 16px;font-weight:700;color:#56646E;text-decoration:none;white-space:nowrap">AI decisions</a>
+      <span role="tab" aria-selected="true" style="padding:10px 16px;font-weight:700;border-bottom:3px solid #0C6B63;white-space:nowrap">Linked children and privacy</span>
+    </div>
+
+    <section style="display:flex;flex-direction:column;gap:12px">
+      <h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:20px">Linked children</h2>
+      <div style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:16px;padding:6px 22px">
+        <div style="display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;justify-content:space-between;padding:16px 0"><span style="flex:1 1 280px;min-width:0"><b>[Learner name]</b> <span style="background:#DCEEEA;color:#0C6B63;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700">Sharing progress and reading analysis</span><div style="color:#56646E;font-size:15px">Linked Oct 17, 2026 · Microphone approval: given by you</div></span><span style="display:flex;gap:8px;flex-wrap:wrap"><button style="font:inherit;font-weight:700;min-height:42px;padding:6px 18px;border-radius:10px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B">Stop viewing</button><a href="P1-AddLearner.dc.html" style="display:inline-flex;align-items:center;font-weight:700;min-height:42px;padding:6px 18px;border-radius:10px;border:1.5px dashed #D9DED6;background:#FFFFFF;color:#0C6B63;text-decoration:none">+ Link a child</a></span></div>
+      </div>
+      <div style="color:#56646E;font-size:15px">[Learner name] owns their account. You can stop viewing at any time. Your child can also stop sharing.</div>
+    </section>
+
+    <section style="display:flex;flex-direction:column;gap:12px">
+      <h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:20px">Voice and audio</h2>
+      <div style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:16px;padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+        <p style="margin:0">While [Learner name] reads aloud, their voice is turned into text and compared with the story. The audio is then discarded.</p>
+        <p style="margin:0;color:#56646E;font-size:15px">Keeping recordings is [Learner name]'s choice in their own account. Parents never see or hear recordings.</p>
+      </div>
+    </section>
+
+    <section style="display:flex;flex-direction:column;gap:12px">
+      <h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:20px">Privacy</h2>
+      <div style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:16px;padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+        <p style="margin:0"><b>Who can see results.</b> [Learner name] and, because they shared it, you. Nobody else.</p>
+        <p style="margin:0"><b>What Claude sees.</b> Reading levels, story text, question text and word-level differences. Never the child's name, username or audio.</p>
+        <p style="margin:0"><b>Your own data.</b> Your parent account holds only your name, email and which children you are linked to.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px"><button style="font:inherit;font-weight:700;min-height:46px;padding:10px 22px;border-radius:12px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B">Download my parent data</button><button style="font:inherit;font-weight:700;min-height:46px;padding:10px 22px;border-radius:12px;border:1.5px solid #A9322B;background:#FFFFFF;color:#A9322B">Delete my parent account</button></div>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":940}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

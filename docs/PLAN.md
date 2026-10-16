@@ -1,0 +1,223 @@
+# BasaBridge: system and implementation plan
+
+Status: draft for the four owners (Rhett, James, Jhade, Sean). Nothing here is built yet. The design reference is the canvas at https://claude.ai/artifact/KparoB241FAMSRqcN9sn9S (screens A1 to F6).
+
+## 1. What we are building
+
+A web app where a learner reads a short English story out loud, an AI teacher listens and analyses the reading, the learner then answers questions about what they read, and the system adjusts the next story. It targets Filipino students who can attend school but cannot yet read for meaning.
+
+Principles
+1. Students use it on their own. Parents are optional and only see what a student chooses to share.
+2. Mastery is computed in code from recorded evidence. The AI explains and writes; it never declares that a skill improved.
+3. Reading aloud shows completion, accuracy and pace. It does not show understanding. Comprehension comes from the questions, and the story is hidden while answering.
+4. Children's data is minimal, private by default, and deletable. Audio is analysed and discarded unless the student turns retention on.
+5. No fake data. Every screen starts empty and fills from real activity.
+
+## 2. User flows (match the canvas)
+
+- A Getting started: sign in, create account, student home.
+- B Reading session part 1: make a story, microphone, read aloud, AI reading analysis. The learner may retry within the level's tries.
+- C Reading session part 2: question, feedback, result, level up.
+- D Exceptions: stopped early, tries used up (new story at same difficulty), microphone blocked.
+- E Student: my progress, my account, share with a parent.
+- F Optional parent: link with a code, progress, readings and analysis, levels, AI decisions, privacy.
+
+## 3. Architecture
+
+- One Next.js (App Router, TypeScript) app on Vercel, Node.js runtime on Fluid Compute. Server Actions and route handlers are the API. No separate backend at first.
+- Postgres from the Vercel Marketplace, accessed with Drizzle. Migrations in the repo.
+- Auth: username or email plus password for students, email plus password for parents. Library to be chosen in BB-07 (a credentials-capable one such as Better Auth or Auth.js). Sessions are cookie-based.
+- AI: Vercel AI SDK through the AI Gateway using plain `provider/model` strings. A larger Claude model for story generation and verification, a smaller one for short wording tasks. Models are configured in one file.
+- Speech: a provider adapter behind an interface (`transcribe(stream) -> words with timestamps and confidence`). Provider chosen by the BB-22 bake-off. Audio goes from the browser to our server (WebSocket on a Vercel Function) or straight to the provider with a short-lived token, whichever the chosen provider supports.
+- Shared contracts: zod schemas in one package so speech, engine and UI agree on the shapes of attempts, analyses and plans.
+- Observability: structured logs, per-call AI cost and latency, error tracking.
+
+## 4. Repository layout (applied when the repo arrives)
+
+```
+apps/
+  web/                    Next.js app (student and parent surfaces)
+packages/
+  contracts/              zod schemas and TS types shared by everything
+  db/                     Drizzle schema, migrations, query helpers
+  levels/                 level table, tries tiers, pass rules (pure, tested)
+  mastery/                skill estimates, focus skill, level movement (pure, tested)
+  story-ai/               generation, deterministic checks, verifier, story bank
+  teacher-ai/             analysis explanations, plan wording, fallbacks
+  speech/                 capture helpers, provider adapters, alignment, WCPM
+  ui/                     design tokens and components from the canvas
+docs/                     PLAN.md, ADRs, threat model, runbooks
+design/                   exported canvas screens (PNG) and markup
+.github/workflows/        CI: typecheck, lint, unit, e2e, preview deploy
+CODEOWNERS                maps packages to the four owners
+```
+
+Tooling: pnpm workspaces, Turborepo, TypeScript strict (pinned to 6 until typescript-eslint supports 7), Vitest for unit tests, Playwright for end-to-end tests (added in BB-38), ESLint and Prettier. Shared configs live at the repo root (`tsconfig.base.json`, `eslint.config.mjs`, `.prettierrc`). Node 24.
+
+Scaffold status: the repo builds, lints, type-checks and tests clean. Seeds with tests exist for levels, mastery, story checks, speech pace maths, the database schema and the design tokens. Story generation, teacher notes and word alignment are stubs that throw until their backlog items land.
+
+## 5. Data model (first cut)
+
+- `users` (id, role student|parent, username unique, email nullable, password hash, birth year band, created_at)
+- `learners` (user_id pk, grade nullable, level int default 1, level_passes int, keep_audio bool default false)
+- `parent_links` (id, parent_user_id, learner_user_id, status pending|active|revoked, shares_progress, shares_analysis, created_at)
+- `link_codes` (code, learner_user_id, expires_at, used_at)
+- `guardian_approvals` (id, learner_user_id, guardian_email, status, approved_at, scope mic)
+- `consents` (id, user_id, kind, version, given_at)
+- `stories` (id, level, title, text, words, reading_grade, source generated|bank, checks jsonb, created_at)
+- `questions` (id, story_id, skill vocabulary|literal|inferential, text, options jsonb, answer_index, evidence)
+- `sessions` (id, learner_id, story_id, tries_allowed, tries_used, counted_try_id, status)
+- `tries` (id, session_id, completed bool, words_total, words_right, wcpm, analysis jsonb, created_at)
+- `answers` (id, session_id, question_id, chosen, correct)
+- `skill_events` (learner_id, skill, correct, weight, session_id) for estimates
+- `decisions` (id, learner_id, kind story|level|plan|analysis, summary, evidence jsonb, created_at)
+- `audio_objects` (id, try_id, storage key, expires_at) only when retention is on
+- `audit_log` (actor, action, target, at)
+
+Every table with a learner id is protected by one authorization layer (BB-10). Parents read only through `parent_links` and the share flags.
+
+## 6. Learning engine (placeholders to tune)
+
+Levels 1 to 100 grouped in tiers.
+
+| Levels | Story length | Words and sentences | Tries per story |
+|---|---|---|---|
+| 1 to 10 | 5 to 15 words | everyday words, 5 to 8 words per sentence | unlimited |
+| 11 to 30 | 25 to 50 | a few new words explained by context | 5 |
+| 31 to 55 | 50 to 90 | joined sentences, some topic words | 4 |
+| 56 to 75 | 90 to 140 | varied sentences, several topic words | 3 |
+| 76 to 90 | 140 to 200 | long sentences, subject words | 2 |
+| 91 to 100 | 200 to 260 | advanced words, figurative language | 1 |
+
+- A try is one read-aloud. Only a try that reaches the end can count. When tries run out the best try counts, the learner answers the questions, then gets a new story at the same difficulty.
+- A story passes when words-right on the counted try is at least 85% and at least 3 of 5 questions are correct. Three passes at a level move up one. A very weak result moves down one.
+- Skill estimates (vocabulary, literal, inferential) use a recency-weighted Beta estimate with a confidence label from sample size. Decoding and fluency come from the counted tries.
+- Focus skill for the next story is the lowest measured comprehension estimate. Code chooses it. The AI only words the explanation.
+- All numbers live in `packages/levels` as data, with property tests, so they can be tuned without code changes elsewhere.
+
+## 7. AI pipeline
+
+Story generation (`story-ai`)
+1. Generate passage and five questions as JSON for a level, a topic seed and a skill mix.
+2. Deterministic checks: word range, reading grade (Flesch-Kincaid) under the level cap, four distinct options, evidence sentence present verbatim in the passage, vocabulary word present, no repeats of recent titles.
+3. Independent verifier call that answers the questions without seeing the key and flags child safety. Keep only questions where it agrees with the key. Require at least four questions.
+4. Retry up to three times with the failure reason, then fail visibly.
+5. Pre-generate and cache stories per level (story bank) so learners are not waiting about a minute.
+
+Teacher notes (`teacher-ai`)
+- Inputs are counts, missed questions and word-level differences. Names, usernames and audio are never sent.
+- Outputs: a kid-friendly note, a parent summary, a reading-pattern explanation with a confidence label, a home activity. Validate shape and length, fall back to standard wording when the call fails.
+- Every AI decision is written to `decisions` with the evidence used.
+
+Evaluation (BB-21): a gold set of passages and answer keys, a safety set, and a difficulty-drift check so level 24 stays level 24 over time.
+
+## 8. Speech pipeline
+
+1. Browser asks for the microphone, shows blocked and no-microphone states.
+2. Audio streams to the speech provider with the reference text so recognition is biased toward the passage.
+3. We get words with timestamps and confidence.
+4. Alignment engine compares expected words to heard words: correct, substitution, omission, insertion, repetition, self-correction. Low-confidence words are flagged, not counted as errors.
+5. Completion: the last expected word is reached. If not, show "stopped early" with the stopping point.
+6. Words correct per minute from aligned words and elapsed reading time.
+7. Pattern analysis over many tries: dropped endings, difficulty with specific letter patterns, pauses at full stops. Each pattern carries a confidence.
+8. Audio is discarded after analysis unless retention is on (30 days, then auto-delete).
+
+Fairness: speech recognition performs unevenly on children and Philippine-accented English. BB-22 and BB-40 test this before launch, and the learner or a linked parent can mark a word as misheard, which recomputes the try.
+
+## 9. Accounts, privacy and compliance
+
+- Student sign-up needs username, password, age. Email is optional and only for password reset.
+- Under 13: a parent or guardian email receives an approval request. Until approved, the learner can read silently and answer questions. Voice recording and reading analysis wait for approval. This rule must be reviewed by someone qualified in Philippine Data Privacy Act and children's data before launch.
+- Parent link: student generates a one-time code (24 hours), parent redeems it, student chooses what is shared, student can revoke any time. Parents never receive audio.
+- Claude never receives names, usernames or audio.
+- Export and delete for students and for parents.
+- A threat model and privacy review are release gates (BB-41).
+
+## 10. Workstreams and ownership
+
+Proposed split, to be confirmed by the four of you.
+
+| Owner | Workstream | Owns |
+|---|---|---|
+| Rhett | Platform and accounts | repo, CI, deploy, database, auth, age gate, parent link, consent, authorization, export and delete, security, observability |
+| James | Speech and reading analysis | microphone, provider bake-off and adapter, alignment, completion, pace, error patterns, misheard correction, audio retention, fairness testing |
+| Jhade | AI teacher and learning engine | level and tries config, story generation and checks, verifier, story bank, mastery and level movement, session orchestration, teacher notes, evaluation |
+| Sean | Product experience | design system, all student and parent screens, integration of the other three, accessibility |
+
+Interfaces between owners are the `contracts` package. Any change to it needs a review from the two owners on either side.
+
+## 11. Milestones
+
+- M0 Foundations: scaffold, CI, deploy, schema, contracts, design tokens. Done when an empty app deploys from main and every package builds and tests.
+- M1 Accounts: sign-up and sign-in, age gate, parent link, sharing, account pages. Done when a student can sign up alone and a parent can link and see only shared data.
+- M2 Reading loop without voice: story generation, questions, mastery, levels, result screens. Done when a learner can complete stories silently and levels move by rule.
+- M3 Voice: microphone, transcription, alignment, analysis, retries. Done when a learner reads aloud, sees analysis, retries within tiers, and completion gates the questions.
+- M4 Full product: parent views, my progress, decisions log, exceptions, accessibility. Done when every canvas screen works against real data.
+- M5 Pilot readiness: fairness testing, privacy review, end-to-end tests, cost and rate limits, content review. Done when a small pilot can run safely.
+
+## 12. Backlog
+
+Owner is the proposal. Dependencies in brackets.
+
+M0 Foundations
+- BB-01 Monorepo scaffold: pnpm, Turborepo, TS strict, lint, unit and e2e runners, CI. (Rhett)
+- BB-02 Vercel project, environments, preview deploys, secrets. [BB-01] (Rhett)
+- BB-03 Database schema and migrations from section 5. [BB-01] (Rhett)
+- BB-04 Contracts package with zod schemas for attempts, analyses, plans, decisions. [BB-01] (Rhett)
+- BB-05 Design tokens and component library from the canvas. [BB-01] (Sean)
+- BB-06 App shell, routing, role-aware navigation. [BB-05] (Sean)
+
+M1 Accounts
+- BB-07 Auth: sign-up, sign-in, sessions, password reset, rate limiting. [BB-03] (Rhett)
+- BB-08 Age gate and under-13 guardian approval flow. [BB-07] (Rhett)
+- BB-09 Parent account and link codes: create, redeem, expire, revoke. [BB-07] (Rhett)
+- BB-10 Authorization layer and sharing permissions. [BB-09] (Rhett)
+- BB-11 Consent records and audit log. [BB-07] (Rhett)
+- BB-12 Account screens A1, A2, E2, E3, F1. [BB-06, BB-07] (Sean)
+- BB-13 Export and delete for students and parents. [BB-10] (Rhett)
+
+M2 Learning engine and AI
+- BB-14 Level table and tries tiers as data, with tests. [BB-04] (Jhade)
+- BB-15 Story generation service. [BB-04, BB-14] (Jhade)
+- BB-16 Deterministic story checks. [BB-15] (Jhade)
+- BB-17 Independent verifier and safety gate. [BB-15] (Jhade)
+- BB-18 Story bank, caching and pre-generation. [BB-16, BB-17] (Jhade)
+- BB-19 Mastery estimates, pass rule, level movement, focus skill. [BB-14] (Jhade)
+- BB-20 Teacher notes and plan wording with fallbacks. [BB-19] (Jhade)
+- BB-21 AI evaluation harness and gold sets. [BB-15] (Jhade)
+- BB-36 Session orchestration: tries, resume, counted try, new story at same difficulty. [BB-19, BB-26] (Jhade)
+
+M3 Voice
+- BB-22 Provider bake-off on child and Philippine-accented English. (James)
+- BB-23 Browser capture, streaming transport, permission and blocked states. (James)
+- BB-24 Provider adapter returning words, timestamps, confidence. [BB-22, BB-23] (James)
+- BB-25 Alignment engine with tests on recorded fixtures. [BB-24] (James)
+- BB-26 Completion detection, stopped early, words per minute. [BB-25] (James)
+- BB-27 Reading-pattern aggregation with confidence. [BB-25] (James)
+- BB-28 AI explanation of reading patterns, kid and parent versions. [BB-27, BB-20] (Jhade)
+- BB-29 Misheard-word correction and recompute. [BB-25] (James)
+- BB-30 Audio handling: discard by default, optional 30-day retention, deletion. [BB-24] (James)
+
+M4 Product
+- BB-31 Student home and level card (A3). [BB-06, BB-19] (Sean)
+- BB-32 Reading session screens B1 to B4 with live word highlighting. [BB-24, BB-36] (Sean)
+- BB-33 Questions, feedback, result, level up (C1 to C4) and exception screens D1 to D3. [BB-36] (Sean)
+- BB-34 My progress page (E1). [BB-19] (Sean)
+- BB-35 Parent screens F2 to F6. [BB-10, BB-20] (Sean)
+
+M5 Pilot readiness
+- BB-37 Accessibility audit and fixes. [BB-33] (Sean)
+- BB-38 End-to-end tests for the core flows. [BB-33] (Rhett)
+- BB-39 Observability, rate limits and AI cost budgets. [BB-02] (Rhett)
+- BB-40 Fairness test across voices and accents with an educator review of pace norms. [BB-26] (James)
+- BB-41 Threat model and privacy review including the under-13 rule. [BB-08] (Rhett)
+- BB-42 Content review process and feedback loop for stories. [BB-18] (Jhade)
+
+## 13. Risks and open questions
+
+- Speech recognition quality on children and accents is the largest technical risk. Mitigation: bake-off first, confidence flags, correction flow.
+- Generated story quality and safety. Mitigation: deterministic checks, independent verifier, story bank, evaluation set, content review.
+- Legal basis for children's data and the under-13 rule. Needs qualified review before pilot.
+- Latency and cost of AI calls. Mitigation: pre-generation, small model for notes, budgets.
+- Level numbers, tries and pass rules are guesses until real learners use them.
+- Open: Filipino or mother-tongue reading is out of scope for now (English only). Decide whether to plan for it in the contracts.

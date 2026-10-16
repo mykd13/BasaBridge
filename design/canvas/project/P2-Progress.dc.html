@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Parent progress</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="background:#F4F6F2;color:#14212B;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:17px;line-height:1.55;min-height:1620px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #D9DED6">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Lexend',sans-serif;font-weight:700;font-size:19px"><svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#0C6B63"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>
+    <div style="display:flex;border:1.5px solid #D9DED6;border-radius:999px;padding:3px;background:#FFFFFF">
+      <a href="Main.dc.html" style="padding:8px 20px;border-radius:999px;font-weight:700;color:#14212B;text-decoration:none">Sign out</a>
+      <span style="padding:8px 20px;border-radius:999px;font-weight:700;background:#0C6B63;color:#FFFFFF">Parent account</span>
+    </div>
+  </header>
+  <main style="max-width:1040px;margin:0 auto;padding:32px 40px;display:flex;flex-direction:column;gap:28px">
+    <nav style="display:flex;gap:8px;flex-wrap:wrap" aria-label="Learners">
+      <span style="border:1.5px solid #14212B;background:#14212B;color:#F4F6F2;border-radius:999px;padding:8px 18px;font-weight:700">[Learner name]</span>
+      <a href="P1-AddLearner.dc.html" style="border:1.5px dashed #D9DED6;background:#FFFFFF;color:#0C6B63;border-radius:999px;padding:8px 18px;font-weight:700;text-decoration:none">+ Link a child</a>
+    </nav>
+    <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-end">
+      <div><h1 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:36px;line-height:1.2">[Learner name]</h1><p style="margin:4px 0 0;color:#56646E">Grade 3 · Level 24 of 100 · 12 readings</p></div>
+      <span style="color:#56646E;font-size:15px">Shared by [Learner name] since Oct 17, 2026. Your child controls what you see.</span>
+    </div>
+    <div style="display:flex;border-bottom:1px solid #D9DED6;overflow-x:auto" role="tablist">
+      <span role="tab" aria-selected="true" style="padding:10px 16px;font-weight:700;border-bottom:3px solid #0C6B63;white-space:nowrap">Progress</span>
+      <a href="P3-Readings.dc.html" role="tab" style="padding:10px 16px;font-weight:700;color:#56646E;text-decoration:none;white-space:nowrap">Readings</a>
+      <a href="P6-Levels.dc.html" role="tab" style="padding:10px 16px;font-weight:700;color:#56646E;text-decoration:none;white-space:nowrap">Levels and tries</a>
+      <a href="P4-Decisions.dc.html" role="tab" style="padding:10px 16px;font-weight:700;color:#56646E;text-decoration:none;white-space:nowrap">AI decisions</a>
+      <a href="P5-Data.dc.html" role="tab" style="padding:10px 16px;font-weight:700;color:#56646E;text-decoration:none;white-space:nowrap">Data and privacy</a>
+    </div>
+
+    <section style="display:flex;flex-wrap:wrap;gap:16px">
+      <div style="flex:1 1 260px;background:#FFFFFF;border:1px solid #D9DED6;border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:13px;font-weight:700;color:#56646E;text-transform:uppercase;letter-spacing:.06em">Level</div>
+        <div style="font-family:'Lexend',sans-serif;font-weight:700;font-size:40px;line-height:1">24 <span style="font-size:16px;color:#56646E;font-weight:500">of 100</span></div>
+        <div style="display:flex;gap:6px"><span style="flex:1;height:10px;border-radius:5px;background:#0C6B63"></span><span style="flex:1;height:10px;border-radius:5px;background:#0C6B63"></span><span style="flex:1;height:10px;border-radius:5px;background:#D9DED6"></span></div>
+        <div style="color:#56646E;font-size:15px">2 of 3 stories passed toward Level 25</div>
+      </div>
+      <div style="flex:1 1 260px;background:#FFFFFF;border:1px solid #D9DED6;border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:13px;font-weight:700;color:#56646E;text-transform:uppercase;letter-spacing:.06em">Tries per story</div>
+        <div style="font-family:'Lexend',sans-serif;font-weight:700;font-size:40px;line-height:1">5</div>
+        <div style="color:#56646E;font-size:15px">Drops to 4 at Level 31. Unlimited at Levels 1 to 10.</div>
+      </div>
+      <div style="flex:1 1 260px;background:#FFFFFF;border:1px solid #D9DED6;border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:13px;font-weight:700;color:#56646E;text-transform:uppercase;letter-spacing:.06em">Tries used on average</div>
+        <div style="font-family:'Lexend',sans-serif;font-weight:700;font-size:40px;line-height:1">2.4</div>
+        <div style="color:#56646E;font-size:15px">Across the last 5 stories</div>
+      </div>
+    </section>
+
+    <section style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:20px">Reading skills</h2><span style="color:#56646E;font-size:15px">Estimates come only from what [Learner name] read and answered, weighted toward recent readings.</span></div>
+      <div style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:16px;padding:6px 20px">
+        <div style="display:flex;flex-wrap:wrap;gap:8px 24px;padding:16px 0;border-bottom:1px solid #D9DED6"><div style="flex:1 1 240px;min-width:0"><b>Decoding</b><div style="color:#56646E;font-size:15px">Sounding out words accurately</div></div><div style="flex:2 1 320px;min-width:0"><div style="height:12px;border-radius:6px;background:#D9DED6;overflow:hidden"><div style="width:91%;height:100%;background:#0C6B63"></div></div><div style="margin-top:6px;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center"><b>91%</b><span>1,046 of 1,150 words read right</span><span style="background:#DCEEEA;color:#0C6B63;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700">Steady evidence</span></div></div></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px 24px;padding:16px 0;border-bottom:1px solid #D9DED6"><div style="flex:1 1 240px;min-width:0"><b>Fluency</b><div style="color:#56646E;font-size:15px">Reading smoothly at a steady pace</div></div><div style="flex:2 1 320px;min-width:0"><div style="margin-top:2px;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center"><b style="font-family:'Lexend',sans-serif;font-size:24px">58</b><span>words read right per minute</span><span style="background:#DCEEEA;color:#0C6B63;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700">Steady evidence</span><span style="background:#DDF0E4;color:#23724A;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700">+4 since the last reading</span></div></div></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px 24px;padding:16px 0;border-bottom:1px solid #D9DED6"><div style="flex:1 1 240px;min-width:0"><b>Vocabulary</b><div style="color:#56646E;font-size:15px">Knowing what words mean in context</div></div><div style="flex:2 1 320px;min-width:0"><div style="height:12px;border-radius:6px;background:#D9DED6;overflow:hidden"><div style="width:43%;height:100%;background:#0C6B63"></div></div><div style="margin-top:6px;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center"><b>43%</b><span>3 of 7 correct</span><span style="background:#DCEEEA;color:#0C6B63;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700">Building a picture</span></div></div></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px 24px;padding:16px 0;border-bottom:1px solid #D9DED6"><div style="flex:1 1 240px;min-width:0"><b>Literal comprehension</b><div style="color:#56646E;font-size:15px">Finding what the text says directly</div></div><div style="flex:2 1 320px;min-width:0"><div style="height:12px;border-radius:6px;background:#D9DED6;overflow:hidden"><div style="width:78%;height:100%;background:#0C6B63"></div></div><div style="margin-top:6px;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center"><b>78%</b><span>7 of 9 correct</span><span style="background:#DCEEEA;color:#0C6B63;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700">Building a picture</span><span style="background:#DDF0E4;color:#23724A;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700">+6 since the last reading</span></div></div></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px 24px;padding:16px 0"><div style="flex:1 1 240px;min-width:0"><b>Inferential comprehension</b><div style="color:#56646E;font-size:15px">Working out what the text suggests</div></div><div style="flex:2 1 320px;min-width:0"><div style="height:12px;border-radius:6px;background:#D9DED6;overflow:hidden"><div style="width:60%;height:100%;background:#0C6B63"></div></div><div style="margin-top:6px;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center"><b>60%</b><span>3 of 5 correct</span><span style="background:#DCEEEA;color:#0C6B63;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700">Building a picture</span></div></div></div>
+      </div>
+    </section>
+
+    <section style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:20px">Reading patterns the AI Teacher found</h2><span style="color:#56646E;font-size:15px">From word-by-word comparison of the child's voice to the text.</span></div>
+      <div style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:16px;padding:6px 20px">
+        <div style="padding:14px 0;border-bottom:1px solid #D9DED6;display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between"><span style="flex:1 1 380px;min-width:0">Often leaves off word endings such as -ed and -s. Seen 6 times across 4 readings.</span><span style="background:#FBEFCF;color:#9A5A07;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700;height:fit-content">Medium confidence</span></div>
+        <div style="padding:14px 0;border-bottom:1px solid #D9DED6;display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between"><span style="flex:1 1 380px;min-width:0">Slows down on words with “tion” and “ough”. Seen on 5 words in 3 readings.</span><span style="background:#FBEFCF;color:#9A5A07;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700;height:fit-content">Medium confidence</span></div>
+        <div style="padding:14px 0;display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between"><span style="flex:1 1 380px;min-width:0">Reads straight through full stops without pausing. Seen in 3 of the last 4 readings.</span><span style="background:#DCEEEA;color:#0C6B63;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700;height:fit-content">High confidence</span></div>
+      </div>
+      <div style="color:#56646E;font-size:15px">Speech recognition can mishear some voices and accents. Check the word list under Readings and mark any word that was heard wrongly.</div>
+    </section>
+
+    <section style="display:flex;flex-wrap:wrap;gap:20px">
+      <div style="flex:1 1 440px;min-width:0;display:flex;flex-direction:column;gap:12px"><h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:20px">Current plan</h2>
+        <div style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:10px">
+          <p style="margin:0">This reading: 4 of 5 questions correct and 94% of words read right. The next story will be new text at the same difficulty.</p>
+          <p style="margin:0"><b>Focus:</b> Vocabulary. It is the lowest measured comprehension skill so far (3 of 7 correct across all readings).</p>
+          <p style="margin:0;color:#56646E;font-size:15px">The focus is chosen by rule (lowest estimate). The AI Teacher wrote the wording.</p>
+        </div></div>
+      <div style="flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:12px"><h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:20px">Home activity</h2>
+        <div style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:8px">
+          <b style="font-family:'Lexend',sans-serif;font-size:18px">Word detective</b><span style="color:#56646E;font-size:15px">5 minutes · Written by the AI Teacher</span>
+          <ol style="margin:4px 0 0;padding-left:1.3rem;display:flex;flex-direction:column;gap:6px"><li>Pick three words from the story that felt tricky.</li><li>Ask: “What do you think it means? Which words nearby help you?”</li><li>Use each word in a new sentence about your day.</li></ol>
+        </div></div>
+    </section>
+
+    <div style="border-left:4px solid #F3B93B;background:#FBEFCF;padding:12px 16px;border-radius:0 12px 12px 0;font-size:15px"><b>What this does and does not tell you.</b> Each reading has about five questions and one voice sample, so early numbers can move a lot. This supports reading practice. It is not a diagnosis, a grade, or a replacement for school, and a few readings cannot show lasting learning gains.</div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1620}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

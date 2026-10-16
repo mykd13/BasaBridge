@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Parent link a child</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="background:#F4F6F2;color:#14212B;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:17px;line-height:1.55;min-height:800px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #D9DED6">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Lexend',sans-serif;font-weight:700;font-size:19px"><svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#0C6B63"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>
+    <nav style="display:flex;gap:6px;flex-wrap:wrap" aria-label="Main"><span style="padding:8px 16px;border-radius:999px;font-weight:700;background:#14212B;color:#F4F6F2">Parent account</span><a href="Main.dc.html" style="padding:8px 16px;border-radius:999px;font-weight:700;color:#56646E;text-decoration:none">Sign out</a></nav>
+  </header>
+  <main style="max-width:1040px;margin:0 auto;padding:48px 40px;display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start">
+    <section style="flex:1 1 440px;min-width:0;display:flex;flex-direction:column;gap:18px">
+      <h1 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:36px;line-height:1.2">Link your child's account</h1>
+      <p style="margin:0;color:#56646E;max-width:56ch">Your child has their own BasaBridge account and chooses to share their progress with you. Ask them for the link code from My account, then type it here.</p>
+      <form onsubmit="return false" style="display:flex;flex-direction:column;gap:16px;max-width:480px">
+        <div><label for="l-code" style="display:block;font-weight:700;margin-bottom:4px">Link code</label><input id="l-code" type="text" placeholder="BB-0000-00" style="font:inherit;font-size:22px;letter-spacing:.06em;width:100%;box-sizing:border-box;min-height:54px;padding:10px 14px;border-radius:12px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B"></div>
+        <label for="l-parent" style="display:flex;gap:12px;align-items:flex-start;font-weight:400"><input id="l-parent" type="checkbox" style="width:22px;height:22px;margin-top:2px;flex:none;accent-color:#0C6B63"><span>I am this child's parent or legal guardian.</span></label>
+        <div><button disabled style="font:inherit;font-weight:700;min-height:48px;padding:10px 26px;border-radius:12px;border:1.5px solid #0C6B63;background:#0C6B63;color:#FFFFFF;opacity:.45">Link child</button></div>
+      </form>
+    </section>
+    <aside style="flex:1 1 320px;min-width:0;background:#FFFFFF;border:1px solid #D9DED6;border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:12px">
+      <h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:20px">What you will see</h2>
+      <ul style="margin:0;padding-left:1.2rem;display:flex;flex-direction:column;gap:6px"><li>Level, tries and skill scores</li><li>Words your child finds tricky</li><li>The AI teacher's notes and decisions</li></ul>
+      <div style="background:#FBEFCF;border-radius:12px;padding:10px 14px;font-size:15px">You never see or hear your child's voice recordings. Your child can stop sharing at any time.</div>
+      <div style="color:#56646E;font-size:15px">Your child is 12 or younger and asked you to approve the microphone? You will see an approval request here once linked.</div>
+    </aside>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
