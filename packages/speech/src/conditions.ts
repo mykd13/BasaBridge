@@ -20,8 +20,10 @@ export interface AudioFrame {
 export const CONDITION_THRESHOLDS = {
   /** Words that overlap by more than this many seconds were probably said by two voices. */
   overlapSeconds: 0.15,
-  /** Overlapping voices need at least this many overlapping words... */
+  /** Overlapping voices need at least this many different words involved... */
   overlapMinWords: 3,
+  /** Words longer than this are timing glitches and are left out of the overlap check. */
+  maxWordSeconds: 1.5,
   /** ...and this share of all heard words. */
   overlapMinShare: 0.1,
   /** A frame this loud is speech-like. */
@@ -57,9 +59,12 @@ export function frameSeconds(frames: AudioFrame[]): number {
 }
 
 function overlappingWords(heard: HeardWord[]): Set<number> {
-  const order = heard.map((_, i) => i).sort((a, b) => heard[a]!.start - heard[b]!.start);
+  // A word stretched over several others is a timing glitch, not a second voice.
+  const usable = heard
+    .map((_, i) => i)
+    .filter((i) => heard[i]!.end - heard[i]!.start <= T.maxWordSeconds);
+  const order = usable.sort((a, b) => heard[a]!.start - heard[b]!.start);
   const hit = new Set<number>();
-  const pairs = { count: 0 };
   for (let a = 0; a < order.length; a++) {
     const first = heard[order[a]!]!;
     for (let b = a + 1; b < order.length; b++) {
@@ -67,10 +72,9 @@ function overlappingWords(heard: HeardWord[]): Set<number> {
       if (second.start >= first.end - T.overlapSeconds) break;
       hit.add(order[a]!);
       hit.add(order[b]!);
-      pairs.count++;
     }
   }
-  return pairs.count >= T.overlapMinWords ? hit : new Set();
+  return hit.size >= T.overlapMinWords ? hit : new Set();
 }
 
 function backgroundFrames(heard: HeardWord[], frames: AudioFrame[]): AudioFrame[] {

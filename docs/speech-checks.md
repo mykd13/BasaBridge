@@ -28,19 +28,19 @@ Levels are RMS values from 0 to 1. The browser must compute them the same way fo
 
 ## Measured flag rates
 
-Measured on seeded synthetic tries (`simulate.ts`), run in `checks.test.ts`.
+Measured on seeded synthetic tries (`simulate.ts`, seeds 1 to N). The same sizes run in `checks.test.ts`, so these numbers repeat with `pnpm --filter @basabridge/speech test`.
 
-| Case                                          | Result                  |
-| --------------------------------------------- | ----------------------- |
-| 20,000 clean tries, any condition flagged     | 0 flagged (0%)          |
-| 20,000 clean tries, flagged for review        | 0 flagged (0%)          |
-| 2,000 tries with overlapping voices added     | 99.95% detected         |
-| 2,000 tries with background speech after read | 100% detected           |
-| 2,000 quiet tries                             | 100% detected           |
-| 2,000 replays of an earlier try's timing      | 100% flagged for review |
-| 2,000 steady, machine-like tries              | 100% flagged for review |
+| Case                                               | Result              |
+| -------------------------------------------------- | ------------------- |
+| 2,000 clean tries, any condition flagged           | 0 flagged (0%)      |
+| 2,000 clean tries, flagged for review              | 0 flagged (0%)      |
+| 500 tries with overlapping voices added            | 500 detected (100%) |
+| 500 tries with background speech after the reading | 500 detected (100%) |
+| 500 quiet tries                                    | 500 detected (100%) |
+| 500 replays of an earlier try's timing             | 500 flagged (100%)  |
+| 500 steady, machine-like tries                     | 500 flagged (100%)  |
 
-Tests fail if clean tries are flagged for conditions in 1% or more, or for review in 0.5% or more.
+Tests fail if clean tries are flagged for conditions in 1% or more, or for review in 0.5% or more, or if any injected case is detected less than 95% of the time (99% for replays).
 
 ## Limits
 
@@ -48,3 +48,10 @@ Tests fail if clean tries are flagged for conditions in 1% or more, or for revie
 - Still to do by hand: run the checks on the BB-22 and BB-40 recordings, including noisy classrooms, Philippine-accented English and young children, then record the real rates and re-tune.
 - Background speech that overlaps the learner's own words is caught only when the provider returns overlapping words. Quiet background talk during reading is not detected.
 - There is no voice matching. "Clearly not the learner" is covered only by the timing and steadiness signs above.
+- A false review flag holds a learner's level, so the BB-22 and BB-40 real-recording run is a release gate for these checks.
+
+## Wiring (not done in BB-70)
+
+- `checkTry` trusts what it is given. The server must compute the loudness frames from the upload and load the learner's `earlierSignatures` itself. A client that sends empty frames or no earlier signatures would skip both checks.
+- Level movement in `packages/levels` and `packages/mastery` must call `countsForLevelMovement` before a try counts. Level rules live only there.
+- The keys in `LEARNER_MESSAGE_KEYS` are not in any catalog yet. English and Filipino entries (simple and standard) belong with the PR that adds the i18n catalog. Tracked in the PR description.

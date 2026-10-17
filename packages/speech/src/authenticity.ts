@@ -6,7 +6,7 @@
  */
 import type { AudioFrame } from './conditions';
 import type { HeardWord } from './index';
-import { variation } from './stats';
+import { mean, variation } from './stats';
 
 export type ReviewReason = 'same_timing_as_earlier_try' | 'steady_level_and_pace';
 
@@ -17,6 +17,8 @@ export const AUTHENTICITY_THRESHOLDS = {
   repeatTolerance: 0.03,
   /** Loudness that varies less than this (coefficient of variation) is unnaturally steady. */
   steadyLevel: 0.12,
+  /** Below this average level there is nothing to judge, for example a muted microphone. */
+  minLevel: 0.005,
   /** Fewest speech frames before loudness is judged. */
   minFrames: 20,
   /** Word-to-word timing that varies less than this is unnaturally even. */
@@ -72,6 +74,7 @@ export function assessAuthenticity(input: AuthenticityInput): ReviewReason[] {
   const levels = speechLevels(input.heard, input.frames);
   if (
     levels.length >= T.minFrames &&
+    mean(levels) >= T.minLevel &&
     variation(levels) < T.steadyLevel &&
     paceIsEven(input.heard)
   ) {

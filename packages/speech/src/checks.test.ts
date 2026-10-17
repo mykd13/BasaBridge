@@ -74,6 +74,12 @@ describe('detectConditions', () => {
     expect(r.heard.filter((w) => w.confidence < 0.5).length).toBe(8);
   });
 
+  it('ignores one stretched word that spans several others', () => {
+    const heard = words(20);
+    heard[5] = { ...heard[5]!, end: heard[5]!.start + 2.2 };
+    expect(detectConditions(heard, []).conditions).toEqual([]);
+  });
+
   it('ignores one or two slightly overlapping words', () => {
     const heard = words(10);
     heard[3] = { ...heard[3]!, end: heard[4]!.start + 0.3 };
@@ -148,6 +154,12 @@ describe('assessAuthenticity', () => {
     expect(assessAuthenticity({ heard: later, frames: [], earlierSignatures: [earlier] })).toEqual(
       [],
     );
+  });
+
+  it('does not treat a muted microphone as steady', () => {
+    const even = words(12);
+    const muted = even.flatMap((w) => flat(w.start, w.end, 0));
+    expect(assessAuthenticity({ heard: even, frames: muted })).toEqual([]);
   });
 
   it('needs steady level and steady pace together', () => {
