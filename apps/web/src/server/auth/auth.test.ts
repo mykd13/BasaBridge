@@ -9,7 +9,7 @@ import { signUpParent, signUpStudent } from './accounts';
 import { authConfig, AUTH_CODES } from './config';
 import { createAuth } from './create-auth';
 import type { Db } from './lockout';
-import type { Mailer } from './mailer';
+import { unconfiguredMailer, type Mailer } from './mailer';
 
 const migrations = join(__dirname, '../../../../../packages/db/migrations');
 
@@ -419,5 +419,16 @@ describe('review fixes', () => {
     });
     const [u] = await t.db.select().from(schema.users).where(eq(schema.users.id, r.userId));
     expect(u?.name).not.toContain('@');
+  });
+});
+
+describe('production mailer', () => {
+  it('fails loudly instead of pretending to send', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await expect(
+      unconfiguredMailer.sendPasswordReset({ to: 'a@example.com', url: 'http://x/y' }),
+    ).rejects.toThrow('No email provider');
+    expect(spy.mock.calls.flat().join(' ')).not.toContain('a@example.com');
+    spy.mockRestore();
   });
 });

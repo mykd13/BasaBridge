@@ -34,9 +34,21 @@ Use **Better Auth** with the Drizzle adapter, the `username` plugin and email an
 - A student with no email and no linked parent cannot reset a password. The recovery code in BB-62 covers that case. Until then the sign-up screen says so plainly.
 - If Better Auth stops fitting, the surface we use is small: sign up, sign in, sign out, session lookup and reset.
 
+## Trade-offs
+
+- **Lockout can be used against a child.** More than five attempts in 15 minutes lock an account, so anyone who knows a username can keep it locked. We accept this for now. Keying on address and username together would let an attacker who rotates addresses guess freely. The window is short and the numbers live in `config.ts`. Revisit with BB-63.
+- **Two database drivers.** The web app opens its own `pg` connection and `@basabridge/db` uses `postgres`. Check pooling on Neon for serverless before launch.
+
+## Before production
+
+- No step runs migrations on Vercel yet (deferred from BB-3). Without one the auth tables do not exist, and sign-up and sign-in fail.
+- `BETTER_AUTH_URL` must be set in all three Vercel environments (add it to the BB-2 checklist). `AUTH_SECRET` needs at least 32 characters.
+- Production uses a mailer that throws, so a reset request fails loudly until a provider is wired in (BB-64).
+- Decide whether child sessions keep the IP address and user agent before the pilot (BB-41).
+
 ## Open
 
-- Sessions store `ip_address` and `user_agent` by default. Rhett to decide if children's accounts should keep them.
+- Sessions store `ip_address` and `user_agent` by default. Decide if children's accounts should keep them, tracked with BB-41.
 - Reset tokens are stored as plain text in `verifications` and expire fast. Hashing them is a later option.
 - The per address limiter is a read-then-write and can leak a little under a burst. The per account lockout does not.
 - Real email provider and sender domain.

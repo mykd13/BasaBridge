@@ -10,6 +10,7 @@ import {
 import { authConfig } from './config';
 import { createAuth, type Auth } from './create-auth';
 import type { Db } from './lockout';
+import { consoleMailer, unconfiguredMailer } from './mailer';
 
 export { AUTH_CODES } from './config';
 
@@ -28,7 +29,8 @@ function build() {
       throw new Error(`AUTH_SECRET must be at least ${authConfig.minSecretLength} characters.`);
     }
     const db = drizzle(url, { schema }) as unknown as Db;
-    instance = { db, auth: createAuth({ db, secret, baseURL }) };
+    const mailer = process.env.NODE_ENV === 'production' ? unconfiguredMailer : consoleMailer;
+    instance = { db, auth: createAuth({ db, secret, baseURL, mailer }) };
   }
   return instance;
 }
