@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as schema from '@basabridge/db/schema';
 import { signUpParent, signUpStudent } from './accounts';
-import { authConfig, NO_EMAIL_NOTICE } from './config';
+import { authConfig, AUTH_CODES } from './config';
 import { createAuth } from './create-auth';
 import type { Db } from './lockout';
 import type { Mailer } from './mailer';
@@ -47,7 +47,7 @@ describe('sign-up', () => {
 
   it('creates a student with a username only and warns that reset will not work', async () => {
     const r = await signUpStudent(t.auth, t.db, { username: 'Mika', password: 'correct horse' });
-    expect(r.notice).toBe(NO_EMAIL_NOTICE);
+    expect(r.notice).toBe(AUTH_CODES.noEmail);
     const [u] = await t.db.select().from(schema.users).where(eq(schema.users.id, r.userId));
     expect(u?.role).toBe('student');
     expect(u?.emailReal).toBe(false);
@@ -72,7 +72,7 @@ describe('sign-up', () => {
   });
 
   it('creates a parent with an email', async () => {
-    const r = await signUpParent(t.auth, {
+    const r = await signUpParent(t.auth, t.db, {
       email: 'Parent@Example.com',
       password: 'correct horse',
     });
@@ -121,7 +121,7 @@ describe('sign-in, sessions and sign-out', () => {
   beforeEach(async () => {
     t = await setup();
     await signUpStudent(t.auth, t.db, { username: 'mika', password: 'correct horse' });
-    await signUpParent(t.auth, { email: 'parent@example.com', password: 'another phrase' });
+    await signUpParent(t.auth, t.db, { email: 'parent@example.com', password: 'another phrase' });
   });
 
   it('signs a student in by username and sets a cookie session', async () => {
@@ -173,6 +173,7 @@ describe('lockout and rate limit', () => {
     }
     await expect(signIn(t.auth, 'mika', 'correct horse')).rejects.toMatchObject({
       status: 'TOO_MANY_REQUESTS',
+      body: { code: AUTH_CODES.accountLocked, retryAfterMinutes: authConfig.lockoutWindowMinutes },
     });
   });
 
@@ -225,7 +226,7 @@ describe('password reset', () => {
   });
 
   it('emails a link to an account with a real email and resets the password once', async () => {
-    await signUpParent(t.auth, { email: 'parent@example.com', password: 'old password' });
+    await signUpParent(t.auth, t.db, { email: 'parent@example.com', password: 'old password' });
     await t.auth.api.requestPasswordReset({ body: { email: 'parent@example.com' } });
     expect(t.sent).toHaveLength(1);
     expect(t.sent[0]?.to).toBe('parent@example.com');
@@ -244,7 +245,7 @@ describe('password reset', () => {
   });
 
   it('rejects an expired reset link', async () => {
-    await signUpParent(t.auth, { email: 'parent@example.com', password: 'old password' });
+    await signUpParent(t.auth, t.db, { email: 'parent@example.com', password: 'old password' });
     await t.auth.api.requestPasswordReset({ body: { email: 'parent@example.com' } });
     const token = tokenFrom(t.sent[0]!.url.split('?')[0]!);
     await t.db.update(schema.verifications).set({ expiresAt: new Date(Date.now() - 1000) });
@@ -265,14 +266,14 @@ describe('password reset', () => {
 
   it('sends nothing to a student who skipped email', async () => {
     const r = await signUpStudent(t.auth, t.db, { username: 'mika', password: 'old password' });
-    expect(r.notice).toBe(NO_EMAIL_NOTICE);
+    expect(r.notice).toBe(AUTH_CODES.noEmail);
     const [u] = await t.db.select().from(schema.users).where(eq(schema.users.id, r.userId));
     await t.auth.api.requestPasswordReset({ body: { email: u!.email } });
     expect(t.sent).toHaveLength(0);
   });
 
   it('revokes other sessions after a reset', async () => {
-    await signUpParent(t.auth, { email: 'parent@example.com', password: 'old password' });
+    await signUpParent(t.auth, t.db, { email: 'parent@example.com', password: 'old password' });
     await t.auth.api.signInEmail({
       body: { email: 'parent@example.com', password: 'old password' },
     });
@@ -280,5 +281,143 @@ describe('password reset', () => {
     const token = tokenFrom(t.sent[0]!.url.split('?')[0]!);
     await t.auth.api.resetPassword({ body: { newPassword: 'new password', token } });
     expect(await t.db.select().from(schema.sessions)).toHaveLength(0);
+  });
+});
+
+const post = (t: Awaited<ReturnType<typeof setup>>, path: string, body: unknown, cookie?: string) =>
+  t.auth.handler(
+    new Request(`http://localhost:3000/api/auth${path}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: 'http://localhost:3000',
+        ...(cookie ? { cookie } : {}),
+      },
+      body: JSON.stringify(body),
+    }),
+  );
+
+describe('review fixes', () => {
+  it('B1: a student cannot change role, age band or email flag through /update-user', async () => {
+    const t = await setup();
+    const r = await signUpStudent(t.auth, t.db, { username: 'mika', password: 'correct horse' });
+    await t.db
+      .update(schema.users)
+      .set({ ageBand: 'under13' })
+      .where(eq(schema.users.id, r.userId));
+    const { headers } = await signIn(t.auth, 'mika', 'correct horse');
+    const cookie = (headers.get('set-cookie') ?? '').split(';')[0]!;
+    await post(t, '/update-user', { role: 'parent', ageBand: '18plus', emailReal: true }, cookie);
+    const [u] = await t.db.select().from(schema.users).where(eq(schema.users.id, r.userId));
+    expect(u?.role).toBe('student');
+    expect(u?.ageBand).toBe('under13');
+    expect(u?.emailReal).toBe(false);
+  });
+
+  it('B2: an extra username field does not dodge the email lockout', async () => {
+    const t = await setup();
+    await signUpParent(t.auth, t.db, { email: 'parent@example.com', password: 'right password' });
+    for (let i = 0; i < authConfig.lockoutMaxFailures; i++) {
+      await post(t, '/sign-in/email', {
+        email: 'parent@example.com',
+        password: 'wrong password',
+        username: `made-up-${i}`,
+      });
+    }
+    const res = await post(t, '/sign-in/email', {
+      email: 'parent@example.com',
+      password: 'right password',
+      username: 'another-one',
+    });
+    expect(res.status).toBe(429);
+  });
+
+  it('B2: both sign-in routes share one counter for a student', async () => {
+    const t = await setup();
+    const r = await signUpStudent(t.auth, t.db, { username: 'mika', password: 'right password' });
+    const [u] = await t.db.select().from(schema.users).where(eq(schema.users.id, r.userId));
+    for (let i = 0; i < 3; i++) {
+      await post(t, '/sign-in/username', { username: 'mika', password: 'wrong password' });
+    }
+    for (let i = 0; i < 2; i++) {
+      await post(t, '/sign-in/email', { email: u!.email, password: 'wrong password' });
+    }
+    const res = await post(t, '/sign-in/username', {
+      username: 'mika',
+      password: 'right password',
+    });
+    expect(res.status).toBe(429);
+  });
+
+  it('S1: a parallel burst of wrong passwords is stopped', async () => {
+    const t = await setup();
+    await signUpStudent(t.auth, t.db, { username: 'mika', password: 'right password' });
+    const results = await Promise.all(
+      Array.from({ length: 30 }, () =>
+        post(t, '/sign-in/username', { username: 'mika', password: 'wrong password' }),
+      ),
+    );
+    const locked = results.filter((r) => r.status === 429).length;
+    expect(locked).toBeGreaterThanOrEqual(30 - authConfig.lockoutMaxFailures);
+  });
+
+  it('S3: odd usernames sign up without email, and nobody can register the reserved domain', async () => {
+    const t = await setup();
+    const a = await signUpStudent(t.auth, t.db, { username: 'a..b', password: 'correct horse' });
+    expect(a.notice).toBe(AUTH_CODES.noEmail);
+    await signUpStudent(t.auth, t.db, { username: 'zed', password: 'correct horse' });
+    await expect(
+      signUpParent(t.auth, t.db, {
+        email: `zed@${authConfig.noEmailDomain}`,
+        password: 'correct horse',
+      }),
+    ).rejects.toThrow();
+    await expect(
+      signUpStudent(t.auth, t.db, {
+        username: 'kai',
+        password: 'correct horse',
+        email: `kai@${authConfig.noEmailDomain}`,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('S5: bad input is rejected before any account is made', async () => {
+    const t = await setup();
+    await expect(
+      signUpParent(t.auth, t.db, { email: 'not an email', password: 'correct horse' }),
+    ).rejects.toThrow();
+    await expect(
+      signUpStudent(t.auth, t.db, { username: 'ab', password: 'correct horse' }),
+    ).rejects.toThrow();
+    expect(await t.db.select().from(schema.users)).toHaveLength(0);
+  });
+
+  it('S5: a failed learner row removes the half-made user', async () => {
+    const t = await setup();
+    const failing = new Proxy(t.db, {
+      get(target, prop) {
+        if (prop === 'insert') {
+          return () => {
+            throw new Error('boom');
+          };
+        }
+        const v = Reflect.get(target, prop) as unknown;
+        return typeof v === 'function' ? v.bind(target) : v;
+      },
+    });
+    await expect(
+      signUpStudent(t.auth, failing, { username: 'mika', password: 'correct horse' }),
+    ).rejects.toThrow('boom');
+    expect(await t.db.select().from(schema.users)).toHaveLength(0);
+  });
+
+  it('N1: no email or username is stored as a name for parents', async () => {
+    const t = await setup();
+    const r = await signUpParent(t.auth, t.db, {
+      email: 'parent@example.com',
+      password: 'correct horse',
+    });
+    const [u] = await t.db.select().from(schema.users).where(eq(schema.users.id, r.userId));
+    expect(u?.name).not.toContain('@');
   });
 });

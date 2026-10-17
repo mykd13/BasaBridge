@@ -1,6 +1,6 @@
-import { and, eq, gt, sql } from 'drizzle-orm';
+import { and, eq, gt, lt, or, sql } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
-import { signInFailures } from '@basabridge/db/schema';
+import { signInFailures, users } from '@basabridge/db/schema';
 import type * as Schema from '@basabridge/db/schema';
 import { authConfig } from './config';
 
@@ -12,25 +12,35 @@ export function normalizeIdentifier(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
-export async function isLockedOut(db: Db, identifier: string): Promise<boolean> {
+/**
+ * One counter per account, whichever sign-in route is used. A known username or email maps to
+ * the user id. Unknown names are counted under the text itself so guessing is still limited.
+ */
+export async function lockoutKey(db: Db, raw: string): Promise<string> {
+  const id = normalizeIdentifier(raw);
+  const [user] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(or(eq(users.email, id), sql`lower(${users.username}) = ${id}`))
+    .limit(1);
+  return user ? `user:${user.id}` : `name:${id}`;
+}
+
+/**
+ * Records this attempt first, then counts. Recording before the password is checked means a
+ * burst of parallel requests cannot all pass the check. A good sign-in clears the rows.
+ * Returns true when the attempt is over the limit and must be refused.
+ */
+export async function registerAttempt(db: Db, key: string): Promise<boolean> {
+  await db.delete(signInFailures).where(lt(signInFailures.createdAt, windowStart()));
+  await db.insert(signInFailures).values({ identifier: key });
   const [row] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(signInFailures)
-    .where(
-      and(
-        eq(signInFailures.identifier, normalizeIdentifier(identifier)),
-        gt(signInFailures.createdAt, windowStart()),
-      ),
-    );
-  return (row?.n ?? 0) >= authConfig.lockoutMaxFailures;
+    .where(and(eq(signInFailures.identifier, key), gt(signInFailures.createdAt, windowStart())));
+  return (row?.n ?? 0) > authConfig.lockoutMaxFailures;
 }
 
-export async function recordFailure(db: Db, identifier: string): Promise<void> {
-  await db.insert(signInFailures).values({ identifier: normalizeIdentifier(identifier) });
-}
-
-export async function clearFailures(db: Db, identifier: string): Promise<void> {
-  await db
-    .delete(signInFailures)
-    .where(eq(signInFailures.identifier, normalizeIdentifier(identifier)));
+export async function clearAttempts(db: Db, key: string): Promise<void> {
+  await db.delete(signInFailures).where(eq(signInFailures.identifier, key));
 }

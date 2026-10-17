@@ -1,6 +1,6 @@
 # 0005 Auth library
 
-Status: proposed. Date: 2026-10-17.
+Status: accepted. Date: 2026-10-17.
 
 ## Problem
 
@@ -28,10 +28,16 @@ Use **Better Auth** with the Drizzle adapter, the `username` plugin and email an
 - `packages/db` gains `sessions`, `accounts`, `verifications`, `rate_limits` and `sign_in_failures`. `users` gains `name`, `email_verified`, `email_real`, and loses `password_hash`. This is a locked area and needs Rhett's agreement.
 - The authorization layer (BB-10) reads the current user from the session helper in `apps/web/src/server/auth`. Pages and routes never read the session cookie themselves.
 - Email goes through a small `Mailer` interface. No provider is chosen yet.
+- `role`, `email_real` and `age_band` are declared `input: false`, so neither sign-up nor the public `/update-user` route can set them. Our server functions set them with a direct update after sign-up, and remove the user if that fails. The age band belongs to the age gate (BB-8).
+- Lockout is one counter per account, keyed on the user id, so the username and email routes share it. Each attempt is recorded before the password is checked, so a parallel burst cannot slip past.
+- Errors and notices are stable codes (`ACCOUNT_LOCKED`, `NO_EMAIL`). Learner-facing words live in the i18n catalog (BB-12, BB-58).
 - A student with no email and no linked parent cannot reset a password. The recovery code in BB-62 covers that case. Until then the sign-up screen says so plainly.
 - If Better Auth stops fitting, the surface we use is small: sign up, sign in, sign out, session lookup and reset.
 
 ## Open
 
+- Sessions store `ip_address` and `user_agent` by default. Rhett to decide if children's accounts should keep them.
+- Reset tokens are stored as plain text in `verifications` and expire fast. Hashing them is a later option.
+- The per address limiter is a read-then-write and can leak a little under a burst. The per account lockout does not.
 - Real email provider and sender domain.
 - Lockout numbers (tuned in `apps/web/src/server/auth/config.ts`).

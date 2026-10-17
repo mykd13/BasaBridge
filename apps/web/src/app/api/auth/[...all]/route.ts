@@ -3,5 +3,5 @@ import { getAuth } from '@/server/auth';
 
 export const runtime = 'nodejs';
 
-export const GET = (req: Request) => toNextJsHandler(getAuth().auth).GET(req);
-export const POST = (req: Request) => toNextJsHandler(getAuth().auth).POST(req);
+export const GET = (req: Request) => toNextJsHandler(getAuth()).GET(req);
+export const POST = (req: Request) => toNextJsHandler(getAuth()).POST(req);

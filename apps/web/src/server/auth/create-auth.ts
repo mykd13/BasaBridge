@@ -5,24 +5,28 @@ import { nextCookies } from 'better-auth/next-js';
 import { username } from 'better-auth/plugins';
 import * as schema from '@basabridge/db/schema';
 import { authConfig } from './config';
-import { clearFailures, isLockedOut, recordFailure, type Db } from './lockout';
+import { clearAttempts, lockoutKey, registerAttempt, type Db } from './lockout';
 import { consoleMailer, type Mailer } from './mailer';
 
 export interface AuthOptions {
   db: Db;
   secret: string;
-  baseURL?: string;
+  baseURL: string;
   mailer?: Mailer;
   /** Turn the per address rate limiter off in tests that make many calls. */
   rateLimit?: boolean;
 }
 
-const SIGN_IN_PATHS = ['/sign-in/username', '/sign-in/email'];
+/** Each sign-in route reads its own field. A stray field on the other route is ignored. */
+const SIGN_IN_FIELD: Record<string, 'username' | 'email'> = {
+  '/sign-in/username': 'username',
+  '/sign-in/email': 'email',
+};
 
-function identifierFrom(body: unknown): string | null {
-  if (!body || typeof body !== 'object') return null;
-  const b = body as { username?: unknown; email?: unknown };
-  const raw = typeof b.username === 'string' ? b.username : b.email;
+function identifierFrom(path: string, body: unknown): string | null {
+  const field = SIGN_IN_FIELD[path];
+  if (!field || !body || typeof body !== 'object') return null;
+  const raw = (body as Record<string, unknown>)[field];
   return typeof raw === 'string' && raw.trim() ? raw : null;
 }
 
@@ -50,10 +54,12 @@ export function createAuth({
     // Accounts are created only by our own server functions (accounts.ts), which set the role.
     disabledPaths: ['/sign-up/email'],
     user: {
+      // input: false keeps these out of the public /update-user and sign-up routes. Server code
+      // in accounts.ts sets them with a direct database update after sign-up.
       additionalFields: {
-        role: { type: 'string', required: true, input: true },
-        emailReal: { type: 'boolean', required: false, input: true },
-        ageBand: { type: 'string', required: false, input: true },
+        role: { type: 'string', required: false, input: false, defaultValue: 'student' },
+        emailReal: { type: 'boolean', required: false, input: false },
+        ageBand: { type: 'string', required: false, input: false },
       },
     },
     emailAndPassword: {
@@ -85,20 +91,22 @@ export function createAuth({
     },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        if (!SIGN_IN_PATHS.includes(ctx.path)) return;
-        const id = identifierFrom(ctx.body);
-        if (id && (await isLockedOut(db, id))) {
+        const id = identifierFrom(ctx.path, ctx.body);
+        if (!id) return;
+        const key = await lockoutKey(db, id);
+        if (await registerAttempt(db, key)) {
+          // A stable code, not text. The screens map it to catalog strings (BB-12, BB-58).
           throw new APIError('TOO_MANY_REQUESTS', {
-            message: `Too many tries. Wait ${authConfig.lockoutWindowMinutes} minutes and try again.`,
+            code: 'ACCOUNT_LOCKED',
+            message: 'ACCOUNT_LOCKED',
+            retryAfterMinutes: authConfig.lockoutWindowMinutes,
           });
         }
       }),
       after: createAuthMiddleware(async (ctx) => {
-        if (!SIGN_IN_PATHS.includes(ctx.path)) return;
-        const id = identifierFrom(ctx.body);
-        if (!id) return;
-        if (ctx.context.returned instanceof APIError) await recordFailure(db, id);
-        else await clearFailures(db, id);
+        const id = identifierFrom(ctx.path, ctx.body);
+        if (!id || ctx.context.returned instanceof APIError) return;
+        await clearAttempts(db, await lockoutKey(db, id));
       }),
     },
     plugins: [

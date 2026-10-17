@@ -4,10 +4,11 @@ export const authConfig = {
   maxPasswordLength: 128,
   minUsernameLength: 3,
   maxUsernameLength: 20,
+  minSecretLength: 32,
   /** A cookie session lasts 30 days and is refreshed once a day while in use. */
   sessionSeconds: 60 * 60 * 24 * 30,
   sessionRefreshSeconds: 60 * 60 * 24,
-  /** Lockout: this many failed sign-ins for one username or email within the window locks it. */
+  /** Lockout: more than this many sign-in attempts for one account within the window locks it. */
   lockoutMaxFailures: 5,
   lockoutWindowMinutes: 15,
   /** Per address limits from the Better Auth rate limiter. */
@@ -17,6 +18,14 @@ export const authConfig = {
   noEmailDomain: 'students.basabridge.invalid',
 } as const;
 
-/** Shown at sign-up when a student leaves email empty. Plain words, no jargon. */
-export const NO_EMAIL_NOTICE =
-  'You did not add an email. If you forget your password, we cannot reset it for you. Write your password down in a safe place.';
+/**
+ * Stable codes the screens turn into words. Learner-facing text lives in the i18n catalog in
+ * English and Filipino, simple and standard wording (BB-12, BB-58), never in the server.
+ *
+ * NO_EMAIL: the student gave no email, so password reset will not work. Say so plainly.
+ * ACCOUNT_LOCKED: sent as the error code with `retryAfterMinutes` when sign-in is locked.
+ */
+export const AUTH_CODES = {
+  noEmail: 'NO_EMAIL',
+  accountLocked: 'ACCOUNT_LOCKED',
+} as const;
