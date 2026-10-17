@@ -1,8 +1,11 @@
 import type { TryAnalysis } from '@basabridge/contracts';
+import { EVIDENCE_RULE, MAX_LEVEL, PASS_RULE } from '@basabridge/levels';
 import { describe, expect, it } from 'vitest';
 import { levelToTheta, prior, summarise, updatePosterior, type Posterior } from './ability';
 import {
+  decideLevel,
   focusFromAbility,
+  type LevelInput,
   readingMeasures,
   startingState,
   storyResult,
@@ -131,4 +134,71 @@ it('updatePosterior is still the single update step', () => {
   expect(updateAbility(startingState(50, { literal: p }), 'literal', e).literal).toEqual(
     updatePosterior(p, e),
   );
+});
+
+const passResult = {
+  wordsRightShare: PASS_RULE.minWordsRight,
+  questionsCorrect: PASS_RULE.minQuestionsCorrect,
+  questionsTotal: 5,
+};
+const failResult = { wordsRightShare: 0.5, questionsCorrect: 0, questionsTotal: 5 };
+
+const strongAbove = (level: number) =>
+  withItems(prior(levelToTheta(level) + 2, 0.2), EVIDENCE_RULE.up.minItems);
+const strongBelow = (level: number) =>
+  withItems(prior(levelToTheta(level) - 2, 0.2), EVIDENCE_RULE.down.minItems);
+const solid = [EVIDENCE_RULE.up.minWordsRight, EVIDENCE_RULE.up.minWordsRight];
+
+const input = (over: Partial<LevelInput>): LevelInput => ({
+  level: 40,
+  passes: EVIDENCE_RULE.up.minPasses - 1,
+  result: passResult,
+  comprehension: strongAbove(40),
+  recentWordsRight: solid,
+  model: 'ability',
+  ...over,
+});
+
+describe('decideLevel, ability model', () => {
+  it('moves up with strong evidence, enough passes and solid words right', () => {
+    const o = decideLevel(input({}));
+    expect(o).toMatchObject({ level: 41, passes: 0, moved: 'up', passed: true, model: 'ability' });
+    expect(o.readiness?.up).toBe(true);
+  });
+
+  it('stays when the decoding gate fails, and counts the pass', () => {
+    const o = decideLevel(input({ recentWordsRight: [0.5, EVIDENCE_RULE.up.minWordsRight] }));
+    expect(o).toMatchObject({ level: 40, passes: EVIDENCE_RULE.up.minPasses, moved: 'none' });
+  });
+
+  it('moves down with strong evidence of reading below the level', () => {
+    const o = decideLevel(input({ comprehension: strongBelow(40), result: failResult, passes: 1 }));
+    expect(o).toMatchObject({ level: 39, passes: 0, moved: 'down', passed: false });
+  });
+
+  it('never moves above the top level', () => {
+    const o = decideLevel(input({ level: MAX_LEVEL, comprehension: strongAbove(MAX_LEVEL) }));
+    expect(o.level).toBe(MAX_LEVEL);
+    expect(o.moved).toBe('none');
+  });
+});
+
+describe('decideLevel, simple model (fallback)', () => {
+  it('moves up after the passes the old rule needs', () => {
+    const o = decideLevel(
+      input({ model: 'simple', passes: PASS_RULE.passesToLevelUp - 1, recentWordsRight: [] }),
+    );
+    expect(o).toMatchObject({
+      level: 41,
+      passes: 0,
+      moved: 'up',
+      model: 'simple',
+      readiness: null,
+    });
+  });
+
+  it('moves down after a very weak story', () => {
+    const o = decideLevel(input({ model: 'simple', result: failResult }));
+    expect(o).toMatchObject({ level: 39, moved: 'down' });
+  });
 });

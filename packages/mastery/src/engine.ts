@@ -4,8 +4,9 @@
  * focus skill and decides level movement. Pure functions. Owner: Jhade (BB-19).
  */
 import type { ComprehensionSkill, TryAnalysis } from '@basabridge/contracts';
-import type { StoryResult } from '@basabridge/levels';
+import { isPass, isVeryWeak, type StoryResult } from '@basabridge/levels';
 import {
+  levelReadiness,
   levelToTheta,
   prior,
   summarise,
@@ -13,8 +14,9 @@ import {
   type AbilitySummary,
   type ItemEvidence,
   type Posterior,
+  type Readiness,
 } from './ability';
-import { COMPREHENSION_SKILLS } from './simple';
+import { COMPREHENSION_SKILLS, moveLevel } from './simple';
 
 /** Matches ability_estimates.scope. */
 export type AbilityScope = 'comprehension' | ComprehensionSkill;
@@ -85,4 +87,47 @@ export function storyResult(
     questionsCorrect: answers.filter((a) => a.correct).length,
     questionsTotal: answers.length,
   };
+}
+
+/** 'ability' is the default. 'simple' is the old three-passes rule, kept as a fallback. */
+export type MasteryModel = 'ability' | 'simple';
+
+export interface LevelInput {
+  level: number;
+  /** learners.level_passes: stories passed at the current level. */
+  passes: number;
+  result: StoryResult;
+  comprehension: Posterior;
+  /** Words-right shares of counted tries, newest last, including this story's. */
+  recentWordsRight: readonly number[];
+  model: MasteryModel;
+}
+
+export interface LevelOutcome {
+  level: number;
+  passes: number;
+  moved: 'up' | 'down' | 'none';
+  passed: boolean;
+  model: MasteryModel;
+  /** Null under the simple model. */
+  readiness: Readiness | null;
+}
+
+export function decideLevel(i: LevelInput): LevelOutcome {
+  const passed = isPass(i.result);
+  if (i.model === 'simple') {
+    const m = moveLevel({ level: i.level, passes: i.passes }, passed, isVeryWeak(i.result));
+    return { ...m, passed, model: 'simple', readiness: null };
+  }
+  const passes = passed ? i.passes + 1 : i.passes;
+  const readiness = levelReadiness(i.comprehension, i.level, {
+    // Simplification: every comprehension item counts, not only those at or above this level.
+    items: i.comprehension.items,
+    passedStories: passes,
+    recentWordsRight: [...i.recentWordsRight],
+  });
+  const base = { passed, model: 'ability' as const, readiness };
+  if (readiness.up) return { ...base, level: i.level + 1, passes: 0, moved: 'up' };
+  if (readiness.down) return { ...base, level: i.level - 1, passes: 0, moved: 'down' };
+  return { ...base, level: i.level, passes, moved: 'none' };
 }
