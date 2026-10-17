@@ -4,7 +4,9 @@ import { guessFor, itemDifficulty, levelToTheta, pCorrect } from './ability';
 import {
   finishPlacement,
   nextPlacement,
+  PLACEMENT_SUPPORTS,
   placementPosterior,
+  placementVoiceMode,
   startLevelForGrade,
   type PlacementState,
   type PlacementStory,
@@ -106,6 +108,19 @@ describe('placement end to end', () => {
   });
 });
 
+describe('placement voice mode and supports', () => {
+  it('uses voice only when the microphone is granted', () => {
+    expect(placementVoiceMode('granted')).toBe('voice');
+    expect(placementVoiceMode('blocked')).toBe('silent');
+    expect(placementVoiceMode('unavailable')).toBe('silent');
+    expect(placementVoiceMode('not_allowed_yet')).toBe('silent');
+  });
+
+  it('offers no supports during placement', () => {
+    expect(Object.values(PLACEMENT_SUPPORTS).every((on) => on === false)).toBe(true);
+  });
+});
+
 describe('finishPlacement flags', () => {
   const base: PlacementState = {
     startLevel: 30,
@@ -156,6 +171,30 @@ describe('finishPlacement flags', () => {
     );
     expect(r.level).toBeLessThanOrEqual(20);
     expect(r.recommendedHelp).toBe('more');
+  });
+
+  it('leaves skipped reads out of the decoding average instead of scoring them zero', () => {
+    const withSkip: PlacementState = {
+      ...base,
+      stories: [
+        { ...base.stories[0]!, wordsRightShare: undefined },
+        base.stories[1]!,
+        base.stories[2]!,
+      ],
+    };
+    const r = finishPlacement(withSkip, { voice: true });
+    expect(r.flags).not.toContain('low_decoding');
+    expect(r.flags).not.toContain('voice_missing');
+  });
+
+  it('flags voice_missing when voice was on but every read was skipped', () => {
+    const allSkipped: PlacementState = {
+      ...base,
+      stories: base.stories.map((s) => ({ ...s, wordsRightShare: undefined })),
+    };
+    const r = finishPlacement(allSkipped, { voice: true });
+    expect(r.flags).toContain('voice_missing');
+    expect(r.flags).not.toContain('low_decoding');
   });
 
   it('keeps the posterior a valid distribution', () => {

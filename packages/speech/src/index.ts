@@ -24,6 +24,7 @@ export * from './errors';
 export * from './config';
 export * from './fake';
 export { withSpeechGuards, DEFAULT_TIMEOUT_MS } from './provider';
+export * from './placement';
 
 /** A speech provider adapter (BB-24). */
 export interface SpeechProvider {
