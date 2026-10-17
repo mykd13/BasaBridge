@@ -27,14 +27,7 @@ export interface SpeechProvider {
   transcribe(audio: Blob, options: TranscribeOptions): Promise<HeardWord[]>;
 }
 
-/**
- * Compare the words that should have been said with the words heard (BB-25).
- * Must handle substitutions, omissions, insertions, repetitions and self-corrections,
- * and must flag low-confidence words instead of counting them as errors.
- */
-export function alignWords(_expected: string[], _heard: HeardWord[]): WordResult[] {
-  throw new Error('alignWords is not implemented yet (BB-25)');
-}
+export { alignWords, isLowConfidence, LOW_CONFIDENCE_THRESHOLD } from './align';
 
 /** Words right per minute. Zero when there is no elapsed time. */
 export function wordsPerMinute(wordsRight: number, seconds: number): number {
