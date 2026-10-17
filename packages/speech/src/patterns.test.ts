@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ReadingPatterns, type WordResult } from '@basabridge/contracts';
 import { alignWords, type HeardWord } from './index';
 import { aggregateReadingPatterns, patternConfidence, type TryEvidence } from './patterns';
+import { PASSAGE, patternFixtures } from './pattern-fixtures';
 
 /** A word read right. */
 const right = (expected: string): WordResult => ({
@@ -262,4 +263,38 @@ describe('with the alignment engine', () => {
     ]);
     expect(result.patterns).toEqual([]);
   });
+});
+
+describe('hand-built reading sessions', () => {
+  const expectedWords = PASSAGE.split(' ');
+
+  for (const fixture of patternFixtures) {
+    it(fixture.name, () => {
+      const tries: TryEvidence[] = fixture.tries.map((t) => {
+        const heard: HeardWord[] = t.heard.map((entry, i) => {
+          const [text, confidence] = typeof entry === 'string' ? [entry, 0.95] : entry;
+          return { text, start: i * 0.5, end: i * 0.5 + 0.4, confidence };
+        });
+        const pauses = t.pauses;
+        return {
+          tryId: t.id,
+          expected: expectedWords,
+          words: alignWords(expectedWords, heard),
+          pausesAfter: pauses ? expectedWords.map((_, i) => pauses[i] ?? null) : undefined,
+        };
+      });
+      const result = aggregateReadingPatterns(tries);
+      expect(
+        result.patterns.map((p) => ({
+          kind: p.kind,
+          key: p.key,
+          count: p.count,
+          tries: p.tries,
+          confidence: p.confidence,
+        })),
+      ).toEqual(fixture.expect);
+      expect(result.unclearWords).toBe(fixture.unclearWords);
+      expect(ReadingPatterns.parse(result)).toEqual(result);
+    });
+  }
 });

@@ -248,8 +248,9 @@ export function aggregateReadingPatterns(tries: TryEvidence[]): ReadingPatterns 
         }
       }
 
-      // Repeated substitutions: the same expected word, said the same wrong way.
-      if (differs) {
+      // Repeated substitutions: the same expected word, said the same wrong way. A dropped ending
+      // already explains the word, so it is not reported a second time.
+      if (differs && !droppedEnding) {
         tallies.see(
           'repeated_substitution',
           `${expected}>${heard}`,
