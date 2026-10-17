@@ -28,6 +28,7 @@ export interface SpeechProvider {
 }
 
 export { alignWords, isLowConfidence, LOW_CONFIDENCE_THRESHOLD } from './align';
+export { aggregateReadingPatterns, patternConfidence, type TryEvidence } from './patterns';
 
 /** Words right per minute. Zero when there is no elapsed time. */
 export function wordsPerMinute(wordsRight: number, seconds: number): number {
