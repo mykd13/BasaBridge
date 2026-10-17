@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getFlaggedWords } from '../../../lib/word-practice/flagged';
-import { messagesFor, type Lang, type Wording } from '../../../lib/word-practice/messages';
+import type { Lang, Wording } from '../../../lib/word-practice/messages';
 import { SayIt } from './say-it';
 
 export const metadata: Metadata = { title: 'Say it · BasaBridge' };
@@ -19,5 +19,5 @@ export default async function WordsPage({
   const lang: Lang = params.lang === 'fil' ? 'fil' : 'en';
   const wording: Wording = params.wording === 'simple' ? 'simple' : 'standard';
   const words = await getFlaggedWords();
-  return <SayIt words={words} messages={messagesFor(lang, wording)} />;
+  return <SayIt words={words} lang={lang} wording={wording} />;
 }

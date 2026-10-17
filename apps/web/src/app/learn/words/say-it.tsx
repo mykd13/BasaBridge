@@ -4,7 +4,7 @@ import { useCallback, useEffect, useReducer, useRef } from 'react';
 import Link from 'next/link';
 import { splitIntoChunks } from '../../../lib/word-practice/chunks';
 import { parseWordCheck } from '../../../lib/word-practice/check';
-import type { Messages } from '../../../lib/word-practice/messages';
+import { messagesFor, type Lang, type Wording } from '../../../lib/word-practice/messages';
 import { currentWord, initialState, isLastWord, reduce } from '../../../lib/word-practice/session';
 import styles from './say-it.module.css';
 
@@ -23,7 +23,8 @@ function speak(text: string, rate: number) {
   window.speechSynthesis.speak(utterance);
 }
 
-export function SayIt({ words, messages: t }: { words: string[]; messages: Messages }) {
+export function SayIt({ words, lang, wording }: { words: string[]; lang: Lang; wording: Wording }) {
+  const t = messagesFor(lang, wording);
   const [state, dispatch] = useReducer(reduce, words, initialState);
   const recorder = useRef<MediaRecorder | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -164,7 +165,7 @@ export function SayIt({ words, messages: t }: { words: string[]; messages: Messa
             {t.nextWord}
           </button>
         )}
-        {state.phase === 'praised' && last && (
+        {(state.phase === 'praised' || state.phase === 'unscored') && last && (
           <Link href="/learn" className={styles.primary}>
             {t.done}
           </Link>
