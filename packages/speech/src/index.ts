@@ -5,6 +5,8 @@
  */
 import type { TryAnalysis, WordResult } from '@basabridge/contracts';
 
+export * from './tts';
+
 /** One word as heard by the speech provider. Times are seconds from the start of the recording. */
 export interface HeardWord {
   text: string;
