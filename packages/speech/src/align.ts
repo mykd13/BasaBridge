@@ -233,8 +233,29 @@ function labelExtraRun(
   });
 }
 
+/** When a heard word was spoken, in seconds from the start of the recording. */
+export interface HeardSpan {
+  start: number;
+  end: number;
+}
+
+/** Aligned words plus, for each result matched to heard words, when they were spoken. */
+export interface TimedAlignment {
+  results: WordResult[];
+  /** Same length as `results`. Null for omissions and for words that are not on the passage. */
+  spans: Array<HeardSpan | null>;
+}
+
 /** Compare the words that should have been said with the words heard. */
 export function alignWords(expected: string[], heard: HeardWord[]): WordResult[] {
+  return alignWordsTimed(expected, heard).results;
+}
+
+/**
+ * Same alignment as `alignWords`, with the time of each matched word. Noise, off-passage words
+ * and omissions carry no span, so reading time can be measured from the words actually read.
+ */
+export function alignWordsTimed(expected: string[], heard: HeardWord[]): TimedAlignment {
   // Stray punctuation tokens in the passage or from the provider are not words.
   const words: Item[] = expected
     .map((text) => ({ text, keys: wordKeys(text) }))
@@ -245,7 +266,12 @@ export function alignWords(expected: string[], heard: HeardWord[]): WordResult[]
   const ops = alignItems(words, spoken);
 
   const results: WordResult[] = [];
-  const correct = (e: number, text: string, confidence: number): void => {
+  const spans: Array<HeardSpan | null> = [];
+  const spanOf = (group: Heard[]): HeardSpan => ({
+    start: Math.min(...group.map((g) => g.word.start)),
+    end: Math.max(...group.map((g) => g.word.end)),
+  });
+  const correct = (e: number, text: string, confidence: number, span: HeardSpan): void => {
     results.push({
       expected: words[e]!.text,
       heard: text,
@@ -253,6 +279,7 @@ export function alignWords(expected: string[], heard: HeardWord[]): WordResult[]
       confidence,
       markedMisheard: false,
     });
+    spans.push(span);
   };
 
   for (let p = 0; p < ops.length;) {
@@ -266,12 +293,13 @@ export function alignWords(expected: string[], heard: HeardWord[]): WordResult[]
         confidence: 1,
         markedMisheard: false,
       });
+      spans.push(null);
       p++;
     } else if (op.en === 1 && op.hn === 1) {
       const { word, keys } = spoken[op.h]!;
       const confidence = clamp(word.confidence);
       if (keysMatch(words[op.e]!.keys, keys) || isLowConfidence(confidence)) {
-        correct(op.e, word.text, confidence);
+        correct(op.e, word.text, confidence, spanOf([spoken[op.h]!]));
       } else {
         results.push({
           expected: words[op.e]!.text,
@@ -280,6 +308,7 @@ export function alignWords(expected: string[], heard: HeardWord[]): WordResult[]
           confidence,
           markedMisheard: false,
         });
+        spans.push(spanOf([spoken[op.h]!]));
       }
       p++;
     } else if (op.en > 0) {
@@ -287,7 +316,7 @@ export function alignWords(expected: string[], heard: HeardWord[]): WordResult[]
       const group = spoken.slice(op.h, op.h + op.hn);
       const confidence = clamp(Math.min(...group.map((g) => g.word.confidence)));
       const text = group.map((g) => g.word.text).join(' ');
-      for (let e = op.e; e < op.e + op.en; e++) correct(e, text, confidence);
+      for (let e = op.e; e < op.e + op.en; e++) correct(e, text, confidence, spanOf(group));
       p++;
     } else {
       let q = p;
@@ -313,9 +342,10 @@ export function alignWords(expected: string[], heard: HeardWord[]): WordResult[]
           confidence,
           markedMisheard: false,
         });
+        spans.push(null);
       });
       p = q;
     }
   }
-  return results;
+  return { results, spans };
 }
