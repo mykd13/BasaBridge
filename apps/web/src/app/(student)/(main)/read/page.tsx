@@ -1,5 +1,8 @@
-import { ScreenPlaceholder } from '@/components/states/ScreenPlaceholder';
+import { copy } from './copy';
+import { MicGate } from './mic-gate';
 
-export default function Page() {
-  return <ScreenPlaceholder screen="read" boards="B1 to B3, D1 to D3" />;
+export const metadata = { title: copy.pageTitle };
+
+export default function ReadPage() {
+  return <MicGate />;
 }
