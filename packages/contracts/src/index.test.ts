@@ -95,6 +95,22 @@ describe('reading help', () => {
     expect(ReadingHelp.parse({}).listenThenRead).toBe(true);
     expect(ReadingHelp.parse({ listenThenRead: false }).listenThenRead).toBe(false);
   });
+
+  it('still parses saved settings from before listen-then-read existed', () => {
+    const saved = {
+      textSize: 'large',
+      audioInstructions: true,
+      questionReadAloud: true,
+      lineSpacing: 'wide',
+      readingRuler: true,
+      language: 'fil',
+      simpleWords: true,
+    };
+    const parsed = ReadingHelp.safeParse(saved);
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.listenThenRead).toBe(true);
+    expect(parsed.success && parsed.data.textSize).toBe('large');
+  });
 });
 
 describe('story audio', () => {
