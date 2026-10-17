@@ -16,22 +16,6 @@ CREATE TABLE "ability_estimates" (
 	CONSTRAINT "ability_estimates_learner_user_id_scope_pk" PRIMARY KEY("learner_user_id","scope")
 );
 --> statement-breakpoint
-CREATE TABLE "accounts" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" uuid NOT NULL,
-	"account_id" text NOT NULL,
-	"provider_id" text NOT NULL,
-	"password" text,
-	"access_token" text,
-	"refresh_token" text,
-	"id_token" text,
-	"access_token_expires_at" timestamp with time zone,
-	"refresh_token_expires_at" timestamp with time zone,
-	"scope" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE "answers" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"session_id" uuid NOT NULL,
@@ -81,6 +65,7 @@ CREATE TABLE "guardian_approvals" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"learner_user_id" uuid NOT NULL,
 	"guardian_email" text NOT NULL,
+	"scope" text DEFAULT 'mic' NOT NULL,
 	"status" "approval_status" DEFAULT 'pending' NOT NULL,
 	"approved_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -158,14 +143,6 @@ CREATE TABLE "questions" (
 	"difficulty" real
 );
 --> statement-breakpoint
-CREATE TABLE "rate_limits" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"key" text NOT NULL,
-	"count" integer NOT NULL,
-	"last_request" bigint NOT NULL,
-	CONSTRAINT "rate_limits_key_unique" UNIQUE("key")
-);
---> statement-breakpoint
 CREATE TABLE "reading_sessions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"learner_user_id" uuid NOT NULL,
@@ -174,24 +151,6 @@ CREATE TABLE "reading_sessions" (
 	"tries_used" integer DEFAULT 0 NOT NULL,
 	"counted_try_id" uuid,
 	"status" "session_status" DEFAULT 'reading' NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "sessions" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" uuid NOT NULL,
-	"token" text NOT NULL,
-	"expires_at" timestamp with time zone NOT NULL,
-	"ip_address" text,
-	"user_agent" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "sessions_token_unique" UNIQUE("token")
-);
---> statement-breakpoint
-CREATE TABLE "sign_in_failures" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"identifier" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -222,30 +181,14 @@ CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"role" "role" NOT NULL,
 	"username" text NOT NULL,
-	"display_username" text,
-	"name" text NOT NULL,
-	"email" text NOT NULL,
-	"email_real" boolean DEFAULT false NOT NULL,
-	"email_verified" boolean DEFAULT false NOT NULL,
-	"image" text,
+	"email" text,
+	"password_hash" text NOT NULL,
 	"age_band" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "users_username_unique" UNIQUE("username"),
-	CONSTRAINT "users_email_unique" UNIQUE("email")
-);
---> statement-breakpoint
-CREATE TABLE "verifications" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"identifier" text NOT NULL,
-	"value" text NOT NULL,
-	"expires_at" timestamp with time zone NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	CONSTRAINT "users_username_unique" UNIQUE("username")
 );
 --> statement-breakpoint
 ALTER TABLE "ability_estimates" ADD CONSTRAINT "ability_estimates_learner_user_id_users_id_fk" FOREIGN KEY ("learner_user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts" ADD CONSTRAINT "accounts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "answers" ADD CONSTRAINT "answers_session_id_reading_sessions_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."reading_sessions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "answers" ADD CONSTRAINT "answers_question_id_questions_id_fk" FOREIGN KEY ("question_id") REFERENCES "public"."questions"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audio_objects" ADD CONSTRAINT "audio_objects_try_id_tries_id_fk" FOREIGN KEY ("try_id") REFERENCES "public"."tries"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -263,6 +206,16 @@ ALTER TABLE "placement_sessions" ADD CONSTRAINT "placement_sessions_learner_user
 ALTER TABLE "questions" ADD CONSTRAINT "questions_story_id_stories_id_fk" FOREIGN KEY ("story_id") REFERENCES "public"."stories"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reading_sessions" ADD CONSTRAINT "reading_sessions_learner_user_id_users_id_fk" FOREIGN KEY ("learner_user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reading_sessions" ADD CONSTRAINT "reading_sessions_story_id_stories_id_fk" FOREIGN KEY ("story_id") REFERENCES "public"."stories"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tries" ADD CONSTRAINT "tries_session_id_reading_sessions_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."reading_sessions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "sign_in_failures_identifier_idx" ON "sign_in_failures" USING btree ("identifier","created_at");
+CREATE INDEX "answers_session_idx" ON "answers" USING btree ("session_id");--> statement-breakpoint
+CREATE INDEX "audio_objects_try_idx" ON "audio_objects" USING btree ("try_id");--> statement-breakpoint
+CREATE INDEX "consents_user_idx" ON "consents" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "decisions_learner_idx" ON "decisions" USING btree ("learner_user_id");--> statement-breakpoint
+CREATE INDEX "guardian_approvals_learner_idx" ON "guardian_approvals" USING btree ("learner_user_id");--> statement-breakpoint
+CREATE INDEX "link_codes_learner_idx" ON "link_codes" USING btree ("learner_user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "parent_links_parent_learner_idx" ON "parent_links" USING btree ("parent_user_id","learner_user_id");--> statement-breakpoint
+CREATE INDEX "parent_links_learner_idx" ON "parent_links" USING btree ("learner_user_id");--> statement-breakpoint
+CREATE INDEX "placement_sessions_learner_idx" ON "placement_sessions" USING btree ("learner_user_id");--> statement-breakpoint
+CREATE INDEX "questions_story_idx" ON "questions" USING btree ("story_id");--> statement-breakpoint
+CREATE INDEX "reading_sessions_learner_idx" ON "reading_sessions" USING btree ("learner_user_id");--> statement-breakpoint
+CREATE INDEX "tries_session_idx" ON "tries" USING btree ("session_id");
