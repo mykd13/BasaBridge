@@ -49,7 +49,9 @@ describe('GoldCase schema', () => {
     c.story.questions[0] = { ...c.story.questions[0]!, evidence: 'Ben has a blue cap.' };
     const result = GoldCase.safeParse(c);
     expect(result.success).toBe(false);
-    expect(JSON.stringify(result.error?.issues)).toContain('evidence sentence is not in the passage');
+    expect(JSON.stringify(result.error?.issues)).toContain(
+      'evidence sentence is not in the passage',
+    );
   });
 
   it('rejects a reviewer without a review date', () => {
