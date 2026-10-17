@@ -3,7 +3,9 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import '@basabridge/ui/tokens.css';
+import '@basabridge/ui/components.css';
 import './globals.css';
+import { atkinson, lexend } from './fonts';
 
 export async function generateMetadata(): Promise<Metadata> {
   const app = await getTranslations('app');
@@ -13,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
   return (
-    <html lang={locale}>
+    <html lang={locale} className={`${lexend.variable} ${atkinson.variable}`}>
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
