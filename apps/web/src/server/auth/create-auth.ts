@@ -4,7 +4,7 @@ import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { nextCookies } from 'better-auth/next-js';
 import { username } from 'better-auth/plugins';
 import * as schema from '@basabridge/db/schema';
-import { authConfig } from './config';
+import { AUTH_CODES, authConfig } from './config';
 import { clearAttempts, lockoutKey, registerAttempt, type Db } from './lockout';
 import { consoleMailer, type Mailer } from './mailer';
 
@@ -50,7 +50,13 @@ export function createAuth({
         rateLimit: schema.rateLimits,
       },
     }),
-    advanced: { database: { generateId: 'uuid' } },
+    advanced: {
+      database: { generateId: 'uuid' },
+      // Better Auth turns both checks off when NODE_ENV is "test". Setting them explicitly keeps
+      // them on everywhere, so the tests exercise what production runs.
+      disableOriginCheck: false,
+      disableCSRFCheck: false,
+    },
     // Accounts are created only by our own server functions (accounts.ts), which set the role.
     disabledPaths: ['/sign-up/email'],
     user: {
@@ -71,7 +77,12 @@ export function createAuth({
       async sendResetPassword({ user, url }) {
         // Students without an email have a reserved address that cannot receive mail.
         if (!(user as { emailReal?: boolean }).emailReal) return;
-        await mailer.sendPasswordReset({ to: user.email, url });
+        // Not awaited, and a failure is logged, not thrown. The response must look the same for
+        // a known email, an unknown email and a student with no email, in content and in time.
+        // When a real provider arrives, hand this promise to Vercel's waitUntil (BB-64).
+        void mailer.sendPasswordReset({ to: user.email, url }).catch(() => {
+          console.error('[auth] password reset email failed to send');
+        });
       },
     },
     session: {
@@ -87,18 +98,26 @@ export function createAuth({
         '/sign-in/username': { window: 60, max: authConfig.signInPerMinute },
         '/sign-in/email': { window: 60, max: authConfig.signInPerMinute },
         '/request-password-reset': { window: 3600, max: authConfig.resetRequestsPerHour },
+        '/reset-password': { window: 3600, max: authConfig.resetRequestsPerHour },
+        '/change-password': { window: 3600, max: authConfig.passwordChangesPerHour },
       },
     },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === '/update-user') {
+          // name holds the username and image is unused. A person must not store a real name.
+          const body = (ctx.body ?? {}) as Record<string, unknown>;
+          if ('name' in body || 'image' in body) {
+            throw new APIError('BAD_REQUEST', { code: 'FIELD_NOT_ALLOWED' });
+          }
+        }
         const id = identifierFrom(ctx.path, ctx.body);
         if (!id) return;
         const key = await lockoutKey(db, id);
         if (await registerAttempt(db, key)) {
           // A stable code, not text. The screens map it to catalog strings (BB-12, BB-58).
           throw new APIError('TOO_MANY_REQUESTS', {
-            code: 'ACCOUNT_LOCKED',
-            message: 'ACCOUNT_LOCKED',
+            code: AUTH_CODES.accountLocked,
             retryAfterMinutes: authConfig.lockoutWindowMinutes,
           });
         }

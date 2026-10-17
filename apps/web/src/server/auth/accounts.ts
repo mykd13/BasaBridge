@@ -13,7 +13,7 @@ const realEmail = z
   .toLowerCase()
   .email()
   .max(254)
-  .refine((e) => !e.endsWith('.invalid'), 'Use an email that can receive mail.');
+  .refine((e) => !e.endsWith('.invalid'), { message: AUTH_CODES.emailNotAllowed });
 
 const password = z.string().min(authConfig.minPasswordLength).max(authConfig.maxPasswordLength);
 

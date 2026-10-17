@@ -39,6 +39,11 @@ Use **Better Auth** with the Drizzle adapter, the `username` plugin and email an
 - **Lockout can be used against a child.** More than five attempts in 15 minutes lock an account, so anyone who knows a username can keep it locked. We accept this for now. Keying on address and username together would let an attacker who rotates addresses guess freely. The window is short and the numbers live in `config.ts`. Revisit with BB-63.
 - **Two database drivers.** The web app opens its own `pg` connection and `@basabridge/db` uses `postgres`. Check pooling on Neon for serverless before launch.
 
+- **A refused attempt does not extend the lock.** Each sign-in attempt is recorded before the password check, and an attempt that is refused removes its own row. A child who keeps retrying while locked is let in 15 minutes after the last attempt that was actually checked.
+- **Reset answers the same for everyone.** The send is not awaited and a send failure is logged, not thrown, so a known email, an unknown email and a student with no email get the same response in content and in time. Because the production mailer throws until BB-64, the failure shows up only in the logs. When a real provider arrives, pass the send to Vercel's `waitUntil` so the function is not stopped before it finishes.
+- **Email squatting and sign-up enumeration.** A student can give any email at sign-up, and it is not verified. A student could take a parent's address first, and sign-up reveals that an address is registered. We accept this until BB-63 (sign-up abuse protection). That work should require a verified email before `email_real` counts, and return one generic code for a taken email.
+- **Migration `0001` needs empty tables.** `name` is added `NOT NULL` with no default and `email` becomes `NOT NULL`, so it fails if a user row exists. This holds today because there is no seeded data. Migrating a database with real users needs a backfill step first.
+
 ## Before production
 
 - No step runs migrations on Vercel yet (deferred from BB-3). Without one the auth tables do not exist, and sign-up and sign-in fail.

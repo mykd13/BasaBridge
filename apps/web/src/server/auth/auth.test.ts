@@ -13,14 +13,28 @@ import { unconfiguredMailer, type Mailer } from './mailer';
 
 const migrations = join(__dirname, '../../../../../packages/db/migrations');
 
+/** One in-memory Postgres for the whole file. Starting one per test is slow on small machines. */
+let shared: Promise<PGlite> | undefined;
+function database() {
+  shared ??= (async () => {
+    const client = new PGlite();
+    for (const file of readdirSync(migrations)
+      .filter((f) => f.endsWith('.sql'))
+      .sort()) {
+      const sql = readFileSync(join(migrations, file), 'utf8');
+      for (const stmt of sql.split('--> statement-breakpoint')) await client.exec(stmt);
+    }
+    return client;
+  })();
+  return shared;
+}
+
 async function setup(opts: { rateLimit?: boolean } = {}) {
-  const client = new PGlite();
-  for (const file of readdirSync(migrations)
-    .filter((f) => f.endsWith('.sql'))
-    .sort()) {
-    const sql = readFileSync(join(migrations, file), 'utf8');
-    for (const stmt of sql.split('--> statement-breakpoint')) await client.exec(stmt);
-  }
+  const client = await database();
+  // Every other table cascades from users.
+  await client.exec(
+    'TRUNCATE users, verifications, rate_limits, sign_in_failures RESTART IDENTITY CASCADE',
+  );
   const db = drizzle(client, { schema }) as unknown as Db;
   const sent: { to: string; url: string }[] = [];
   const mailer: Mailer = { sendPasswordReset: async (m) => void sent.push(m) };
@@ -419,6 +433,136 @@ describe('review fixes', () => {
     });
     const [u] = await t.db.select().from(schema.users).where(eq(schema.users.id, r.userId));
     expect(u?.name).not.toContain('@');
+  });
+});
+
+describe('second review fixes', () => {
+  it('B1: retrying while locked does not extend the lock', async () => {
+    const t = await setup();
+    await signUpStudent(t.auth, t.db, { username: 'mika', password: 'right password' });
+    for (let i = 0; i < authConfig.lockoutMaxFailures; i++) {
+      await post(t, '/sign-in/username', { username: 'mika', password: 'wrong password' });
+    }
+    for (let i = 0; i < 3; i++) {
+      const res = await post(t, '/sign-in/username', { username: 'mika', password: 'wrong' });
+      expect(res.status).toBe(429);
+    }
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.now() + (authConfig.lockoutWindowMinutes + 1) * 60_000);
+    try {
+      const res = await post(t, '/sign-in/username', {
+        username: 'mika',
+        password: 'right password',
+      });
+      expect(res.status).toBe(200);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('W1: reset answers the same for a known email, an unknown email and a no-email student', async () => {
+    const t = await setup();
+    await signUpParent(t.auth, t.db, { email: 'parent@example.com', password: 'right password' });
+    const s = await signUpStudent(t.auth, t.db, { username: 'mika', password: 'right password' });
+    const [stu] = await t.db.select().from(schema.users).where(eq(schema.users.id, s.userId));
+    const answers = [];
+    for (const email of ['parent@example.com', 'nobody@example.com', stu!.email]) {
+      const res = await post(t, '/request-password-reset', { email });
+      answers.push({ status: res.status, body: await res.json() });
+    }
+    expect(answers[1]).toEqual(answers[0]);
+    expect(answers[2]).toEqual(answers[0]);
+  });
+
+  it('W1: a failing mailer does not change the reset response', async () => {
+    const t = await setup();
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const failing = createAuth({
+      db: t.db,
+      secret: 'test-secret-test-secret-test-secret-1234',
+      baseURL: 'http://localhost:3000',
+      mailer: unconfiguredMailer,
+      rateLimit: false,
+    });
+    await signUpParent(failing, t.db, { email: 'parent@example.com', password: 'right password' });
+    const res = await failing.handler(
+      new Request('http://localhost:3000/api/auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
+        body: JSON.stringify({ email: 'parent@example.com' }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    spy.mockRestore();
+  });
+
+  it('W3: reset requests and password changes are rate limited', async () => {
+    const t = await setup({ rateLimit: true });
+    const hit = (path: string) =>
+      t.auth.handler(
+        new Request(`http://localhost:3000/api/auth${path}`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            origin: 'http://localhost:3000',
+            'x-forwarded-for': '203.0.113.7',
+          },
+          body: JSON.stringify({
+            email: 'x@example.com',
+            newPassword: 'whatever it is',
+            token: 'x',
+          }),
+        }),
+      );
+    for (const [path, limit] of [
+      ['/request-password-reset', authConfig.resetRequestsPerHour],
+      ['/reset-password', authConfig.resetRequestsPerHour],
+    ] as const) {
+      let last = 0;
+      for (let i = 0; i < limit + 2; i++) last = (await hit(path)).status;
+      expect(last).toBe(429);
+    }
+  });
+
+  it('W4: a student cannot store a real name or image through /update-user', async () => {
+    const t = await setup();
+    const r = await signUpStudent(t.auth, t.db, { username: 'mika', password: 'right password' });
+    const { headers } = await signIn(t.auth, 'mika', 'right password');
+    const cookie = (headers.get('set-cookie') ?? '').split(';')[0]!;
+    const res = await post(t, '/update-user', { name: 'Maria Santos' }, cookie);
+    expect(res.status).toBe(400);
+    const res2 = await post(t, '/update-user', { image: 'http://x/y.png' }, cookie);
+    expect(res2.status).toBe(400);
+    const [u] = await t.db.select().from(schema.users).where(eq(schema.users.id, r.userId));
+    expect(u?.name).toBe('mika');
+    expect(u?.image).toBeNull();
+  });
+
+  it('W5: refusals carry codes, never English text', async () => {
+    const t = await setup();
+    await expect(
+      signUpParent(t.auth, t.db, {
+        email: `a@${authConfig.noEmailDomain}`,
+        password: 'right password',
+      }),
+    ).rejects.toThrow(AUTH_CODES.emailNotAllowed);
+  });
+
+  it('W7: a request from another origin is refused', async () => {
+    const t = await setup();
+    await signUpStudent(t.auth, t.db, { username: 'mika', password: 'right password' });
+    const { headers } = await signIn(t.auth, 'mika', 'right password');
+    const cookie = (headers.get('set-cookie') ?? '').split(';')[0]!;
+    // The check applies to requests that carry a session cookie.
+    const res = await t.auth.handler(
+      new Request('http://localhost:3000/api/auth/sign-out', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: 'https://evil.example', cookie },
+        body: '{}',
+      }),
+    );
+    expect(res.status).toBe(403);
+    expect(await t.auth.api.getSession({ headers: new Headers({ cookie }) })).not.toBeNull();
   });
 });
 

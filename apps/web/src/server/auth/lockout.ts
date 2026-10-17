@@ -29,16 +29,23 @@ export async function lockoutKey(db: Db, raw: string): Promise<string> {
 /**
  * Records this attempt first, then counts. Recording before the password is checked means a
  * burst of parallel requests cannot all pass the check. A good sign-in clears the rows.
- * Returns true when the attempt is over the limit and must be refused.
+ * Returns true when the attempt is over the limit and must be refused. A refused attempt
+ * removes its own row, so retrying while locked never extends the lock: the lock ends 15
+ * minutes after the last attempt that was actually checked.
  */
 export async function registerAttempt(db: Db, key: string): Promise<boolean> {
   await db.delete(signInFailures).where(lt(signInFailures.createdAt, windowStart()));
-  await db.insert(signInFailures).values({ identifier: key });
+  const [mine] = await db
+    .insert(signInFailures)
+    .values({ identifier: key })
+    .returning({ id: signInFailures.id });
   const [row] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(signInFailures)
     .where(and(eq(signInFailures.identifier, key), gt(signInFailures.createdAt, windowStart())));
-  return (row?.n ?? 0) > authConfig.lockoutMaxFailures;
+  const locked = (row?.n ?? 0) > authConfig.lockoutMaxFailures;
+  if (locked && mine) await db.delete(signInFailures).where(eq(signInFailures.id, mine.id));
+  return locked;
 }
 
 export async function clearAttempts(db: Db, key: string): Promise<void> {

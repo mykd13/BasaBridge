@@ -14,6 +14,7 @@ export const authConfig = {
   /** Per address limits from the Better Auth rate limiter. */
   signInPerMinute: 10,
   resetRequestsPerHour: 5,
+  passwordChangesPerHour: 10,
   /** Students who give no email get this reserved domain. It can never receive mail. */
   noEmailDomain: 'students.basabridge.invalid',
 } as const;
@@ -28,4 +29,5 @@ export const authConfig = {
 export const AUTH_CODES = {
   noEmail: 'NO_EMAIL',
   accountLocked: 'ACCOUNT_LOCKED',
+  emailNotAllowed: 'EMAIL_NOT_ALLOWED',
 } as const;
