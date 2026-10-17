@@ -275,6 +275,11 @@ export type AnswerSubmission = z.infer<typeof AnswerSubmission>;
 export const AnswerRecord = AnswerEvidence.extend({
   sessionId: z.string().uuid(),
   questionId: z.string().uuid(),
+  /**
+   * Same shape as AnswerSubmission.chosen. The database column `answers.chosen` is still a
+   * single integer, so only multiple-choice answers can be stored today. It must become jsonb
+   * before choose-all or order-events answers are saved.
+   */
   chosen: z.array(z.number().int().min(0)).min(1),
   /** How much this answer counts toward the ability estimate (ADR 0003). */
   weight: z.number().min(0).max(1),
