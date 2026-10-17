@@ -8,10 +8,16 @@
   },
   "dependencies": {
     "@basabridge/contracts": "workspace:*",
-    "@basabridge/levels": "workspace:*"
+    "@basabridge/levels": "workspace:*",
+    "zod": "^4.6.7"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "eval": "tsx src/eval/cli.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "4.23.15"
   }
 }
