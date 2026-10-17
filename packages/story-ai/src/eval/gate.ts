@@ -103,6 +103,8 @@ export function gate(
           `Cost per accepted story rose ${pct(rise)} ($${was.toFixed(4)} to $${now.toFixed(4)}), more than ${pct(t.maxCostPerAcceptedStoryRise)}.`,
         );
       }
+    } else if (was === 0) {
+      notes.push('The baseline cost nothing per accepted story, so cost was not compared.');
     } else if (c.generation.attempted > 0) {
       notes.push('Cost per accepted story is missing on one side, so cost was not compared.');
     }

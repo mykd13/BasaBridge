@@ -31,10 +31,23 @@ export async function saveRun(run: EvalRun, dir = RUNS_DIR): Promise<string> {
   return path;
 }
 
+export class RunNotFound extends Error {
+  constructor(path: string) {
+    super(`No run file at ${path}.`);
+    this.name = 'RunNotFound';
+  }
+}
+
 /** Loads a run by id from `dir`, or by a path ending in `.json`. */
 export async function loadRun(ref: string, dir = RUNS_DIR): Promise<EvalRun> {
   const path = ref.endsWith('.json') ? ref : join(dir, `${ref}.json`);
-  return EvalRun.parse(JSON.parse(await readFile(path, 'utf8')));
+  let raw: string;
+  try {
+    raw = await readFile(path, 'utf8');
+  } catch {
+    throw new RunNotFound(path);
+  }
+  return EvalRun.parse(JSON.parse(raw));
 }
 
 /** Run ids in `dir`, oldest first. */
