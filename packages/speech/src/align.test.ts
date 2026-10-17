@@ -158,12 +158,91 @@ describe('alignWords normalisation', () => {
   });
 });
 
+describe('alignWords joined forms', () => {
+  const allCorrect = (expected: string, heard: string): boolean =>
+    run(expected, heard).every((r) => r.outcome === 'correct');
+
+  it('reads a passage with both forms of a contraction (B1)', () => {
+    expect(
+      allCorrect('It is cold. The dog wagged its tail.', 'it is cold the dog wagged its tail'),
+    ).toBe(true);
+    expect(allCorrect("I don't know. We do not go.", 'i dont know we do not go')).toBe(true);
+    expect(allCorrect("I don't know. We do not go.", 'i do not know we dont go')).toBe(true);
+    expect(allCorrect("He is here. It's he's.", 'he is here its hes')).toBe(true);
+  });
+
+  it('matches in both directions (S4)', () => {
+    expect(allCorrect('I do not know', 'i dont know')).toBe(true);
+    expect(allCorrect("I don't know", 'i do not know')).toBe(true);
+  });
+
+  it('still reports a real error next to a joined form', () => {
+    expect(outcomes("I don't like it", 'i do not hate it')).toEqual([
+      'correct',
+      'correct',
+      'substitution',
+      'correct',
+    ]);
+  });
+
+  it('keeps one result per expected word', () => {
+    const result = run('I do not know', 'i dont know');
+    expect(result.map((r) => r.expected)).toEqual(['I', 'do', 'not', 'know']);
+  });
+});
+
+describe('alignWords numbers (S1)', () => {
+  const allCorrect = (expected: string, heard: string): boolean =>
+    run(expected, heard).every((r) => r.outcome === 'correct');
+
+  it.each([
+    ['It cost 121 coins', 'it cost one hundred twenty one coins'],
+    ['It cost 100 coins', 'it cost a hundred coins'],
+    ['It cost 1,250 coins', 'it cost one thousand two hundred fifty coins'],
+    ['She ran 3.5 miles', 'she ran three point five miles'],
+    ['It was 3:30 then', 'it was three thirty then'],
+    ['It was 3:00 then', "it was three o'clock then"],
+    ['It was 1990', 'it was nineteen ninety'],
+    ['It was 1990', 'it was one thousand nine hundred ninety'],
+    ['It was 1905', 'it was nineteen oh five'],
+    ['It was 2024', 'it was twenty twenty four'],
+    ['The 2nd dog', 'the second dog'],
+    ['The 21st dog', 'the twenty first dog'],
+  ])('%s', (expected, heard) => {
+    expect(allCorrect(expected, heard)).toBe(true);
+  });
+
+  it('does not match a different number', () => {
+    expect(outcomes('She ran 3.5 miles', 'she ran thirty five miles')).not.toEqual([
+      'correct',
+      'correct',
+      'correct',
+      'correct',
+    ]);
+  });
+});
+
+describe('alignWords other normalisation', () => {
+  it('ignores accents (N3)', () => {
+    expect(outcomes('A café', 'a cafe')).toEqual(['correct', 'correct']);
+  });
+
+  it('does not call an ordinary extra word a stutter (N1)', () => {
+    const slow: HeardWord[] = [
+      { text: 'a', start: 0, end: 0.2, confidence: 0.9 },
+      { text: 'apple', start: 1.5, end: 2, confidence: 0.9 },
+    ];
+    // Passage "apple": the "a" was a separate word said well before the real one.
+    expect(alignWords(['apple'], slow).map((r) => r.outcome)).toEqual(['insertion', 'correct']);
+  });
+});
+
 describe('alignWords low confidence', () => {
   it('flags a low-confidence mismatch instead of counting an error', () => {
-    const result = run('The cat sat', 'the dog:0.3 sat');
+    const result = run('The cat sat', 'the cot:0.3 sat');
     expect(result[1]).toMatchObject({
       expected: 'cat',
-      heard: 'dog',
+      heard: 'cot',
       outcome: 'correct',
       confidence: 0.3,
     });
@@ -175,13 +254,32 @@ describe('alignWords low confidence', () => {
     expect(outcomes('The cat sat', 'the dog:0.5 sat')[1]).toBe('substitution');
   });
 
+  it('never lets a noise word stand in for a skipped word', () => {
+    // B2: the reader stopped early and a cough was heard in place of the last word.
+    const stopped = run('One two three four', 'one two three cough:0.2');
+    expect(stopped.map((r) => r.outcome)).toEqual(['correct', 'correct', 'correct', 'omission']);
+    expect(summariseTry(stopped, 3).completed).toBe(false);
+    // The same in the middle of a reading.
+    expect(outcomes('The cat sat down', 'the uh:0.3 sat down')).toEqual([
+      'correct',
+      'omission',
+      'correct',
+      'correct',
+    ]);
+  });
+
+  it('treats a NaN confidence as low', () => {
+    const result = alignWords(['cat'], [{ text: 'cot', start: 0, end: 1, confidence: Number.NaN }]);
+    expect(result[0]).toMatchObject({ outcome: 'correct', confidence: 0 });
+  });
+
   it('drops low-confidence extra words such as background speech', () => {
     const result = run('The cat sat', 'the hello:0.2 there:0.3 cat sat');
     expect(result.map((r) => r.outcome)).toEqual(['correct', 'correct', 'correct']);
   });
 
   it('does not lower the right-word count in the try summary', () => {
-    const t = summariseTry(run('The cat sat', 'the dog:0.3 sat'), 3);
+    const t = summariseTry(run('The cat sat', 'the cot:0.3 sat'), 3);
     expect(t.wordsRight).toBe(3);
   });
 });

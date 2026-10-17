@@ -10,13 +10,19 @@
  *   follows it is `correct`.
  *
  * Low-confidence words are flagged, never counted as errors:
- * - a low-confidence heard word that does not match its expected word is reported as `correct`,
- *   with its heard text and low confidence kept so the screen can flag it;
- * - a low-confidence extra word (background speech, noise) is dropped.
+ * - a low-confidence heard word that looks like an attempt at its expected word, but does not
+ *   match it, is reported as `correct`. Read it as "unsure": `heard` differs from `expected` and
+ *   `confidence` is below the threshold. `WordResult` has no separate flag, so use
+ *   `isLowConfidence(confidence)`;
+ * - a low-confidence word that looks nothing like the expected word is treated as noise. It never
+ *   hides an omission, and it is dropped when it is an extra word.
+ *
+ * Contractions, split words and spoken numbers ("do not" for "don't", "twenty one" for 21) are
+ * matched inside the alignment, in either direction, so a passage can hold both forms.
  */
 import type { WordResult } from '@basabridge/contracts';
 import type { HeardWord } from './index';
-import { joinedKeys, wordKey } from './normalise';
+import { joinedKeys, keysMatch, MAX_JOIN, wordKeys } from './normalise';
 
 /** Heard words below this confidence are flagged and never counted as errors. */
 export const LOW_CONFIDENCE_THRESHOLD = 0.5;
@@ -26,95 +32,33 @@ export function isLowConfidence(confidence: number): boolean {
 }
 
 // Edit costs. A substitution is cheaper than an omission plus an insertion, so a wrong word is
-// reported as one substitution. A low-confidence word is the cheapest to pair with anything.
+// reported as one substitution. A low-confidence word is cheap to pair with a word it resembles and
+// dearer than an omission plus an insertion otherwise, so noise can never stand in for a skipped word.
 const GAP = 2;
 const SUBSTITUTE = 3;
 const SUBSTITUTE_LOW_CONFIDENCE = 2;
+const SUBSTITUTE_NOISE = 5;
 
-interface Heard {
+interface Item {
+  text: string;
+  /** Keys of the word, best first. Never empty. */
+  keys: string[];
+}
+
+interface Heard extends Item {
   word: HeardWord;
-  key: string;
 }
 
+/** One step of the alignment. `en` or `hn` is 0 for an omission or an extra word. */
 interface Op {
-  /** Index into the expected keys, or -1 for an extra heard word. */
   e: number;
-  /** Index into the prepared heard words, or -1 for an omission. */
+  en: number;
   h: number;
+  hn: number;
 }
 
-/** Normalise heard words, drop stray punctuation and join words the provider split apart. */
-function prepareHeard(heard: HeardWord[], expectedKeys: Set<string>): Heard[] {
-  const items = heard
-    .map((word) => ({ word, key: wordKey(word.text) }))
-    .filter((item) => item.key !== '');
-  const out: Heard[] = [];
-  for (let i = 0; i < items.length;) {
-    let merged: Heard | null = null;
-    for (let size = Math.min(3, items.length - i); size >= 2 && !merged; size--) {
-      const run = items.slice(i, i + size);
-      const key = joinedKeys(run.map((r) => r.key)).find((k) => expectedKeys.has(k));
-      if (key) {
-        merged = {
-          key,
-          word: {
-            text: run.map((r) => r.word.text).join(' '),
-            start: run[0]!.word.start,
-            end: run[size - 1]!.word.end,
-            confidence: Math.min(...run.map((r) => r.word.confidence)),
-          },
-        };
-        i += size;
-      }
-    }
-    if (merged) out.push(merged);
-    else out.push(items[i++]!);
-  }
-  return out;
-}
-
-/** Minimum-cost alignment as a list of operations in reading order. */
-function alignKeys(expected: string[], heard: Heard[]): Op[] {
-  const n = expected.length;
-  const m = heard.length;
-  const width = m + 1;
-  const cost = new Int32Array((n + 1) * width);
-  for (let i = 1; i <= n; i++) cost[i * width] = i * GAP;
-  for (let j = 1; j <= m; j++) cost[j] = j * GAP;
-  const pairCost = (i: number, j: number): number =>
-    expected[i] === heard[j]!.key
-      ? 0
-      : isLowConfidence(heard[j]!.word.confidence)
-        ? SUBSTITUTE_LOW_CONFIDENCE
-        : SUBSTITUTE;
-  for (let i = 1; i <= n; i++) {
-    for (let j = 1; j <= m; j++) {
-      const diagonal = cost[(i - 1) * width + j - 1]! + pairCost(i - 1, j - 1);
-      const skipExpected = cost[(i - 1) * width + j]! + GAP;
-      const skipHeard = cost[i * width + j - 1]! + GAP;
-      cost[i * width + j] = Math.min(diagonal, skipExpected, skipHeard);
-    }
-  }
-
-  const ops: Op[] = [];
-  let i = n;
-  let j = m;
-  while (i > 0 || j > 0) {
-    const here = cost[i * width + j]!;
-    if (i > 0 && j > 0 && here === cost[(i - 1) * width + j - 1]! + pairCost(i - 1, j - 1)) {
-      ops.push({ e: i - 1, h: j - 1 });
-      i--;
-      j--;
-    } else if (j > 0 && here === cost[i * width + j - 1]! + GAP) {
-      ops.push({ e: -1, h: j - 1 });
-      j--;
-    } else {
-      ops.push({ e: i - 1, h: -1 });
-      i--;
-    }
-  }
-  return ops.reverse();
-}
+const clamp = (value: number): number =>
+  Number.isNaN(value) ? 0 : Math.min(1, Math.max(0, value));
 
 function editDistance(a: string, b: string): number {
   let previous = Array.from({ length: b.length + 1 }, (_, k) => k);
@@ -132,7 +76,7 @@ function editDistance(a: string, b: string): number {
   return previous[b.length]!;
 }
 
-/** True when the spoken word looks like a failed try at the expected word. */
+/** True when the spoken word looks like a try at the target word. */
 function looksLikeAttempt(spoken: string, target: string): boolean {
   const distance = editDistance(spoken, target);
   return (
@@ -141,7 +85,112 @@ function looksLikeAttempt(spoken: string, target: string): boolean {
   );
 }
 
+/**
+ * For each run size, the keys that the run ending at each position could join into, limited to keys
+ * the other side actually has. Entry `[size][end]` is for items `end - size` up to `end - 1`.
+ */
+function joinTable(items: Item[], wanted: Set<string>): string[][][] {
+  const table: string[][][] = [];
+  for (let size = 2; size <= MAX_JOIN; size++) {
+    table[size] = [];
+    for (let end = size; end <= items.length; end++) {
+      table[size]![end] = joinedKeys(
+        items.slice(end - size, end).map((item) => item.keys[0]!),
+      ).filter((key) => wanted.has(key));
+    }
+  }
+  return table;
+}
+
+/** Minimum-cost alignment as a list of operations in reading order. */
+function alignItems(expected: Item[], heard: Heard[]): Op[] {
+  const n = expected.length;
+  const m = heard.length;
+  const width = m + 1;
+  const cost = new Int32Array((n + 1) * width);
+  for (let i = 1; i <= n; i++) cost[i * width] = i * GAP;
+  for (let j = 1; j <= m; j++) cost[j] = j * GAP;
+
+  const expectedWanted = new Set(expected.flatMap((item) => item.keys));
+  const heardWanted = new Set(heard.flatMap((item) => item.keys));
+  const heardJoins = joinTable(heard, expectedWanted);
+  const expectedJoins = joinTable(expected, heardWanted);
+
+  const pairCost = (i: number, j: number): number => {
+    if (keysMatch(expected[i]!.keys, heard[j]!.keys)) return 0;
+    if (!isLowConfidence(heard[j]!.word.confidence)) return SUBSTITUTE;
+    return looksLikeAttempt(heard[j]!.keys[0]!, expected[i]!.keys[0]!)
+      ? SUBSTITUTE_LOW_CONFIDENCE
+      : SUBSTITUTE_NOISE;
+  };
+  /** Several heard words said for one expected word: "do not" for "don't". Free when they join. */
+  const heardJoinFits = (i: number, j: number, size: number): boolean =>
+    j >= size && heardJoins[size]![j]!.some((key) => expected[i]!.keys.includes(key));
+  /** One heard word said for several expected words: "don't" for "do not". Free when it joins. */
+  const expectedJoinFits = (i: number, j: number, size: number): boolean =>
+    i >= size && expectedJoins[size]![i]!.some((key) => heard[j]!.keys.includes(key));
+
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      let best = Math.min(
+        cost[(i - 1) * width + j - 1]! + pairCost(i - 1, j - 1),
+        cost[(i - 1) * width + j]! + GAP,
+        cost[i * width + j - 1]! + GAP,
+      );
+      for (let size = 2; size <= MAX_JOIN; size++) {
+        if (heardJoinFits(i - 1, j, size)) best = Math.min(best, cost[(i - 1) * width + j - size]!);
+        if (expectedJoinFits(i, j - 1, size))
+          best = Math.min(best, cost[(i - size) * width + j - 1]!);
+      }
+      cost[i * width + j] = best;
+    }
+  }
+
+  const ops: Op[] = [];
+  let i = n;
+  let j = m;
+  while (i > 0 || j > 0) {
+    const here = cost[i * width + j]!;
+    if (i > 0 && j > 0 && here === cost[(i - 1) * width + j - 1]! + pairCost(i - 1, j - 1)) {
+      ops.push({ e: i - 1, en: 1, h: j - 1, hn: 1 });
+      i--;
+      j--;
+      continue;
+    }
+    let joined = false;
+    for (let size = 2; size <= MAX_JOIN && !joined; size++) {
+      if (i > 0 && heardJoinFits(i - 1, j, size) && here === cost[(i - 1) * width + j - size]!) {
+        ops.push({ e: i - 1, en: 1, h: j - size, hn: size });
+        i--;
+        j -= size;
+        joined = true;
+      } else if (
+        j > 0 &&
+        expectedJoinFits(i, j - 1, size) &&
+        here === cost[(i - size) * width + j - 1]!
+      ) {
+        ops.push({ e: i - size, en: size, h: j - 1, hn: 1 });
+        i -= size;
+        j--;
+        joined = true;
+      }
+    }
+    if (joined) continue;
+    if (j > 0 && here === cost[i * width + j - 1]! + GAP) {
+      ops.push({ e: i, en: 0, h: j - 1, hn: 1 });
+      j--;
+    } else {
+      ops.push({ e: i - 1, en: 1, h: j, hn: 0 });
+      i--;
+    }
+  }
+  return ops.reverse();
+}
+
 type ExtraOutcome = 'insertion' | 'repetition' | 'self_correction';
+
+/** A stutter is quick: the fragment ends almost as the real word starts. */
+const STUTTER_MAX_GAP_SECONDS = 0.3;
 
 /**
  * Label a run of extra heard words, indices `start` to `start + count - 1`.
@@ -156,18 +205,27 @@ function labelExtraRun(
   const same = (from: number): boolean =>
     from >= 0 &&
     from + count <= heard.length &&
-    Array.from({ length: count }).every((_, t) => heard[from + t]!.key === heard[start + t]!.key);
+    Array.from({ length: count }).every(
+      (_, t) => heard[from + t]!.keys[0] === heard[start + t]!.keys[0],
+    );
   // A phrase said twice, before or after the matched copy: "the cat the cat sat".
   if (same(start - count) || same(start + count)) return Array(count).fill('repetition');
 
   return Array.from({ length: count }, (_, t): ExtraOutcome => {
     const w = start + t;
-    const key = heard[w]!.key;
-    const previous = heard[w - 1]?.key;
-    const next = heard[w + 1]?.key;
-    if (key === previous || key === next) return 'repetition';
-    // A stutter fragment: "b" before "big".
-    if (next !== undefined && next.length > key.length && next.startsWith(key)) return 'repetition';
+    const key = heard[w]!.keys[0]!;
+    const previous = heard[w - 1]?.keys[0];
+    const next = heard[w + 1];
+    if (key === previous || key === next?.keys[0]) return 'repetition';
+    // A stutter fragment: "b" just before "big".
+    if (
+      next &&
+      next.keys[0]!.length > key.length &&
+      next.keys[0]!.startsWith(key) &&
+      next.word.start - heard[w]!.word.end <= STUTTER_MAX_GAP_SECONDS
+    ) {
+      return 'repetition';
+    }
     if (t === count - 1 && nextExpected !== null && looksLikeAttempt(key, nextExpected)) {
       return 'self_correction';
     }
@@ -177,20 +235,29 @@ function labelExtraRun(
 
 /** Compare the words that should have been said with the words heard. */
 export function alignWords(expected: string[], heard: HeardWord[]): WordResult[] {
-  // Stray punctuation tokens in the passage are not words to read.
-  const words = expected
-    .map((text) => ({ text, key: wordKey(text) }))
-    .filter((word) => word.key !== '');
-  const expectedKeys = words.map((word) => word.key);
-  const prepared = prepareHeard(heard, new Set(expectedKeys));
-  const ops = alignKeys(expectedKeys, prepared);
+  // Stray punctuation tokens in the passage or from the provider are not words.
+  const words: Item[] = expected
+    .map((text) => ({ text, keys: wordKeys(text) }))
+    .filter((item) => item.keys.length > 0);
+  const spoken: Heard[] = heard
+    .map((word) => ({ word, text: word.text, keys: wordKeys(word.text) }))
+    .filter((item) => item.keys.length > 0);
+  const ops = alignItems(words, spoken);
 
   const results: WordResult[] = [];
-  const clamp = (value: number): number => Math.min(1, Math.max(0, value));
+  const correct = (e: number, text: string, confidence: number): void => {
+    results.push({
+      expected: words[e]!.text,
+      heard: text,
+      outcome: 'correct',
+      confidence,
+      markedMisheard: false,
+    });
+  };
 
   for (let p = 0; p < ops.length;) {
     const op = ops[p]!;
-    if (op.e >= 0 && op.h < 0) {
+    if (op.en > 0 && op.hn === 0) {
       // Nothing was heard, so there is no recognition doubt to flag.
       results.push({
         expected: words[op.e]!.text,
@@ -200,31 +267,43 @@ export function alignWords(expected: string[], heard: HeardWord[]): WordResult[]
         markedMisheard: false,
       });
       p++;
-    } else if (op.e >= 0) {
-      const { word, key } = prepared[op.h]!;
+    } else if (op.en === 1 && op.hn === 1) {
+      const { word, keys } = spoken[op.h]!;
       const confidence = clamp(word.confidence);
-      const matched = key === expectedKeys[op.e] || isLowConfidence(confidence);
-      results.push({
-        expected: words[op.e]!.text,
-        heard: word.text,
-        outcome: matched ? 'correct' : 'substitution',
-        confidence,
-        markedMisheard: false,
-      });
+      if (keysMatch(words[op.e]!.keys, keys) || isLowConfidence(confidence)) {
+        correct(op.e, word.text, confidence);
+      } else {
+        results.push({
+          expected: words[op.e]!.text,
+          heard: word.text,
+          outcome: 'substitution',
+          confidence,
+          markedMisheard: false,
+        });
+      }
+      p++;
+    } else if (op.en > 0) {
+      // Several heard words for one expected word, or one heard word for several expected words.
+      const group = spoken.slice(op.h, op.h + op.hn);
+      const confidence = clamp(Math.min(...group.map((g) => g.word.confidence)));
+      const text = group.map((g) => g.word.text).join(' ');
+      for (let e = op.e; e < op.e + op.en; e++) correct(e, text, confidence);
       p++;
     } else {
       let q = p;
-      while (q < ops.length && ops[q]!.e < 0) q++;
+      while (q < ops.length && ops[q]!.en === 0) q++;
       const start = op.h;
       const count = q - p;
       const after = ops[q];
       const nextExpected =
-        after && after.e >= 0 && after.h >= 0 && prepared[after.h]!.key === expectedKeys[after.e]
-          ? expectedKeys[after.e]!
+        after &&
+        after.en === 1 &&
+        after.hn >= 1 &&
+        keysMatch(words[after.e]!.keys, spoken[after.h]!.keys)
+          ? words[after.e]!.keys[0]!
           : null;
-      const labels = labelExtraRun(prepared, start, count, nextExpected);
-      labels.forEach((outcome, t) => {
-        const { word } = prepared[start + t]!;
+      labelExtraRun(spoken, start, count, nextExpected).forEach((outcome, t) => {
+        const { word } = spoken[start + t]!;
         const confidence = clamp(word.confidence);
         if (isLowConfidence(confidence)) return;
         results.push({
