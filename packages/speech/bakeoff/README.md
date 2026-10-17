@@ -95,7 +95,7 @@ Runs cover different recordings: consent is per company, calls fail, and Azure a
 
 ## Decision rule
 
-PROPOSED by the harness author, for James to confirm or change before the first real run. Writing it down first stops the numbers from choosing the rule.
+Confirmed by James (owner, speech and reading analysis) on 2026-10-18, before any real run. Writing it down first stops the numbers from choosing the rule. Any later change must be agreed and recorded here before the report is generated, with the date and the reason.
 
 1. **Gates.** A candidate must return per-word timestamps, offer zero retention or deletion, and cover all three tiers. A provider that cannot take tier 3 audio can only be the runner-up or a second engine for short passages.
 2. **Minimum evidence.** The head-to-head for each tier needs at least 15 shared recordings from at least 8 readers. Below that, the result is reported as inconclusive and we record more before deciding.
