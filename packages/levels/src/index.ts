@@ -117,4 +117,15 @@ export function isVeryWeak(r: StoryResult): boolean {
 /** First level for a new learner. Everyone starts at the bottom. */
 export const STARTING_LEVEL = 1;
 
+/** Question type rules (docs/PLAN.md section 6.1, ADR 0003). */
+export const QUESTION_RULE = {
+  /** From this level each story has at least one choose-all or order-the-events question. Below it, multiple choice only. */
+  hardTypeFromLevel: 11,
+} as const;
+
+/** True when stories at this level need a hard-to-guess question type and may use one. */
+export function allowsHardQuestion(level: number): boolean {
+  return Math.round(level) >= QUESTION_RULE.hardTypeFromLevel;
+}
+
 export * from './evidence';

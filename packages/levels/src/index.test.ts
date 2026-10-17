@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_LEVEL,
   MIN_LEVEL,
+  QUESTION_RULE,
   TIERS,
+  allowsHardQuestion,
   hasTriesLeft,
   isPass,
   isVeryWeak,
@@ -63,5 +65,18 @@ describe('pass rule', () => {
     expect(isVeryWeak({ wordsRightShare: 0.9, questionsCorrect: 3, questionsTotal: 5 })).toBe(
       false,
     );
+  });
+});
+
+describe('question types', () => {
+  it('allows hard question types from the rule level up', () => {
+    const from = QUESTION_RULE.hardTypeFromLevel;
+    expect(allowsHardQuestion(from - 1)).toBe(false);
+    expect(allowsHardQuestion(from)).toBe(true);
+    expect(allowsHardQuestion(MAX_LEVEL)).toBe(true);
+  });
+
+  it('starts above the first tier', () => {
+    expect(QUESTION_RULE.hardTypeFromLevel).toBeGreaterThan(tierFor(MIN_LEVEL).to);
   });
 });
