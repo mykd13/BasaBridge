@@ -15,6 +15,7 @@
     "@basabridge/learn": "workspace:*",
     "@basabridge/levels": "workspace:*",
     "@basabridge/mastery": "workspace:*",
+    "@basabridge/observability": "workspace:*",
     "@basabridge/speech": "workspace:*",
     "@basabridge/story-ai": "workspace:*",
     "@basabridge/teacher-ai": "workspace:*",

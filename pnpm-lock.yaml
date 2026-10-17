@@ -148,6 +148,9 @@ importers:
       '@basabridge/mastery':
         specifier: workspace:*
         version: link:../../packages/mastery
+      '@basabridge/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@basabridge/speech':
         specifier: workspace:*
         version: link:../../packages/speech
