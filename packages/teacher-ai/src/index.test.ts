@@ -1,5 +1,125 @@
-import { describe, expect, it } from 'vitest';
-import { STANDARD_ACTIVITIES, isValidNotes, standardActivity } from './index';
+import type { Lesson } from '@basabridge/learn';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  type NotesInput,
+  type NotesModel,
+  STANDARD_ACTIVITIES,
+  isValidNotes,
+  standardActivity,
+  writeNotes,
+} from './index';
+
+const input: NotesInput = {
+  levelBefore: 24,
+  levelAfter: 24,
+  passed: false,
+  correct: 3,
+  total: 5,
+  missed: [
+    { skill: 'inferential', subskill: 'feelings', distractor: 'not_stated' },
+    { skill: 'inferential', subskill: 'feelings', distractor: 'wrong_detail' },
+  ],
+  focus: 'inferential',
+};
+
+const reply = {
+  childMessage: 'You read the whole story. Next time, look for clues about how people feel.',
+  whatHappened: 'Answered 3 of 5 questions correctly. Both misses asked how a character felt.',
+  whyFocus: 'Questions about feelings ask the reader to use clues the story does not spell out.',
+  homeActivity: {
+    title: 'Feelings detective',
+    minutes: 5,
+    steps: ['Read a page together.', 'Ask how a character feels and which words show it.'],
+    tip: 'Any feeling is fine if your child can point to a clue.',
+  },
+};
+
+const lesson = (over: Partial<Lesson>): Lesson => ({
+  id: 'feelings-middle',
+  subject: 'feelings',
+  band: 'middle',
+  title: 'How do they feel?',
+  goal: 'I can tell how someone feels from clues.',
+  steps: [{ kind: 'explain', text: 'Clues show feelings.' }],
+  status: 'reviewed',
+  ...over,
+});
+
+const answers =
+  (value: unknown): NotesModel =>
+  async () =>
+    value;
+
+describe('writeNotes', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('uses the model notes when they pass every check', async () => {
+    const notes = await writeNotes(input, { model: answers(reply) });
+    expect(notes).toMatchObject({
+      childMessage: reply.childMessage,
+      whatHappened: reply.whatHappened,
+      whyFocus: reply.whyFocus,
+      source: 'ai',
+      fallbackReason: null,
+    });
+    expect(notes.homeActivity.source).toBe('ai');
+  });
+
+  it('sends the model only the built prompt', async () => {
+    const model = vi.fn(answers(reply));
+    await writeNotes({ ...input, username: 'SENTINEL-USER' } as NotesInput, { model });
+    expect(model).toHaveBeenCalledOnce();
+    expect(JSON.stringify(model.mock.calls[0])).not.toContain('SENTINEL');
+  });
+
+  it('falls back to standard wording when the reply has the wrong shape', async () => {
+    const notes = await writeNotes(input, { model: answers({ childMessage: 'Hi' }) });
+    expect(notes).toMatchObject({ source: 'standard', fallbackReason: 'invalid_shape' });
+    expect(notes.homeActivity).toBe(STANDARD_ACTIVITIES.inferential);
+  });
+
+  it('falls back when the child note has a score or a number', async () => {
+    const notes = await writeNotes(input, {
+      model: answers({ ...reply, childMessage: 'You got 3 out of 5. Good job!' }),
+    });
+    expect(notes).toMatchObject({ source: 'standard', fallbackReason: 'tone' });
+    expect(notes.childMessage).not.toMatch(/\d/);
+  });
+
+  it('falls back when the model call fails', async () => {
+    const notes = await writeNotes(input, {
+      model: async () => {
+        throw new Error('gateway timeout');
+      },
+    });
+    expect(notes).toMatchObject({ source: 'standard', fallbackReason: 'call_failed' });
+  });
+
+  it('uses standard wording when no model is configured', async () => {
+    vi.stubEnv('NOTES_MODEL', '');
+    expect(await writeNotes(input)).toMatchObject({
+      source: 'standard',
+      fallbackReason: 'not_configured',
+    });
+    expect(await writeNotes(input, { model: null })).toMatchObject({ source: 'standard' });
+  });
+
+  it('links a reviewed lesson for the main gap, whatever the model says', async () => {
+    const lessons = [lesson({}), lesson({ id: 'draft', status: 'draft' })];
+    const ai = await writeNotes(input, { model: answers(reply), lessons });
+    const standard = await writeNotes(input, { model: null, lessons });
+    expect(ai.lesson).toEqual({ id: 'feelings-middle', title: 'How do they feel?' });
+    expect(standard.lesson).toEqual(ai.lesson);
+  });
+
+  it('links no lesson when the gap has only a draft lesson', async () => {
+    const notes = await writeNotes(input, {
+      model: null,
+      lessons: [lesson({ status: 'draft' })],
+    });
+    expect(notes.lesson).toBeNull();
+  });
+});
 
 describe('standard activities', () => {
   it('exist for every comprehension skill and never use AI wording', () => {
