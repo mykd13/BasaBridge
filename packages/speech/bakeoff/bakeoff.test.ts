@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -7,6 +7,7 @@ import { alignToReference, editAlign } from './align.ts';
 import {
   DataError,
   dataDir,
+  hasSettledResult,
   isInsideRepository,
   loadDataset,
   loadPassages,
@@ -26,7 +27,7 @@ import { COMPANIES, PROVIDER_NAMES, companyOf } from './providers/index.ts';
 import { buildReport } from './report.ts';
 import { auroc, clusterBootstrapRatio, cohenKappa, percentile } from './stats.ts';
 import { normaliseWords } from './text.ts';
-import type { HeardWord, TruthRow } from './types.ts';
+import type { HeardWord, StoredResult, TruthRow } from './types.ts';
 import { readWav, writeWav } from './wav.ts';
 
 const heard = (text: string, confidence = 0.9, start = 0, end = 0): HeardWord => ({
@@ -195,11 +196,51 @@ describe('data folder', () => {
     expect(() => dataDir({})).toThrow(DataError);
   });
 
-  it('refuses a synced folder unless allowed', () => {
-    expect(isInsideRepository(tmpdir())).toBe(false);
-    const synced = mkdtempSync(join(tmpdir(), 'OneDrive-'));
-    expect(() => dataDir({ BAKEOFF_DATA_DIR: synced })).toThrow(/synced/);
-    expect(dataDir({ BAKEOFF_DATA_DIR: synced, BAKEOFF_ALLOW_SYNCED: '1' })).toBe(synced);
+  it('treats any folder under a .git directory as a repository', () => {
+    const root = mkdtempSync(join(tmpdir(), 'bakeoff-repo-'));
+    mkdirSync(join(root, '.git'));
+    mkdirSync(join(root, 'data'));
+    expect(isInsideRepository(join(root, 'data'))).toBe(true);
+  });
+
+  // These need a temp folder that is not itself inside a repository.
+  it.skipIf(isInsideRepository(tmpdir()))('refuses a link that points into a repository', () => {
+    const link = join(mkdtempSync(join(tmpdir(), 'bakeoff-link-')), 'data');
+    // A junction needs no admin rights on Windows and is ignored elsewhere.
+    symlinkSync(import.meta.dirname!, link, 'junction');
+    expect(() => dataDir({ BAKEOFF_DATA_DIR: link })).toThrow(/repository/);
+  });
+
+  it.skipIf(isInsideRepository(tmpdir()))('refuses synced folders unless allowed', () => {
+    for (const prefix of ['OneDrive-', 'GoogleDrive-', 'iCloud-', 'Dropbox-']) {
+      const synced = mkdtempSync(join(tmpdir(), prefix));
+      expect(() => dataDir({ BAKEOFF_DATA_DIR: synced }), prefix).toThrow(/synced/);
+      expect(dataDir({ BAKEOFF_DATA_DIR: synced, BAKEOFF_ALLOW_SYNCED: '1' })).toBe(
+        realpathSync(synced),
+      );
+    }
+  });
+
+  it('retries failed calls but not finished or too-long ones', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'bakeoff-settled-'));
+    const base = {
+      provider: 'deepgram',
+      mode: 'plain' as const,
+      transport: 'batch' as const,
+      latencyMs: 0,
+      audioSeconds: 1,
+      words: [],
+    };
+    writeResult(dir, { ...base, recordingId: 'rec-0001', ok: true });
+    writeResult(dir, { ...base, recordingId: 'rec-0002', ok: false, error: '401' });
+    writeResult(dir, { ...base, recordingId: 'rec-0003', ok: false, error: 'too_long' });
+    const settled = (id: string) => hasSettledResult(dir, 'deepgram', 'plain', 'batch', id);
+    expect([settled('rec-0001'), settled('rec-0002'), settled('rec-0003')]).toEqual([
+      true,
+      false,
+      true,
+    ]);
+    expect(settled('rec-0004')).toBe(false);
   });
 });
 
@@ -264,40 +305,87 @@ describe('log', () => {
 });
 
 describe('report', () => {
-  it('shows aggregates only and hides small groups', () => {
+  const header = 'recording_id,reader_code,passage_id,age_band,first_language,device,noise,vendors';
+
+  /** Six one-reader recordings of P01 (tier 1), five aged 6-8 and one aged 15-17. */
+  function fixture() {
     const dir = mkdtempSync(join(tmpdir(), 'bakeoff-test-'));
     mkdirSync(join(dir, 'transcripts'));
-    const passages = loadPassages();
-    const words = passageWords(passages.get('P01')!);
-    const lines = [
-      'recording_id,reader_code,passage_id,age_band,first_language,device,noise,vendors',
-    ];
+    const words = passageWords(loadPassages().get('P01')!);
+    const lines = [header];
     for (let i = 1; i <= 6; i++) {
       const id = `rec-000${i}`;
       lines.push(`${id},R0${i},P01,${i <= 5 ? '6-8' : '15-17'},waray,phone,quiet,deepgram`);
       writeFileSync(join(dir, 'transcripts', `${id}.tsv`), transcriptTemplate(words));
-      writeResult(dir, {
-        provider: 'deepgram',
-        mode: 'plain',
-        transport: 'batch',
-        recordingId: id,
-        latencyMs: 1000,
-        audioSeconds: 4,
-        ok: true,
-        words: words.map((w) => heard(w)),
-      });
     }
     writeFileSync(join(dir, 'manifest.csv'), lines.join('\n'));
-    const ds = loadDataset(dir, ['deepgram']);
-    const md = buildReport(ds, [], [], { generatedOn: '2026-10-17' });
-    expect(md).toContain('6 transcribed recordings from 6 readers');
-    const withResults = buildReport(ds, readAllResults(dir), [], { generatedOn: '2026-10-17' });
-    expect(withResults).toContain(
-      '| deepgram plain batch | 0 of 6 | 0.0% (0.0 to 0.0) | 0.0% (0.0 to 0.0)',
+    return { dir, words, ds: loadDataset(dir, ['deepgram', 'azure']) };
+  }
+
+  const result = (
+    provider: string,
+    i: number,
+    extra: Partial<StoredResult> = {},
+  ): StoredResult => ({
+    provider,
+    mode: 'plain',
+    transport: 'batch',
+    recordingId: `rec-000${i}`,
+    latencyMs: 1000,
+    audioSeconds: 4,
+    ok: true,
+    words: passageWords(loadPassages().get('P01')!).map((w) => heard(w)),
+    ...extra,
+  });
+
+  it('shows aggregates only and hides small groups', () => {
+    const { dir, ds } = fixture();
+    expect(buildReport(ds, [], [], { generatedOn: '2026-10-17' })).toContain(
+      '6 transcribed recordings from 6 readers',
     );
-    expect(withResults).toContain('| ageBand | 15-17 | fewer than 5 |');
-    expect(withResults).toMatch(/\| deepgram plain batch \| hidden \| 0\.0% \/ 0\.0% \|/);
-    expect(withResults).not.toContain('R01');
+    for (let i = 1; i <= 6; i++) writeResult(dir, result('deepgram', i));
+    const md = buildReport(ds, readAllResults(dir), [], { generatedOn: '2026-10-17' });
+    expect(md).toContain(
+      '| deepgram plain batch | 6 | 0 | 0 | 0 | 0.0% (0.0 to 0.0) | 0.0% (0.0 to 0.0)',
+    );
+    // One reader aged 15-17: hidden in the test set and in the group tables.
+    expect(md).toContain('| ageBand | 15-17 | hidden |');
+    expect(md).toMatch(/\| deepgram plain batch \| hidden \| 0\.0% \/ 0\.0% \|/);
+    expect(md).not.toContain('R01');
+  });
+
+  it('keeps a dead run and a partial run out of the head-to-head', () => {
+    const { ds } = fixture();
+    const results = [
+      ...[1, 2, 3, 4, 5, 6].map((i) => result('deepgram', i)),
+      // A dead key: every call failed.
+      ...[1, 2, 3, 4, 5, 6].map((i) => result('google', i, { ok: false, error: '401', words: [] })),
+      // A length-limited run with results for only some recordings.
+      ...[1, 2, 3, 4, 5].map((i) => result('azure-pa', i, { mode: 'biased' })),
+      result('azure-pa', 6, { mode: 'biased', ok: false, error: 'too_long', words: [] }),
+      result('azure-pa', 6, { mode: 'biased', ok: false, error: 'too_long', words: [] }),
+    ];
+    const md = buildReport(ds, results, [], { generatedOn: '2026-10-17' });
+    const tier = md.slice(md.indexOf('### levels 1-10'), md.indexOf('## Pairwise'));
+    expect(tier).toContain('6 shared recordings');
+    expect(tier).toContain('| deepgram plain batch |');
+    expect(tier).not.toContain('| google plain batch |');
+    expect(md).toContain('### azure-pa biased batch');
+    expect(md).toContain('| deepgram plain batch | 5 |');
+  });
+
+  it('shows n/a for confidence when a provider has no real word confidence', () => {
+    const { ds } = fixture();
+    const results = [1, 2, 3, 4, 5, 6].map((i) =>
+      result('azure', i, {
+        hasWordConfidence: false,
+        settings: { model: 'm', locale: 'en-PH', endpoint: 'e', region: 'r' },
+      }),
+    );
+    const md = buildReport(ds, results, [], { generatedOn: '2026-10-17' });
+    expect(md).toContain('| azure plain batch | m | en-PH | e | r | not recorded | no |');
+    expect(md).toMatch(/\| azure plain batch \| \d+ \| .* \| n\/a \| n\/a \|/);
+    expect(md).toContain('| azure plain batch | n/a | n/a | n/a | n/a |');
   });
 });
 

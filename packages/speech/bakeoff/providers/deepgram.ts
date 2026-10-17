@@ -97,6 +97,13 @@ export function createDeepgram(env: NodeJS.ProcessEnv): BakeoffProvider {
     biasing: 'keyterm (unique passage words)',
     streaming: true,
     modes: ['plain', 'biased'],
+    hasWordConfidence: true,
+    settings: {
+      model: 'nova-3',
+      locale: 'service default (English)',
+      endpoint: host,
+      region: host === 'api.deepgram.com' ? 'US' : host,
+    },
     run,
     runStream,
     transcribe: async (audio, options) => (await run(audio, options)).words,

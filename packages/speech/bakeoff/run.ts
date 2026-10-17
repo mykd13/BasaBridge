@@ -18,7 +18,7 @@ import {
   DataError,
   audioPath,
   dataDir,
-  hasResult,
+  hasSettledResult,
   loadDataset,
   loadPassages,
   mergeLabels,
@@ -30,6 +30,7 @@ import {
 } from './data.ts';
 import type { Dataset } from './data.ts';
 import { ProviderError, log } from './log.ts';
+import { takeDeleteFailures } from './providers/common.ts';
 import { COMPANIES, PROVIDER_NAMES, companyOf, createProvider } from './providers/index.ts';
 import { buildReport } from './report.ts';
 import type { VendorFacts } from './report.ts';
@@ -112,6 +113,8 @@ async function runProviders(ds: Dataset, args: string[], env: NodeJS.ProcessEnv)
   for (const name of names) {
     const provider = createProvider(name, env);
     let done = 0;
+    let failedCalls = 0;
+    let deleteFailures = 0;
     for (const rec of ds.recordings) {
       if (done >= limit) break;
       if (name !== 'oracle' && !rec.vendors.includes(companyOf(name))) {
@@ -136,19 +139,19 @@ async function runProviders(ds: Dataset, args: string[], env: NodeJS.ProcessEnv)
         for (const transport of transports) {
           if (transport === 'stream' && !provider.runStream) continue;
           const t = transport as 'batch' | 'stream';
-          if (!force && hasResult(ds.dir, name, mode, t, rec.recordingId)) continue;
+          if (!force && hasSettledResult(ds.dir, name, mode, t, rec.recordingId)) continue;
+          const base = {
+            provider: name,
+            mode,
+            transport: t,
+            recordingId: rec.recordingId,
+            audioSeconds: wav.seconds,
+            runDate: today(),
+            settings: provider.settings,
+            hasWordConfidence: provider.hasWordConfidence,
+          };
           if (t === 'batch' && provider.maxSeconds && wav.seconds > provider.maxSeconds) {
-            writeResult(ds.dir, {
-              words: [],
-              provider: name,
-              mode,
-              transport: t,
-              recordingId: rec.recordingId,
-              latencyMs: 0,
-              audioSeconds: wav.seconds,
-              ok: false,
-              error: 'too_long',
-            });
+            writeResult(ds.dir, { ...base, words: [], latencyMs: 0, ok: false, error: 'too_long' });
             log('call', { recordingId: rec.recordingId, provider: name, mode, status: 'too_long' });
             continue;
           }
@@ -160,23 +163,17 @@ async function runProviders(ds: Dataset, args: string[], env: NodeJS.ProcessEnv)
             ...(selfTestWords ? { selfTestWords } : {}),
           };
           const started = performance.now();
+          takeDeleteFailures();
           let stored: StoredResult;
           try {
             const res =
               t === 'stream'
                 ? await provider.runStream!(wav, options)
                 : await provider.run(new Blob([bytes], { type: 'audio/wav' }), options);
-            stored = {
-              ...res,
-              provider: name,
-              mode,
-              transport: t,
-              recordingId: rec.recordingId,
-              latencyMs: performance.now() - started,
-              audioSeconds: wav.seconds,
-              ok: true,
-            };
+            stored = { ...base, ...res, latencyMs: performance.now() - started, ok: true };
           } catch (err) {
+            // A missing setting stops the whole run instead of failing every recording.
+            if (err instanceof DataError) throw err;
             const status =
               err instanceof ProviderError
                 ? err.status
@@ -185,16 +182,18 @@ async function runProviders(ds: Dataset, args: string[], env: NodeJS.ProcessEnv)
                   : 'error';
             if (process.env.BAKEOFF_DEBUG === '1') console.error(err);
             stored = {
+              ...base,
               words: [],
-              provider: name,
-              mode,
-              transport: t,
-              recordingId: rec.recordingId,
               latencyMs: performance.now() - started,
-              audioSeconds: wav.seconds,
               ok: false,
               error: status,
             };
+            failedCalls++;
+          }
+          if (takeDeleteFailures() > 0) {
+            stored.deleteFailed = true;
+            deleteFailures++;
+            log('delete_failed', { recordingId: rec.recordingId, provider: name, mode });
           }
           writeResult(ds.dir, stored);
           log('call', {
@@ -208,6 +207,13 @@ async function runProviders(ds: Dataset, args: string[], env: NodeJS.ProcessEnv)
         }
       }
       done++;
+    }
+    log('run_summary', { provider: name, status: 'failed_calls', count: failedCalls });
+    log('run_summary', { provider: name, status: 'delete_failures', count: deleteFailures });
+    if (deleteFailures > 0) {
+      console.error(
+        `${deleteFailures} vendor deletions failed for ${name}. Delete those jobs in the vendor dashboard and note it on BB-22 (PROTOCOL.md).`,
+      );
     }
   }
 }

@@ -66,6 +66,7 @@ export function createAzure(env: NodeJS.ProcessEnv): BakeoffProvider {
         text: w.text,
         start: w.offsetMilliseconds / 1000,
         end: (w.offsetMilliseconds + w.durationMilliseconds) / 1000,
+        // Not scored: hasWordConfidence is false for this adapter.
         confidence: p.confidence ?? 0,
       })),
     );
@@ -77,6 +78,14 @@ export function createAzure(env: NodeJS.ProcessEnv): BakeoffProvider {
     biasing: 'phraseList (passage sentences)',
     streaming: false,
     modes: ['plain', 'biased'],
+    // Only phrase-level confidence exists; the report shows n/a rather than scoring it.
+    hasWordConfidence: false,
+    settings: {
+      model: 'fast transcription 2025-10-15',
+      locale,
+      endpoint: `${region}.api.cognitive.microsoft.com`,
+      region,
+    },
     run,
     transcribe: async (audio, options) => (await run(audio, options)).words,
   };
@@ -156,6 +165,14 @@ export function createAzurePronunciation(env: NodeJS.ProcessEnv): BakeoffProvide
     streaming: false,
     modes: ['biased'],
     maxSeconds: 30,
+    // Word confidence is 0 in responses; AccuracyScore is a pronunciation score, not confidence.
+    hasWordConfidence: false,
+    settings: {
+      model: 'pronunciation assessment (short audio REST)',
+      locale: 'en-US',
+      endpoint: `${region}.stt.speech.microsoft.com`,
+      region,
+    },
     run,
     transcribe: async (audio, options) => (await run(audio, options)).words,
   };

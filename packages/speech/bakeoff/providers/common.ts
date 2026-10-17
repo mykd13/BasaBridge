@@ -26,6 +26,33 @@ export function openSocket(url: string, headers: Record<string, string> = {}): P
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+let deleteFailures = 0;
+
+/**
+ * Delete something on the vendor's side. A failure is counted, not thrown, so the result is
+ * kept; run.ts reads the count after each call, stores it with the result and logs it.
+ */
+export async function deleteOnVendor(url: string, headers: Record<string, string>) {
+  try {
+    const res = await fetch(url, { method: 'DELETE', headers });
+    if (!res.ok) deleteFailures++;
+  } catch {
+    deleteFailures++;
+  }
+}
+
+/** Record a deletion that could not even be attempted, such as an orphaned upload. */
+export function noteDeleteFailure() {
+  deleteFailures++;
+}
+
+/** Number of deletion failures since the last call. */
+export function takeDeleteFailures(): number {
+  const n = deleteFailures;
+  deleteFailures = 0;
+  return n;
+}
+
 /**
  * Send PCM at real-time pace, the way a browser would. Returns performance.now() of the first
  * and last chunk so adapters can measure time to first word and time after the end.

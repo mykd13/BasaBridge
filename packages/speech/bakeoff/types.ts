@@ -91,10 +91,24 @@ export interface BakeoffProvider extends SpeechProvider {
   readonly modes: readonly Mode[];
   /** Longest recording the batch call accepts. Longer ones are recorded as too_long, not sent. */
   readonly maxSeconds?: number;
+  /**
+   * False when the vendor has no real per-word confidence. The words still carry a number
+   * because HeardWord requires one, but the report shows n/a instead of scoring it.
+   */
+  readonly hasWordConfidence: boolean;
+  /** Model, locale, endpoint and region, saved with every result so a run can be repeated. */
+  readonly settings: RunSettings;
   /** Batch call returning words plus any assessment. */
   run(audio: Blob, options: BakeoffOptions): Promise<ProviderResult>;
   /** Streaming call that feeds the PCM at real-time pace. */
   runStream?(wav: Wav, options: BakeoffOptions): Promise<ProviderResult>;
+}
+
+export interface RunSettings {
+  model: string;
+  locale: string;
+  endpoint: string;
+  region: string;
 }
 
 /** Saved per recording in BAKEOFF_DATA_DIR/results. Never copied into the repo. */
@@ -108,4 +122,11 @@ export interface StoredResult extends ProviderResult {
   ok: boolean;
   /** HTTP status or a short error code. Never a response body. */
   error?: string;
+  /** Local date of the call, YYYY-MM-DD. */
+  runDate?: string;
+  settings?: RunSettings;
+  /** False when the provider has no real per-word confidence. */
+  hasWordConfidence?: boolean;
+  /** True when deleting the job or upload on the vendor's side failed. */
+  deleteFailed?: boolean;
 }

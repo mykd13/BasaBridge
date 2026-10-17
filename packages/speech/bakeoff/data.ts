@@ -10,7 +10,14 @@
  *   labels/<id>.txt                  Audacity label export, for timestamps
  *   results/<provider>/<mode>-<transport>/<id>.json   provider output
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normaliseWords } from './text.ts';
@@ -37,9 +44,9 @@ export const NOISE = ['quiet', 'noisy'];
 
 export class DataError extends Error {}
 
-/** True when the path is inside a git checkout or a pnpm workspace. */
+/** True when the path is inside a git checkout or a pnpm workspace. Symlinks are followed. */
 export function isInsideRepository(path: string): boolean {
-  let dir = resolve(path);
+  let dir = existsSync(path) ? realpathSync(path) : resolve(path);
   for (;;) {
     if (existsSync(join(dir, '.git')) || existsSync(join(dir, 'pnpm-workspace.yaml'))) return true;
     const parent = dirname(dir);
@@ -48,16 +55,21 @@ export function isInsideRepository(path: string): boolean {
   }
 }
 
+/** Folders that sync to a cloud service: OneDrive, Dropbox, Google Drive, iCloud, Box. */
+const SYNCED_FOLDER =
+  /onedrive|dropbox|google ?drive|icloud|mobile documents|[\\/]library[\\/]cloudstorage[\\/]|[\\/]box( sync)?[\\/]/i;
+
 /** Resolve BAKEOFF_DATA_DIR and refuse anything unsafe. */
 export function dataDir(env: NodeJS.ProcessEnv = process.env): string {
   const raw = env.BAKEOFF_DATA_DIR;
   if (!raw) throw new DataError('Set BAKEOFF_DATA_DIR to the encrypted data folder.');
-  const dir = resolve(raw);
-  if (!existsSync(dir)) throw new DataError('BAKEOFF_DATA_DIR does not exist.');
+  if (!existsSync(raw)) throw new DataError('BAKEOFF_DATA_DIR does not exist.');
+  // Follow symlinks so a link that points into a repository or a synced folder is caught.
+  const dir = realpathSync(raw);
   if (isInsideRepository(dir)) {
     throw new DataError('BAKEOFF_DATA_DIR is inside a repository. Move the data out of it.');
   }
-  if (/onedrive|dropbox|google drive/i.test(dir) && env.BAKEOFF_ALLOW_SYNCED !== '1') {
+  if (SYNCED_FOLDER.test(dir) && env.BAKEOFF_ALLOW_SYNCED !== '1') {
     throw new DataError(
       'BAKEOFF_DATA_DIR is in a synced folder. Use an encrypted container, then set BAKEOFF_ALLOW_SYNCED=1.',
     );
@@ -280,14 +292,21 @@ export function writeResult(dir: string, r: StoredResult): void {
   writeFileSync(join(folder, `${r.recordingId}.json`), JSON.stringify(r));
 }
 
-export function hasResult(
+/**
+ * True when a call needs no rerun: it succeeded, or the audio is too long for that provider.
+ * Failed calls (an expired token, a timeout) are retried on the next run.
+ */
+export function hasSettledResult(
   dir: string,
   provider: string,
   mode: Mode,
   transport: string,
   id: string,
-) {
-  return existsSync(join(resultFolder(dir, provider, mode, transport), `${id}.json`));
+): boolean {
+  const file = join(resultFolder(dir, provider, mode, transport), `${id}.json`);
+  if (!existsSync(file)) return false;
+  const r = JSON.parse(readFileSync(file, 'utf8')) as StoredResult;
+  return r.ok || r.error === 'too_long';
 }
 
 export function readAllResults(dir: string): StoredResult[] {

@@ -8,13 +8,19 @@ Status: DRAFT for review by Rhett (locked area: consent text). Not for use until
 We are a small team building BasaBridge, a website that helps children practise reading in English. When a child reads a story out loud, a computer program listens and tells them which words went well. These programs sometimes make mistakes with children's voices and with Filipino accents. We want to test a few of them before we choose one, so that the one we choose is fair to Filipino children.
 
 **What will my child do?**
-Your child will read 3 or 4 short stories out loud, each under a minute, while we record their voice on a laptop or phone. It takes about 10 minutes. There are no marks and no wrong answers. Your child can stop at any time.
+Your child will read 3 or 4 short stories out loud, each taking from a few seconds to about two minutes, while we record their voice on a laptop or phone. It takes about 10 minutes. There are no marks and no wrong answers. Your child can stop at any time.
 
 **What do you record and keep?**
 Only your child's voice reading the stories. We do not record their name, school, face or exact age. We write down only their age group (for example 9 to 11), their first language, the kind of device and whether the room was quiet or noisy. Each recording gets a code like R07 instead of a name. The only place your child's name and code appear together is this form, which we keep separately and securely.
 
 **Who hears the recordings?**
-Members of our team, who type out exactly what was read. With your permission (see the boxes below), we also send the recordings to the speech companies listed below so their programs can try to recognise the words. We send only the voice recording and the story text, never your child's name or details. Where a company lets us, we switch off their storage and their use of recordings to improve their programs, and we delete each recording from their system as soon as we have the result. Some of these companies are outside the Philippines.
+Members of our team, who type out exactly what was read. They sign a promise to keep the recordings private. With your permission (see the boxes below), we also send the recordings to the speech companies listed below so their programs can try to recognise the words. We send only the voice recording and the story text, never your child's name or details. Some of these companies are outside the Philippines. What each one does with a recording:
+
+- Microsoft and Google: they do not keep it for the kind of request we use.
+- Deepgram: we switch on its setting that stops it keeping the recording.
+- AssemblyAI and Speechmatics: they keep it for a short time by default (up to a few days), so we delete it as soon as we have the result, and we switch off any use of it to improve their programs.
+
+None of these companies has rules written specifically for children's recordings.
 
 **What do you publish?**
 Only totals, such as "Company A got 4 in 100 words wrong". Nothing that could identify your child. Groups smaller than 5 recordings are never shown.

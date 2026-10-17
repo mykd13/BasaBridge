@@ -12,7 +12,7 @@ import { ensureOk, ProviderError } from '../log.ts';
 import type { BakeoffOptions, BakeoffProvider, HeardWord, ProviderResult } from '../types.ts';
 import type { Wav } from '../wav.ts';
 import { passagePhrases } from './assemblyai.ts';
-import { openSocket, poll, requireEnv, streamPcm } from './common.ts';
+import { deleteOnVendor, openSocket, poll, requireEnv, streamPcm } from './common.ts';
 
 interface SmResult {
   type: string;
@@ -80,11 +80,7 @@ export function createSpeechmatics(env: NodeJS.ProcessEnv): BakeoffProvider {
       const body = (await t.json()) as { results?: SmResult[] };
       return { words: toHeard(body.results ?? []) };
     } finally {
-      await fetch(`${base}/jobs/${id}`, { method: 'DELETE', headers: auth })
-        .then((r) => {
-          if (!r.ok) console.error(`speechmatics delete failed ${r.status}`);
-        })
-        .catch(() => console.error('speechmatics delete failed'));
+      await deleteOnVendor(`${base}/jobs/${id}`, auth);
     }
   };
 
@@ -150,6 +146,13 @@ export function createSpeechmatics(env: NodeJS.ProcessEnv): BakeoffProvider {
     biasing: 'additional_vocab (passage in phrases of 6 words or fewer)',
     streaming: true,
     modes: ['plain', 'biased'],
+    hasWordConfidence: true,
+    settings: {
+      model: operatingPoint,
+      locale: 'en',
+      endpoint: `${region}.asr.api.speechmatics.com; ${region.replace(/\d+$/, '')}.rt.speechmatics.com`,
+      region,
+    },
     run,
     runStream,
     transcribe: async (audio, options) => (await run(audio, options)).words,

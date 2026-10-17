@@ -27,7 +27,10 @@ Throwaway scripts that compare speech providers on recordings of children readin
    plus the keys for the providers you test (see the top of each file in `providers/`).
 
 3. The harness refuses a data folder inside a repository. It also refuses a OneDrive, Dropbox or Google Drive path unless you set `BAKEOFF_ALLOW_SYNCED=1`, which you should only do for an encrypted container.
-4. Before the first AssemblyAI run, turn on the model-training opt-out in the AssemblyAI dashboard. The API has no switch for it.
+4. Before the first AssemblyAI run, turn on the model-training opt-out in the AssemblyAI dashboard. The API has no switch for it, so streaming refuses to start until you also set `ASSEMBLYAI_TRAINING_OPT_OUT=confirmed`.
+5. Smoke-test every adapter with an adult team member's voice before any child's recording is sent. Use a separate data folder for this: record one passage as `rec-9001`, give it a manifest row with reader code `R99` (the age band value does not matter there), point `BAKEOFF_DATA_DIR` at it and run each provider with `--limit 1`. The Speechmatics batch path in particular was written from memory. The smoke-test folder never feeds the report.
+
+The scripts run through `tsx`, because Node's built-in TypeScript cannot load the workspace packages.
 
 ## Providers
 
@@ -64,7 +67,9 @@ Checks the manifest, audio and transcripts and prints counts.
 pnpm --filter @basabridge/speech bakeoff run --provider deepgram,assemblyai --mode both --transport both
 ```
 
-Sends each recording to each provider, with (`biased`) and without (`plain`) the passage text, by batch and by streaming where supported. Only recordings whose guardian ticked that vendor are sent. Results go to `results/` in the data folder. Finished calls are skipped on a rerun unless you add `--force`. Use `--limit 3` for a first try.
+Sends each recording to each provider, with (`biased`) and without (`plain`) the passage text, by batch and by streaming where supported. Only recordings whose guardian ticked that vendor are sent. Results go to `results/` in the data folder, with the model, locale, endpoint, region and date of each call. On a rerun, finished calls and recordings too long for a provider are skipped, and failed calls (an expired token, a timeout) are retried. `--force` resends everything. Use `--limit 3` for a first try.
+
+At the end of each provider the run prints how many calls failed and how many vendor deletions failed. If any deletion failed, delete those jobs in the vendor's dashboard and note it on BB-22, as PROTOCOL.md promises.
 
 ```bash
 pnpm --filter @basabridge/speech bakeoff report
@@ -85,6 +90,19 @@ Set `BAKEOFF_DEBUG=1` to print vendor error bodies while fixing an adapter. Leav
 - **Built-in assessment:** for providers that mark miscues themselves, their flags against the human verdicts.
 
 Intervals come from resampling readers, since one child's recordings are not independent.
+
+Runs cover different recordings: consent is per company, calls fail, and Azure assessment (30 s) and Google (60 s) cannot take long audio. So the report has no single shared set. It shows each run on its own recordings, a head-to-head per tier among the runs that cover at least 80% of that tier, and pairwise tables for runs with partial coverage. A run with no successful results never shrinks a table.
+
+## Decision rule
+
+PROPOSED by the harness author, for James to confirm or change before the first real run. Writing it down first stops the numbers from choosing the rule.
+
+1. **Gates.** A candidate must return per-word timestamps, offer zero retention or deletion, and cover all three tiers. A provider that cannot take tier 3 audio can only be the runner-up or a second engine for short passages.
+2. **Minimum evidence.** The head-to-head for each tier needs at least 15 shared recordings from at least 8 readers. Below that, the result is reported as inconclusive and we record more before deciding.
+3. **Primary metric.** False error rate, pooled across the three tier head-to-heads, using each provider's better mode (plain or biased) and batch transport.
+4. **Ceiling.** A run whose missed error rate is above 25% is out, however low its false error rate. A provider that accepts every misreading is not useful to a reading teacher.
+5. **Tie-break.** If two candidates' false error rate intervals overlap, prefer in order: streaming with word timings, real per-word confidence, a Southeast Asia region, then lower price per 1000 minutes.
+6. **Fairness check.** Before the ADR, compare the winner's false error rate across age bands and first languages. A group more than twice the overall rate is written up in the ADR as a known risk for BB-40.
 
 ## Privacy rules the code enforces
 

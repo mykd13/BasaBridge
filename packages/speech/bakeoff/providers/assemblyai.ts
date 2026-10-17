@@ -4,15 +4,25 @@
  * ASSEMBLYAI_STREAM_MODEL (omitted by default, so the service default is used).
  * Retention: every batch transcript is deleted with DELETE /v2/transcript/{id}, which also
  * deletes the uploaded audio. Turn the model-training opt-out on in the dashboard before testing;
- * that also gives zero retention for streaming. Biasing: keyterms_prompt, the passage cut into
+ * that also gives zero retention for streaming, and streaming refuses to start until
+ * ASSEMBLYAI_TRAINING_OPT_OUT=confirmed. ASSEMBLYAI_STREAM_HOST overrides the streaming host,
+ * which otherwise follows the batch data zone. Biasing: keyterms_prompt, the passage cut into
  * phrases of at most 6 words. Docs checked 2026-10-17:
  * https://www.assemblyai.com/docs/pre-recorded-audio/api-reference/transcripts/submit
  * https://www.assemblyai.com/docs/streaming/api-spec/streaming-websocket
  */
+import { DataError } from '../data.ts';
 import { ensureOk, ProviderError } from '../log.ts';
 import type { BakeoffOptions, BakeoffProvider, HeardWord, ProviderResult } from '../types.ts';
 import type { Wav } from '../wav.ts';
-import { openSocket, poll, requireEnv, streamPcm } from './common.ts';
+import {
+  deleteOnVendor,
+  noteDeleteFailure,
+  openSocket,
+  poll,
+  requireEnv,
+  streamPcm,
+} from './common.ts';
 
 interface AaiWord {
   text: string;
@@ -47,6 +57,10 @@ export function createAssemblyAI(env: NodeJS.ProcessEnv): BakeoffProvider {
   const host = env.ASSEMBLYAI_HOST ?? 'api.assemblyai.com';
   const model = env.ASSEMBLYAI_MODEL ?? 'universal-3-5-pro';
   const base = `https://${host}/v2`;
+  // Keep streaming in the same data zone as batch unless told otherwise.
+  const streamHost =
+    env.ASSEMBLYAI_STREAM_HOST ??
+    (host.includes('.eu.') ? 'streaming.eu.assemblyai.com' : 'streaming.assemblyai.com');
 
   const run = async (audio: Blob, options: BakeoffOptions): Promise<ProviderResult> => {
     const signal = options.signal ?? null;
@@ -59,19 +73,27 @@ export function createAssemblyAI(env: NodeJS.ProcessEnv): BakeoffProvider {
     await ensureOk(up, 'assemblyai upload');
     const { upload_url } = (await up.json()) as { upload_url: string };
 
-    const submit = await fetch(`${base}/transcript`, {
-      method: 'POST',
-      headers: { authorization: key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        audio_url: upload_url,
-        speech_models: [model],
-        language_code: 'en',
-        ...(options.bias ? { keyterms_prompt: passagePhrases(options.referenceText) } : {}),
-      }),
-      signal,
-    });
-    await ensureOk(submit, 'assemblyai submit');
-    const { id } = (await submit.json()) as { id: string };
+    let id: string;
+    try {
+      const submit = await fetch(`${base}/transcript`, {
+        method: 'POST',
+        headers: { authorization: key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audio_url: upload_url,
+          speech_models: [model],
+          language_code: 'en',
+          ...(options.bias ? { keyterms_prompt: passagePhrases(options.referenceText) } : {}),
+        }),
+        signal,
+      });
+      await ensureOk(submit, 'assemblyai submit');
+      ({ id } = (await submit.json()) as { id: string });
+    } catch (err) {
+      // The upload has no delete call of its own; AssemblyAI drops it after 24 to 48 hours.
+      // Count it as a failed deletion so it shows up in the run summary.
+      noteDeleteFailure();
+      throw err;
+    }
 
     try {
       const done = await poll(async () => {
@@ -86,22 +108,26 @@ export function createAssemblyAI(env: NodeJS.ProcessEnv): BakeoffProvider {
       }, options.signal);
       return { words: (done.words ?? []).map(toHeard) };
     } finally {
-      // Delete even when polling failed, so nothing is left on their side.
-      await fetch(`${base}/transcript/${id}`, { method: 'DELETE', headers: { authorization: key } })
-        .then((r) => {
-          if (!r.ok) console.error(`assemblyai delete failed ${r.status}`);
-        })
-        .catch(() => console.error('assemblyai delete failed'));
+      // Delete even when polling failed, so nothing is left on their side. This also deletes
+      // the uploaded audio.
+      await deleteOnVendor(`${base}/transcript/${id}`, { authorization: key });
     }
   };
 
   const runStream = async (wav: Wav, options: BakeoffOptions): Promise<ProviderResult> => {
+    // Streaming has no delete call. Zero retention depends on the dashboard training opt-out,
+    // which the API cannot check, so the person running the bake-off must confirm it.
+    if (env.ASSEMBLYAI_TRAINING_OPT_OUT !== 'confirmed') {
+      throw new DataError(
+        'Turn on the training opt-out in the AssemblyAI dashboard, then set ASSEMBLYAI_TRAINING_OPT_OUT=confirmed.',
+      );
+    }
     const q = new URLSearchParams({ sample_rate: String(wav.sampleRate), encoding: 'pcm_s16le' });
     if (env.ASSEMBLYAI_STREAM_MODEL) q.set('speech_model', env.ASSEMBLYAI_STREAM_MODEL);
     if (options.bias) {
       q.set('keyterms_prompt', JSON.stringify(passagePhrases(options.referenceText).slice(0, 100)));
     }
-    const ws = await openSocket(`wss://streaming.assemblyai.com/v3/ws?${q}`, {
+    const ws = await openSocket(`wss://${streamHost}/v3/ws?${q}`, {
       authorization: key,
     });
     const turns = new Map<number, AaiWord[]>();
@@ -148,6 +174,13 @@ export function createAssemblyAI(env: NodeJS.ProcessEnv): BakeoffProvider {
     biasing: 'keyterms_prompt (passage in phrases of 6 words or fewer)',
     streaming: true,
     modes: ['plain', 'biased'],
+    hasWordConfidence: true,
+    settings: {
+      model: `${model}; stream ${env.ASSEMBLYAI_STREAM_MODEL ?? 'service default'}`,
+      locale: 'en',
+      endpoint: `${host}; ${streamHost}`,
+      region: host.includes('.eu.') ? 'EU' : 'US',
+    },
     run,
     runStream,
     transcribe: async (audio, options) => (await run(audio, options)).words,

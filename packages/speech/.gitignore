@@ -1,0 +1,15 @@
+# Bake-off data lives outside the repository (bakeoff/PROTOCOL.md). These patterns are a second
+# line of defence in case a recording, transcript or result is ever copied in by mistake.
+*.wav
+*.mp3
+*.m4a
+*.ogg
+*.webm
+*.flac
+*.tsv
+bakeoff/**/manifest.csv
+!bakeoff/templates/manifest.csv
+bakeoff/results/
+bakeoff/transcripts*/
+bakeoff/labels/
+bakeoff/audio/

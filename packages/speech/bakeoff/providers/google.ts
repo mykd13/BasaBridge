@@ -85,6 +85,14 @@ export function createGoogle(env: NodeJS.ProcessEnv): BakeoffProvider {
     streaming: false,
     modes: ['plain', 'biased'],
     maxSeconds: 60,
+    // Google documents Chirp 3 word confidence as not a true confidence score.
+    hasWordConfidence: false,
+    settings: {
+      model: 'chirp_3',
+      locale: language,
+      endpoint: `${location}-speech.googleapis.com`,
+      region: location,
+    },
     run,
     transcribe: async (audio, options) => (await run(audio, options)).words,
   };

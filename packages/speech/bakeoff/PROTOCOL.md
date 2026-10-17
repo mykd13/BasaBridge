@@ -60,7 +60,22 @@ We do **not** collect names, exact ages, birthdays, schools, addresses, photos, 
 - Only the audio file and the passage text are sent. Reader code, age band, language, device and room stay with us.
 - Only the companies named in the consent form, and only for readers whose guardian ticked that company.
 - We use each company's zero-retention or no-training option where it exists, and delete jobs and transcripts through their API straight after we receive the result. The exact setting for each company, and the date we checked its terms, are recorded in the report.
+- If a deletion fails, the harness counts it and says so at the end of the run. James then deletes the job in the company's dashboard and notes it on BB-22.
 - The harness never logs audio, transcript text or the passage text. Logs show recording IDs, the group fields and HTTP status codes only.
+
+### What each company does with the audio (checked 2026-10-17)
+
+For Rhett to read next to the consent text. Sources are in [vendors.json](vendors.json).
+
+| Company      | Where     | What happens to the audio                                                                                                                             | Children in their terms                                                                    |
+| ------------ | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Microsoft    | Singapore | Not stored for the request types we use (fast transcription, pronunciation assessment).                                                               | Nothing found in the Speech docs. Product Terms not checked. Microsoft DPA.                |
+| Deepgram     | US        | Not stored after the response when we send `mip_opt_out=true`, which we always do. Otherwise used for model improvement by default.                   | Account holders must be 18 or older. Nothing on end users who are children. No public DPA. |
+| AssemblyAI   | US        | Kept 24 to 48 hours (audio) and 30 days (transcripts) by default, and used for training unless opted out. We delete each job and opt out of training. | Silent on children. DPA published.                                                         |
+| Google       | US        | Not logged unless we opt in, which we do not.                                                                                                         | Only child-abuse wording in the acceptable use policy. Google DPA.                         |
+| Speechmatics | EU        | Kept 7 days by default, not used for training unless we opt in. We delete each job.                                                                   | Nothing found. Processor terms in their terms of service.                                  |
+
+None of the five companies says anything specific about processing children's voices. That is a reason for Rhett to decide whether a qualified review is needed first (open question 1).
 
 ## What goes into the repository
 
@@ -83,8 +98,18 @@ If recordings or consent forms may have been seen by someone who should not see 
 ## Roles
 
 - James: runs sessions, holds the data folder, deletes the data at the end.
-- Annotators: transcribe recordings following [ANNOTATION.md](ANNOTATION.md). They see audio and reader codes only.
+- Annotators: transcribe recordings following [ANNOTATION.md](ANNOTATION.md). They see audio and reader codes only, and sign the undertaking below before they get access.
 - Rhett: reviews this protocol and the consent text, decides retention dates and breach handling.
+
+### Annotator undertaking
+
+Each annotator signs this before getting access to the data folder. James keeps the signed copies with the consent forms.
+
+> I will listen to the bake-off recordings only to transcribe them for BasaBridge. I will not copy, share, upload or play them to anyone, and I will not try to find out who any reader is. If I recognise a voice, I will stop and tell James, and someone else will transcribe that recording. I will work only from the encrypted folder and will not keep any copy on my own devices or in any other app, including AI tools. When the bake-off ends, or if I stop helping, I will confirm to James that I hold no copies.
+
+Name: ______________________
+
+Signature: ______________________ Date: ____________
 
 ## Open questions for Rhett
 
