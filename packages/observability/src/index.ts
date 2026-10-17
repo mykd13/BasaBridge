@@ -5,3 +5,4 @@
  */
 export * from './redact';
 export * from './log';
+export * from './meter';
