@@ -25,9 +25,7 @@ describe('standard wording', () => {
     expect(standardWhatHappened(facts())).toBe(
       'Answered 2 of 5 questions correctly. Stays at level 12.',
     );
-    expect(
-      standardWhatHappened(facts({ wordsRight: 40, wordsTotal: 44, levelAfter: 13 })),
-    ).toBe(
+    expect(standardWhatHappened(facts({ wordsRight: 40, wordsTotal: 44, levelAfter: 13 }))).toBe(
       'Answered 2 of 5 questions correctly. Read 40 of 44 words right on the counted try. Moved up to level 13.',
     );
   });

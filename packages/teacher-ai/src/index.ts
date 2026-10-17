@@ -5,6 +5,7 @@
  */
 import { ModelNotes, NotesInput, type TeacherNotes } from './schema';
 
+export * from './checks';
 export * from './schema';
 export * from './standard';
 
