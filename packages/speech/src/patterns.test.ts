@@ -227,7 +227,7 @@ describe('aggregateReadingPatterns', () => {
       tryOf('a', [wrong('stories', 'story'), wrong('cried', 'cry')]),
       tryOf('b', [wrong('stories', 'story')]),
     ]);
-    expect(find(result, 'dropped_ending', 'es')?.count).toBe(2);
+    expect(find(result, 'dropped_ending', 's')?.count).toBe(2);
     expect(find(result, 'dropped_ending', 'ed')).toBeUndefined();
   });
 
@@ -304,6 +304,19 @@ describe('aggregateReadingPatterns', () => {
       tryOf('b', [wrong('the', 'a'), wrong('three', 'home')]),
     ]);
     expect(find(result, 'letter_pattern', 'th')).toBeUndefined();
+  });
+
+  it('files a dropped plural s under one key whether the word ends in s or es', () => {
+    const result = aggregateReadingPatterns([
+      tryOf('a', [wrong('makes', 'make'), right('dogs')]),
+      tryOf('b', [right('makes'), wrong('dogs', 'dog')]),
+    ]);
+    expect(find(result, 'dropped_ending', 's')).toMatchObject({
+      count: 2,
+      tries: 2,
+      opportunities: 4,
+    });
+    expect(find(result, 'dropped_ending', 'es')).toBeUndefined();
   });
 
   it('rejects two tries with the same id', () => {

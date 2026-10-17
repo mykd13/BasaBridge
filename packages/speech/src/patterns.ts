@@ -361,7 +361,15 @@ export function aggregateReadingPatterns(tries: TryEvidence[]): ReadingPatterns 
       const droppedEnding =
         ending !== null && differs && stemsOf(expected, ending).includes(heard!);
       if (ending !== null)
-        tallies.see('dropped_ending', ending, evidence.tryId, unclear, droppedEnding, example);
+        // "es" and "s" are one habit (a dropped plural or verb s), so they share a key.
+        tallies.see(
+          'dropped_ending',
+          ending === 'es' ? 's' : ending,
+          evidence.tryId,
+          unclear,
+          droppedEnding,
+          example,
+        );
 
       // Letter patterns. A dropped ending already explains the word, so it is not blamed twice, and
       // a word that looks nothing like the expected one is a skip or a guess, not a letter problem.
