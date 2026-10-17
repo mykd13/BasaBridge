@@ -18,7 +18,7 @@ export const fil = {
   },
   home: {
     levelOne: {
-      standard: 'Ang mga kuwento sa Antas 1 ay {min} hanggang {max} salita.',
+      standard: 'Ang mga kuwento sa Antas {level} ay {min} hanggang {max} salita.',
       reviewed: false,
     },
   },
