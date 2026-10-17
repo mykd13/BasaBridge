@@ -13,6 +13,10 @@ import { summariseTry } from './summary';
  * chatter and silence before and after reading are left out, so a cough before starting or a late
  * stop button does not lower the pace. Pauses between words stay in, because hesitation is part
  * of how smoothly someone reads. Spans with times that are not finite numbers are ignored.
+ *
+ * With few words read the duration is short, so the pace can be high (one 0.3 second word gives
+ * 200 words per minute). Pace means little for a short or incomplete read. Whoever shows or uses
+ * it must apply the minimum, which belongs in `packages/levels` once BB-40 sets the pace norms.
  */
 export function readingSeconds(spans: Array<HeardSpan | null>): number {
   const read = spans.filter(

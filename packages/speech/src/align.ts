@@ -242,7 +242,7 @@ export interface HeardSpan {
 /** Aligned words plus, for each result matched to heard words, when they were spoken. */
 export interface TimedAlignment {
   results: WordResult[];
-  /** Same length as `results`. Null for omissions and for words that are not on the passage. */
+  /** Same length as `results`. Null for omissions, off-passage words and wrong words that are not attempts. */
   spans: Array<HeardSpan | null>;
 }
 
@@ -308,7 +308,10 @@ export function alignWordsTimed(expected: string[], heard: HeardWord[]): TimedAl
           confidence,
           markedMisheard: false,
         });
-        spans.push(spanOf([spoken[op.h]!]));
+        // A wrong word that is not an attempt at the expected one is off-passage speech, not reading.
+        spans.push(
+          looksLikeAttempt(keys[0]!, words[op.e]!.keys[0]!) ? spanOf([spoken[op.h]!]) : null,
+        );
       }
       p++;
     } else if (op.en > 0) {

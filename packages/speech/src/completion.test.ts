@@ -125,6 +125,19 @@ describe('toTryRecord', () => {
     expect(record.wordsPerMinute).toBe(60);
   });
 
+  it('does not count a confident off-passage word that lines up with a skipped word', () => {
+    // "okay" pairs with the skipped "the" in the alignment, but it is not an attempt at it.
+    const record = toTryRecord(sentence, [heard('okay', 0.5, 0.9), read[1]!, read[2]!]);
+    expect(record.analysis.seconds).toBe(2);
+    expect(record.wordsRight).toBe(2);
+    expect(record.wordsPerMinute).toBe(60);
+  });
+
+  it('counts a close wrong word as reading', () => {
+    const record = toTryRecord(sentence, [heard('thee', 20, 20.5), read[1]!, read[2]!]);
+    expect(record.analysis.seconds).toBe(3);
+  });
+
   it('does not count chatter after the last word', () => {
     const record = toTryRecord(sentence, [...read, heard('done', 40, 41)]);
     expect(record.analysis.seconds).toBe(3);
