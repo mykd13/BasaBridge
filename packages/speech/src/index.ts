@@ -28,6 +28,14 @@ export interface SpeechProvider {
 }
 
 export { alignWords, isLowConfidence, LOW_CONFIDENCE_THRESHOLD } from './align';
+export { assessRoom, ROOM_THRESHOLDS } from './environment';
+export type { RoomCheck, RoomInput, RoomStatus, RoomTip } from './environment';
+export { CONDITION_THRESHOLDS, detectConditions } from './conditions';
+export type { AudioFrame, ConditionResult } from './conditions';
+export { AUTHENTICITY_THRESHOLDS, assessAuthenticity, timingSignature } from './authenticity';
+export type { ReviewReason } from './authenticity';
+export { checkTry, confirmReview, countsForLevelMovement, LEARNER_MESSAGE_KEYS } from './checks';
+export type { TryCheckInput, TryCheckResult } from './checks';
 
 /** Words right per minute. Zero when there is no elapsed time. */
 export function wordsPerMinute(wordsRight: number, seconds: number): number {
