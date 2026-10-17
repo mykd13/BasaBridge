@@ -1,0 +1,14 @@
+#!/bin/sh
+# Runs format and lint on staged files. Enabled by `pnpm install` (see the prepare script).
+
+files=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$files" ] && exit 0
+
+echo "$files" | tr '\n' '\0' | xargs -0 pnpm exec prettier --write --ignore-unknown || exit 1
+
+lintable=$(echo "$files" | grep -E '\.(js|jsx|mjs|cjs|ts|tsx)$')
+if [ -n "$lintable" ]; then
+  echo "$lintable" | tr '\n' '\0' | xargs -0 pnpm exec eslint --no-warn-ignored || exit 1
+fi
+
+echo "$files" | tr '\n' '\0' | xargs -0 git add
