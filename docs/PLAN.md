@@ -120,6 +120,7 @@ Why it changed: five multiple-choice questions can be guessed one time in four, 
 - **Level movement.** Move up when the learner is very likely above this level (probability at least 85%, at least 10 questions, at least 2 stories passed) and the last two counted tries had at least 85% words right. Move down when very likely below (probability at least 85%, at least 8 questions). Otherwise stay.
 - **Calibration.** Item difficulty starts from the level and sub-skill, then is re-estimated from real answers. Items that are too easy, too hard or unrelated to ability are retired (BB-45).
 - **Outside check.** Compare our scores with a standard reading assessment on a sample of learners (BB-77).
+- **Outcome measurement.** Whether regular use improves independent reading comprehension is measured outside the app, with Phil-IRI tests, a comparison group and study consent. This is a separate small study from the outside check above. The plan is in [docs/research/outcome-measurement.md](research/outcome-measurement.md) (BB-75).
 - **Experiment.** A spoken retell scored against the story's key ideas. Not used for levels until a human-checked set shows it works (BB-46).
 
 ### 6.2 Placement test (ADR 0003)

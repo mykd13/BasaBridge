@@ -19,6 +19,7 @@
     "@basabridge/story-ai": "workspace:*",
     "@basabridge/teacher-ai": "workspace:*",
     "@basabridge/ui": "workspace:*",
+    "altcha-lib": "2.5.0",
     "better-auth": "^1.7.10",
     "drizzle-orm": "^0.45.4",
     "next": "^16.4.1",
