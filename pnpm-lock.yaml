@@ -236,6 +236,10 @@ importers:
       '@basabridge/contracts':
         specifier: workspace:*
         version: link:../contracts
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
 
   packages/story-ai:
     dependencies:
