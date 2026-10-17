@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_TIMEOUT_MS,
   FakeSpeechProvider,
   SpeechError,
   createSpeechProvider,
+  timeoutFromEnv,
   toSpeechError,
   withSpeechGuards,
   type HeardWord,
@@ -92,6 +94,49 @@ describe('withSpeechGuards', () => {
     await expect(p).rejects.toMatchObject({ code: 'aborted' });
   });
 
+  it('times out a provider that ignores the signal and never settles', async () => {
+    const hung = provider(() => new Promise<HeardWord[]>(() => {}));
+    await expect(run(hung, { timeoutMs: 10 })).rejects.toMatchObject({ code: 'timeout' });
+  });
+
+  it('aborts a provider that ignores the signal', async () => {
+    const c = new AbortController();
+    const p = run(
+      provider(() => new Promise<HeardWord[]>(() => {})),
+      undefined,
+      c.signal,
+    );
+    c.abort();
+    await expect(p).rejects.toMatchObject({ code: 'aborted' });
+  });
+
+  it('passes only the known options to the adapter', async () => {
+    let seen: Record<string, unknown> = {};
+    const spy = provider(async (_audio, options) => {
+      seen = { ...options };
+      return [{ text: 'a', start: 0, end: 1, confidence: 0.9 }];
+    });
+    await withSpeechGuards(spy).transcribe(audio, {
+      referenceText: reference,
+      learnerId: 'x',
+    } as never);
+    expect(Object.keys(seen).sort()).toEqual(['referenceText', 'signal']);
+  });
+
+  it('rejects a null word', async () => {
+    const p = provider(async () => [null as unknown as HeardWord]);
+    await expect(run(p)).rejects.toMatchObject({ code: 'provider_unavailable' });
+  });
+
+  it('treats rejected credentials as not configured', async () => {
+    for (const status of [401, 403]) {
+      const p = provider(async () => {
+        throw Object.assign(new Error('x'), { status });
+      });
+      await expect(run(p)).rejects.toMatchObject({ code: 'not_configured', retryable: false });
+    }
+  });
+
   it('maps provider failures', async () => {
     const p = provider(async () => {
       throw Object.assign(new Error('x'), { status: 429 });
@@ -113,13 +158,22 @@ describe('withSpeechGuards', () => {
   });
 
   it('never puts the reference text or audio in error messages', async () => {
+    const secret = 'sk-secret-key';
     const p = provider(async () => {
-      throw new Error(`failed on ${reference}`);
+      throw Object.assign(new Error(`failed on ${reference} with ${secret}`), {
+        status: 500,
+        headers: { authorization: `Bearer ${secret}` },
+      });
     });
-    const err = await run(p).catch((e: SpeechError) => e);
+    const err = (await run(p).catch((e: SpeechError) => e)) as SpeechError;
     expect(err).toBeInstanceOf(SpeechError);
-    expect((err as SpeechError).message).not.toContain('cat');
-    expect((err as SpeechError).messageKey).not.toContain('cat');
+    // The original error is dropped entirely, so nothing printed from the error chain can leak.
+    expect(err.cause).toBeUndefined();
+    const everything = [err.message, err.messageKey, err.stack ?? '', JSON.stringify(err)].join(
+      ' ',
+    );
+    expect(everything).not.toContain(secret);
+    expect(everything).not.toContain('cat sat');
   });
 });
 
@@ -142,8 +196,29 @@ describe('createSpeechProvider', () => {
     },
   );
 
-  it('reads the timeout from the environment', async () => {
-    const p = createSpeechProvider({ SPEECH_PROVIDER: 'fake', SPEECH_TIMEOUT_MS: '5' });
-    expect(p.name).toBe('fake');
+  it('refuses the fake provider in production', () => {
+    expect(() => createSpeechProvider({ SPEECH_PROVIDER: 'fake', NODE_ENV: 'production' })).toThrow(
+      SpeechError,
+    );
+    expect(() =>
+      createSpeechProvider({ SPEECH_PROVIDER: 'fake', NODE_ENV: 'development' }),
+    ).not.toThrow();
   });
+
+  it('does not resolve inherited property names', () => {
+    expect(() => createSpeechProvider({ SPEECH_PROVIDER: 'constructor' })).toThrow(SpeechError);
+    expect(() => createSpeechProvider({ SPEECH_PROVIDER: 'toString' })).toThrow(SpeechError);
+  });
+});
+
+describe('timeoutFromEnv', () => {
+  it('accepts values in range', () => {
+    expect(timeoutFromEnv('5000')).toBe(5000);
+  });
+  it.each([undefined, '', 'abc', '-1', '5', '3000000000'])(
+    'falls back to the default for %j',
+    (v) => {
+      expect(timeoutFromEnv(v)).toBe(DEFAULT_TIMEOUT_MS);
+    },
+  );
 });

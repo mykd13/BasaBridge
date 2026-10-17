@@ -27,9 +27,10 @@ export class SpeechError extends Error {
   readonly messageKey: string;
   readonly retryable: boolean;
 
-  constructor(code: SpeechErrorCode, options: { cause?: unknown } = {}) {
-    // The developer message is the code only, so nothing sensitive can leak into logs.
-    super(`speech error: ${code}`, { cause: options.cause });
+  constructor(code: SpeechErrorCode) {
+    // The message is the code only. The original provider error is never kept as `cause`,
+    // because SDK errors can hold request headers (the API key) or the echoed passage.
+    super(`speech error: ${code}`);
     this.name = 'SpeechError';
     this.code = code;
     this.messageKey = `speech.error.${code}`;
@@ -45,12 +46,14 @@ export function isSpeechError(value: unknown): value is SpeechError {
 export function toSpeechError(error: unknown): SpeechError {
   if (isSpeechError(error)) return error;
   if (error instanceof Error && error.name === 'AbortError') {
-    return new SpeechError('aborted', { cause: error });
+    return new SpeechError('aborted');
   }
   const status = (error as { status?: unknown } | null)?.status;
-  if (status === 429) return new SpeechError('rate_limited', { cause: error });
-  if (status === 400 || status === 415 || status === 422) {
-    return new SpeechError('bad_audio', { cause: error });
+  // A rejected or rotated key is an operator problem, not something a learner can retry.
+  if (status === 401 || status === 403) return new SpeechError('not_configured');
+  if (status === 429) return new SpeechError('rate_limited');
+  if (status === 400 || status === 413 || status === 415 || status === 422) {
+    return new SpeechError('bad_audio');
   }
-  return new SpeechError('provider_unavailable', { cause: error });
+  return new SpeechError('provider_unavailable');
 }

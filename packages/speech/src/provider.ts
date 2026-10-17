@@ -7,6 +7,8 @@ function validate(words: HeardWord[]): HeardWord[] {
   if (!Array.isArray(words) || words.length === 0) throw new SpeechError('empty_result');
   for (const w of words) {
     const ok =
+      typeof w === 'object' &&
+      w !== null &&
       typeof w.text === 'string' &&
       w.text.length > 0 &&
       Number.isFinite(w.start) &&
@@ -24,6 +26,8 @@ function validate(words: HeardWord[]): HeardWord[] {
 /**
  * Wrap any provider so callers always get valid words or a SpeechError (BB-24):
  * timeout, abort, empty and malformed results are all mapped here, once.
+ * The timeout and abort are enforced by a race, so they hold even when the adapter
+ * ignores the signal or hangs.
  */
 export function withSpeechGuards(
   provider: SpeechProvider,
@@ -35,23 +39,35 @@ export function withSpeechGuards(
     async transcribe(audio: Blob, options: TranscribeOptions): Promise<HeardWord[]> {
       if (options.signal?.aborted) throw new SpeechError('aborted');
       const controller = new AbortController();
-      const forward = () => controller.abort();
-      options.signal?.addEventListener('abort', forward, { once: true });
-      let timedOut = false;
-      const timer = setTimeout(() => {
-        timedOut = true;
-        controller.abort();
-      }, timeoutMs);
+      let cleanup = () => {};
       try {
-        const words = await provider.transcribe(audio, { ...options, signal: controller.signal });
-        if (timedOut) throw new SpeechError('timeout');
+        const words = await new Promise<HeardWord[]>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            controller.abort();
+            reject(new SpeechError('timeout'));
+          }, timeoutMs);
+          const onAbort = () => {
+            controller.abort();
+            reject(new SpeechError('aborted'));
+          };
+          options.signal?.addEventListener('abort', onAbort, { once: true });
+          cleanup = () => {
+            clearTimeout(timer);
+            options.signal?.removeEventListener('abort', onAbort);
+          };
+          // Only the known fields are passed on, so a stray runtime field never reaches an adapter.
+          provider
+            .transcribe(audio, {
+              referenceText: options.referenceText,
+              signal: controller.signal,
+            })
+            .then(resolve, reject);
+        });
         return validate(words);
       } catch (error) {
-        if (timedOut) throw new SpeechError('timeout', { cause: error });
         throw toSpeechError(error);
       } finally {
-        clearTimeout(timer);
-        options.signal?.removeEventListener('abort', forward);
+        cleanup();
       }
     },
   };
