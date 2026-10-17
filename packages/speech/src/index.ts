@@ -24,11 +24,17 @@ export interface TranscribeOptions {
   signal?: AbortSignal;
 }
 
+export * from './errors';
+export * from './config';
+export * from './fake';
+export { withSpeechGuards, DEFAULT_TIMEOUT_MS } from './provider';
 export * from './placement';
 
 /** A speech provider adapter (BB-24). */
 export interface SpeechProvider {
   readonly name: string;
+  /** True when the provider uses `referenceText` to bias recognition toward the passage. */
+  readonly supportsBiasing?: boolean;
   /** Transcribe a finished recording. A streaming variant is added once the provider is chosen. */
   transcribe(audio: Blob, options: TranscribeOptions): Promise<HeardWord[]>;
 }
