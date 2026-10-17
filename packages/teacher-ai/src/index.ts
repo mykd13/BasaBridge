@@ -3,16 +3,18 @@
  * (docs/PLAN.md section 7). Owner: Jhade (BB-20, BB-28).
  * Names, usernames and audio are never sent to the model.
  */
+import { Decision } from '@basabridge/contracts';
 import { gapsFromMisses, type Lesson, recommend } from '@basabridge/learn';
 import { checkNotes } from './checks';
 import { notesModelFromEnv, type NotesModel } from './model';
-import { buildNotesPrompt } from './prompt';
+import { buildNotesPrompt, notesFacts } from './prompt';
 import {
   type FallbackReason,
   type LessonLink,
   ModelNotes,
   type NotesFacts,
   NotesInput,
+  type NotesSource,
   type TeacherNotes,
 } from './schema';
 import {
@@ -69,6 +71,36 @@ export function standardNotes(
     source: 'standard',
     fallbackReason,
   };
+}
+
+/** How parents see where the wording came from. The AI label matches the parent screens. */
+export const NOTE_SOURCE_LABEL: Record<NotesSource, string> = {
+  ai: 'Notes written by the AI Teacher',
+  standard: 'Notes in standard wording',
+};
+
+/**
+ * The `decisions` row for a set of notes, so every note is stored with its source and the facts
+ * it was written from. The caller saves it with the learner id through the authorization layer.
+ */
+export function notesDecision(notes: TeacherNotes, input: NotesInput): Decision {
+  return Decision.parse({
+    kind: 'plan',
+    title: NOTE_SOURCE_LABEL[notes.source],
+    summary: `${NOTE_SOURCE_LABEL[notes.source]}. The focus skill was chosen by rule, not by the AI.`,
+    evidence: {
+      source: notes.source,
+      fallbackReason: notes.fallbackReason,
+      facts: notesFacts(input),
+      notes: {
+        childMessage: notes.childMessage,
+        whatHappened: notes.whatHappened,
+        whyFocus: notes.whyFocus,
+        homeActivity: notes.homeActivity,
+      },
+      lessonId: notes.lesson?.id ?? null,
+    },
+  });
 }
 
 /**

@@ -1,3 +1,4 @@
+import { Decision } from '@basabridge/contracts';
 import type { Lesson } from '@basabridge/learn';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -5,6 +6,7 @@ import {
   type NotesModel,
   STANDARD_ACTIVITIES,
   isValidNotes,
+  notesDecision,
   standardActivity,
   writeNotes,
 } from './index';
@@ -118,6 +120,35 @@ describe('writeNotes', () => {
       lessons: [lesson({ status: 'draft' })],
     });
     expect(notes.lesson).toBeNull();
+  });
+});
+
+describe('notesDecision', () => {
+  it('stores AI notes with their source and the facts they came from', async () => {
+    const notes = await writeNotes(input, { model: answers(reply), lessons: [lesson({})] });
+    const d = notesDecision(notes, input);
+    expect(Decision.safeParse(d).success).toBe(true);
+    expect(d.title).toBe('Notes written by the AI Teacher');
+    expect(d.evidence).toMatchObject({
+      source: 'ai',
+      fallbackReason: null,
+      facts: { questionsCorrect: 3, questionsTotal: 5, focusSkill: 'inferential' },
+      notes: { childMessage: reply.childMessage },
+      lessonId: 'feelings-middle',
+    });
+  });
+
+  it('stores standard notes as standard, with the reason', async () => {
+    const notes = await writeNotes(input, { model: null });
+    const d = notesDecision(notes, input);
+    expect(d.title).toBe('Notes in standard wording');
+    expect(d.evidence).toMatchObject({ source: 'standard', fallbackReason: 'not_configured' });
+  });
+
+  it('keeps names and usernames out of the stored evidence', async () => {
+    const leaky = { ...input, username: 'SENTINEL-USER', name: 'SENTINEL-NAME' } as NotesInput;
+    const d = notesDecision(await writeNotes(leaky, { model: null }), leaky);
+    expect(JSON.stringify(d)).not.toContain('SENTINEL');
   });
 });
 
