@@ -25,6 +25,23 @@ export function startLevelForGrade(grade: number | null | undefined): number {
   return PLACEMENT_RULE.gradeStart[Math.round(grade)] ?? PLACEMENT_RULE.defaultStart;
 }
 
+/** No help of any kind during placement (docs/PLAN.md section 6.2). Screens read this. */
+export const PLACEMENT_SUPPORTS = {
+  listenThenRead: false,
+  wordTap: false,
+  questionReadAloud: false,
+} as const;
+
+export type MicrophoneState = 'granted' | 'blocked' | 'unavailable' | 'not_allowed_yet';
+
+/**
+ * Whether placement runs with the learner's voice or silently.
+ * `not_allowed_yet` is an under-13 learner without guardian approval (decided by the server).
+ */
+export function placementVoiceMode(mic: MicrophoneState): 'voice' | 'silent' {
+  return mic === 'granted' ? 'voice' : 'silent';
+}
+
 export interface PlacementAnswer {
   subskill?: SubSkill;
   type?: 'multiple_choice' | 'choose_all' | 'order_events';
@@ -97,14 +114,17 @@ export function finishPlacement(state: PlacementState, opts: { voice: boolean })
   const s = summarise(placementPosterior(state));
   const level = thetaToLevel(s.mean - PLACEMENT_RULE.conservative * s.sd);
   const flags: PlacementFlag[] = [];
-  if (!opts.voice) flags.push('voice_missing');
   const shares = state.stories.map((x) => x.wordsRightShare).filter((x): x is number => x != null);
+  // Skipped reads have no share and are left out of the average, never counted as zero.
+  // If voice was on but every read was skipped, we still have no voice evidence.
+  const voiceUsed = opts.voice && shares.length > 0;
+  if (!voiceUsed) flags.push('voice_missing');
   const avgRight = shares.length ? shares.reduce((a, b) => a + b, 0) / shares.length : null;
   const lowDecoding = avgRight != null && avgRight < PLACEMENT_RULE.lowDecoding;
   if (lowDecoding) flags.push('low_decoding');
   if (state.stories.length < 3) flags.push('few_stories');
   // Without voice we cannot be fully sure, so cap the label at 'early'.
-  const confidence = !opts.voice && s.confidence !== 'none' ? 'early' : s.confidence;
+  const confidence = !voiceUsed && s.confidence !== 'none' ? 'early' : s.confidence;
   return {
     level,
     theta: s.mean,

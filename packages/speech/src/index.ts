@@ -20,6 +20,8 @@ export interface TranscribeOptions {
   signal?: AbortSignal;
 }
 
+export * from './placement';
+
 /** A speech provider adapter (BB-24). */
 export interface SpeechProvider {
   readonly name: string;
