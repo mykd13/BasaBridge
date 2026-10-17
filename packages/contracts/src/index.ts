@@ -210,6 +210,56 @@ export const TryAnalysis = z.object({
 });
 export type TryAnalysis = z.infer<typeof TryAnalysis>;
 
+// ---- reading patterns (BB-27) ----------------------------------------------
+
+export const ReadingPatternKind = z.enum([
+  'dropped_ending',
+  'letter_pattern',
+  'repeated_substitution',
+  'missing_pause',
+]);
+export type ReadingPatternKind = z.infer<typeof ReadingPatternKind>;
+
+/** How sure code is that a pattern is real. Computed in code, never by the AI. */
+export const PatternConfidence = z.enum(['low', 'medium', 'high']);
+export type PatternConfidence = z.infer<typeof PatternConfidence>;
+
+/** One word-level example of a pattern. Words only: no names, no audio. */
+export const PatternExample = z.object({
+  expected: z.string(),
+  heard: z.string().nullable(),
+});
+export type PatternExample = z.infer<typeof PatternExample>;
+
+export const ReadingPattern = z.object({
+  kind: ReadingPatternKind,
+  /** What the pattern is about: an ending ("ing"), letters ("th"), a pair ("was>saw") or "full_stop". */
+  key: z.string().min(1),
+  /** Times it happened across all tries. */
+  count: z.number().int().positive(),
+  /** Distinct tries it appeared in. */
+  tries: z.number().int().positive(),
+  /** Tries it appeared in, by the ids the caller passed in. */
+  tryIds: z.array(z.string()).min(1),
+  /** Times it could have happened, so a count can be read as a rate. */
+  opportunities: z.number().int().positive(),
+  /** Words left out of the count because the audio was unclear. */
+  unclearWords: z.number().int().nonnegative(),
+  confidence: PatternConfidence,
+  examples: z.array(PatternExample).max(5),
+});
+export type ReadingPattern = z.infer<typeof ReadingPattern>;
+
+/** What the AI explanation step reads (BB-28). */
+export const ReadingPatterns = z.object({
+  triesAnalysed: z.number().int().nonnegative(),
+  /** Words that were unclear and so counted neither as right nor as errors. */
+  unclearWords: z.number().int().nonnegative(),
+  /** Strongest first. */
+  patterns: z.array(ReadingPattern),
+});
+export type ReadingPatterns = z.infer<typeof ReadingPatterns>;
+
 // ---- decisions and plans ---------------------------------------------------
 
 export const DecisionKind = z.enum(['story', 'level', 'plan', 'analysis', 'tries']);
