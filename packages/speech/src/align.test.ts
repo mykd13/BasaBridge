@@ -191,6 +191,75 @@ describe('alignWords joined forms', () => {
   });
 });
 
+describe('alignWords contractions, both directions', () => {
+  // [printed, spoken]
+  const pairs: [string, string][] = [
+    ["I'll", 'I will'],
+    ["you'll", 'you will'],
+    ["he'll", 'he will'],
+    ["she'll", 'she will'],
+    ["we'll", 'we will'],
+    ["they'll", 'they will'],
+    ["it'll", 'it will'],
+    ["that'll", 'that will'],
+    ["I'd", 'I would'],
+    ["you'd", 'you would'],
+    ["he'd", 'he would'],
+    ["she'd", 'she would'],
+    ["we'd", 'we would'],
+    ["they'd", 'they would'],
+    ["it'd", 'it would'],
+    ["we're", 'we are'],
+    ["you're", 'you are'],
+    ["they're", 'they are'],
+    ["what're", 'what are'],
+    ["I've", 'I have'],
+    ["you've", 'you have'],
+    ["we've", 'we have'],
+    ["they've", 'they have'],
+    ["could've", 'could have'],
+    ["should've", 'should have'],
+    ["would've", 'would have'],
+    ["might've", 'might have'],
+    ["must've", 'must have'],
+    ["won't", 'will not'],
+    ["can't", 'can not'],
+    ["don't", 'do not'],
+    ["isn't", 'is not'],
+    ["I'm", 'I am'],
+    ["it's", 'it is'],
+    ["here's", 'here is'],
+    ["let's", 'let us'],
+  ];
+  const allCorrect = (expected: string, heard: string): boolean =>
+    run(expected, heard).every((r) => r.outcome === 'correct');
+
+  it.each(pairs)('%s read as "%s"', (printed, spoken) => {
+    expect(allCorrect(`Then ${printed} go now`, `then ${spoken} go now`)).toBe(true);
+  });
+
+  it.each(pairs)('"%s" printed in full, said as %s', (printed, spoken) => {
+    // The passage spells it out, and the provider returns the contraction.
+    expect(allCorrect(`Then ${spoken} go now`, `then ${printed} go now`)).toBe(true);
+  });
+
+  it('reports each expected word once when a contraction is spoken in full', () => {
+    expect(run("Then we'll go", 'then we will go').map((r) => r.expected)).toEqual([
+      'Then',
+      "we'll",
+      'go',
+    ]);
+  });
+
+  it('still reports a wrong word beside a contraction', () => {
+    expect(outcomes("Then we'll go", 'then we will run')).toEqual([
+      'correct',
+      'correct',
+      'substitution',
+    ]);
+  });
+});
+
 describe('alignWords numbers (S1)', () => {
   const allCorrect = (expected: string, heard: string): boolean =>
     run(expected, heard).every((r) => r.outcome === 'correct');
