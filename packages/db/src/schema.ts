@@ -325,3 +325,29 @@ export const learnerSettings = pgTable('learner_settings', {
   /** ReadingHelp from packages/contracts. */
   readingHelp: jsonb('reading_help').notNull().default({}),
 });
+
+/**
+ * Feature flags (BB-65). Only flags that were changed have a row. A missing row means the safe
+ * default from apps/web/src/server/flags.ts. Values are read on the server only.
+ */
+export const featureFlags = pgTable('feature_flags', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Every flag change, kept even after the flag row changes again. Ids only, no names. */
+export const featureFlagChanges = pgTable(
+  'feature_flag_changes',
+  {
+    id: id(),
+    key: text('key').notNull(),
+    /** null when the flag was still on its default. */
+    oldValue: jsonb('old_value'),
+    newValue: jsonb('new_value').notNull(),
+    /** The user who made the change, or null for a script run by the team. No foreign key, so the log outlives the user. */
+    actorUserId: uuid('actor_user_id'),
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('feature_flag_changes_key_idx').on(t.key)],
+);
