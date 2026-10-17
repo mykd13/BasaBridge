@@ -1,6 +1,11 @@
 import { speakCached, type TtsLang } from '@basabridge/speech';
 import { allowRequest, clientKey } from '../../../lib/rate-limit';
-import { getTtsProvider, ttsCache, ttsCostPerMillionChars } from '../../../lib/tts';
+import {
+  getTtsProvider,
+  isFixedSentence,
+  ttsCache,
+  ttsCostPerMillionChars,
+} from '../../../lib/tts';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,12 +13,14 @@ const MAX_CHARS = 600;
 const PROVIDER_TIMEOUT_MS = 10_000;
 
 /**
- * On-demand speech for questions, options and notes. Returns 503 when the service is not
- * available, and the browser then speaks with its own voice. Logs carry the language,
- * character count, cost and failure status only, never the text.
+ * Speech for fixed interface sentences that have no static file yet. Only text on the fixed
+ * list is spoken (400 otherwise), so free text never reaches the provider. Returns 503 when the
+ * service is not available, and the browser then speaks with its own voice. Logs carry the
+ * language, character count, cost and failure status only, never the text.
  *
- * This route takes raw text, so the callers decide what is sent. Once the authorization layer
- * (BB-10) exists it should take an id, look the text up there and check the caller may hear it.
+ * Questions, options and notes need the authorization layer (BB-10): the route should take an
+ * id, look the text up there and check the caller may hear it. Until then they use browser voices.
+ * The rate limit is a best-effort extra, not the control.
  */
 export async function POST(request: Request) {
   if (!allowRequest(clientKey(request))) {
@@ -31,6 +38,9 @@ export async function POST(request: Request) {
   }
   if (lang !== 'en' && lang !== 'fil') {
     return Response.json({ error: 'invalid_lang' }, { status: 400 });
+  }
+  if (!(await isFixedSentence(text, lang))) {
+    return Response.json({ error: 'not_allowed' }, { status: 400 });
   }
   const provider = getTtsProvider();
   if (!provider) return Response.json({ error: 'unavailable' }, { status: 503 });

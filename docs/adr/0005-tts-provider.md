@@ -19,7 +19,9 @@ Azure offers a Filipino neural voice, which is the hard requirement. The adapter
 
 Only the sentence to be spoken and its language. No names, usernames, audio or learner ids. Logs carry language, character count, cost and failure status, never the text.
 
-This is a promise the route cannot check yet. `POST /api/tts` takes raw text, so it relies on callers to send only fixed wording, questions, options and teacher notes (which carry levels and word-level differences only). It has a size cap on text, a per-client rate limit and a size cap on the cache, but no sign-in check. When the authorization layer (BB-10) exists, the route should take an id (a catalog key, question id or note id), look the text up there, check the caller may hear it, and send only that text to the provider. Until then, keep `TTS_API_KEY` unset in every shared environment.
+The route enforces this for now by speaking only fixed interface sentences. `POST /api/tts` accepts text only if its hash is in the fixed list (`apps/web/src/audio/fixed-sentences.json`, later the BB-58 catalog) and answers 400 for anything else, so free text never reaches the provider. The browser then uses its own voice. It also has a text size cap, a best-effort rate limit (per server instance, keyed on a header the caller may control, so not a real control) and a size cap on the cache. There is no sign-in check yet.
+
+Questions, options and teacher notes are spoken on demand by `speakCached`, but the route cannot serve them until the authorization layer (BB-10) exists. Then the route should take an id (a question id or note id), look the text up there, check the caller may hear it, and send only that text to the provider. Until then those texts use browser voices, and `TTS_API_KEY` should stay unset in every shared environment.
 
 ## Rules before use
 

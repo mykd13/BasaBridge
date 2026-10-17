@@ -2,6 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from './route';
 import { resetRateLimits } from '../../../lib/rate-limit';
 
+vi.mock('../../../audio/fixed-sentences.json', () => ({
+  default: {
+    en: ['Hello', 'Secret question text'],
+    fil: ['Unique route sentence'],
+  },
+}));
+
 const post = (body: unknown, headers: Record<string, string> = {}) =>
   POST(
     new Request('http://localhost/api/tts', {
@@ -36,6 +43,16 @@ describe('POST /api/tts', () => {
     expect((await post({ text: '  ', lang: 'en' })).status).toBe(400);
     expect((await post({ text: 'a'.repeat(601), lang: 'en' })).status).toBe(400);
     expect((await post({ text: 'a'.repeat(600), lang: 'xx' })).status).toBe(400);
+  });
+
+  it('refuses a sentence that is not on the fixed list and never calls the provider', async () => {
+    const fetchMock = vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 }));
+    globalThis.fetch = fetchMock as typeof fetch;
+    const res = await post({ text: 'Maria Santos reads well', lang: 'en' });
+    expect(res.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+    // A listed sentence is listed for its own language only.
+    expect((await post({ text: 'Hello', lang: 'fil' })).status).toBe(400);
   });
 
   it('answers 503 when no key is set', async () => {

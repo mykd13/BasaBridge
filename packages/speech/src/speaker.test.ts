@@ -21,10 +21,41 @@ describe('createSpeaker', () => {
         throw blocked;
       }),
     });
-    await speaker.play({ text: 'Tap start', lang: 'en', fixedUrl: '/audio/en/x.mp3' });
+    await speaker.play({
+      text: 'Tap start',
+      lang: 'en',
+      fixedUrl: '/audio/en/x.mp3',
+      autoplay: true,
+    });
     expect(env.fetchServiceUrl).not.toHaveBeenCalled();
     expect(env.speakBrowser).not.toHaveBeenCalled();
     expect(states).toEqual(['loading', 'idle']);
+  });
+
+  it('after a press, a browser block falls through to the next source', async () => {
+    const blocked = Object.assign(new Error('blocked'), { name: 'NotAllowedError' });
+    const playUrl = vi.fn(async () => {
+      throw blocked;
+    });
+    const { env, states, speaker } = setup({ playUrl });
+    await speaker.play({ text: 'Q', lang: 'en', fixedUrl: '/audio/en/x.mp3' });
+    expect(env.fetchServiceUrl).toHaveBeenCalled();
+    expect(env.speakBrowser).toHaveBeenCalled();
+    expect(states).toEqual(['loading', 'playing', 'idle']);
+  });
+
+  it('after a press, a block on every source ends in the error state', async () => {
+    const blocked = Object.assign(new Error('blocked'), { name: 'NotAllowedError' });
+    const { states, speaker } = setup({
+      playUrl: vi.fn(async () => {
+        throw blocked;
+      }),
+      speakBrowser: vi.fn(async () => {
+        throw blocked;
+      }),
+    });
+    await speaker.play({ text: 'Q', lang: 'en' });
+    expect(states).toEqual(['loading', 'error']);
   });
 
   it('prime reaches the environment', () => {

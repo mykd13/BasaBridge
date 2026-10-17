@@ -107,6 +107,7 @@ export async function speakCached(
     });
     return { ...hit, key, cacheHit: true };
   }
+  // The shared request uses the first caller's signal, so later callers fail when it aborts or times out.
   const flightKey = `${options.provider.name}:${key}`;
   let pending = inFlight.get(flightKey);
   const shared = pending !== undefined;

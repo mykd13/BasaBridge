@@ -31,6 +31,10 @@ export function createBrowserSpeakerEnv(): SpeakerEnv {
   return {
     prime() {
       const el = element();
+      // Drop the last run's handlers, or the silent clip would report a start for the wrong run.
+      el.onplaying = null;
+      el.onended = null;
+      el.onerror = null;
       el.src = SILENT_WAV;
       el.play().catch(() => {});
     },

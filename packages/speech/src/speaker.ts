@@ -30,6 +30,11 @@ export interface SpeakRequest {
   lang: TtsLang;
   /** Static file for a fixed sentence, when there is one. */
   fixedUrl?: string;
+  /**
+   * True when the first-screen autoplay started this run. Only then is a browser block read as
+   * "wait for a tap". After a press, a block falls through to the next source and the error state.
+   */
+  autoplay?: boolean;
 }
 
 export interface Speaker {
@@ -81,7 +86,7 @@ export function createSpeaker(env: SpeakerEnv, onState: (state: SpeakerState) =>
         if (current()) onState('idle');
         return;
       } catch (error) {
-        if (isBlockedByBrowser(error)) {
+        if (request.autoplay && isBlockedByBrowser(error)) {
           // Blocked autoplay: do not spend a paid call or show an error. The button waits for a tap.
           if (current()) onState('idle');
           return;

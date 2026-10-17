@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { SpeakerEnv } from '@basabridge/speech';
@@ -60,6 +61,47 @@ describe('SpeakButton', () => {
     const { unmount } = render(<SpeakButton text="Hi" lang="en" labels={labels} />);
     unmount();
     expect(env.stopAll).toHaveBeenCalled();
+  });
+
+  it('plays a fixed sentence once under StrictMode', async () => {
+    const onSpoken = vi.fn();
+    render(
+      <StrictMode>
+        <SpeakButton
+          text="Tap start"
+          lang="en"
+          fixed
+          autoplay
+          onSpoken={onSpoken}
+          labels={labels}
+        />
+      </StrictMode>,
+    );
+    await waitFor(() => expect(onSpoken).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(env.playUrl).toHaveBeenCalledTimes(1);
+    expect(onSpoken).toHaveBeenCalledTimes(1);
+  });
+
+  it('makes no sound when the screen is left while the fixed path is resolving', async () => {
+    const { unmount } = render(
+      <SpeakButton text="Tap start" lang="en" fixed autoplay labels={labels} />,
+    );
+    unmount();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(noSound()).toBe(0);
+  });
+
+  it('reports once per run even if playing is raised again', async () => {
+    const onSpoken = vi.fn();
+    vi.mocked(env.playUrl).mockImplementationOnce(async (_u: string, onStart: () => void) => {
+      onStart();
+      onStart();
+    });
+    render(<SpeakButton text="Tap start" lang="en" fixed onSpoken={onSpoken} labels={labels} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Listen' }));
+    await waitFor(() => expect(onSpoken).toHaveBeenCalled());
+    expect(onSpoken).toHaveBeenCalledTimes(1);
   });
 
   it('does not use aria-pressed', () => {

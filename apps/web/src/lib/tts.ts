@@ -1,4 +1,27 @@
-import { MemoryTtsCache, azureTtsProvider, type TtsProvider } from '@basabridge/speech';
+import {
+  MemoryTtsCache,
+  azureTtsProvider,
+  cacheKey,
+  type TtsLang,
+  type TtsProvider,
+} from '@basabridge/speech';
+import fixedSentences from '../audio/fixed-sentences.json';
+
+let allowed: Promise<Set<string>> | null = null;
+
+/**
+ * The route speaks only fixed interface sentences (the list in fixed-sentences.json, later the
+ * BB-58 catalog). Questions, options and notes wait for the id-based route under BB-10, and the
+ * browser uses its own voice meanwhile. This is what keeps free text away from the provider.
+ */
+export async function isFixedSentence(text: string, lang: TtsLang): Promise<boolean> {
+  allowed ??= Promise.all(
+    (['en', 'fil'] as const).flatMap((l) =>
+      fixedSentences[l].map((sentence) => cacheKey(sentence, l)),
+    ),
+  ).then((keys) => new Set(keys));
+  return (await allowed).has(await cacheKey(text, lang));
+}
 
 /** In memory, with a size cap, until the blob store exists (BB-2). Swap this one line then. */
 export const ttsCache = new MemoryTtsCache(500);

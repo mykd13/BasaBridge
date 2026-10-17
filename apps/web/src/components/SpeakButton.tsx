@@ -47,6 +47,7 @@ export function SpeakButton({
   const [state, setState] = useState<SpeakerState>('idle');
   const speakerRef = useRef<Speaker | null>(null);
   const triggerRef = useRef<'autoplay' | 'button'>('button');
+  const reportedRef = useRef(false);
   const onSpokenRef = useRef(onSpoken);
   onSpokenRef.current = onSpoken;
 
@@ -54,8 +55,11 @@ export function SpeakButton({
   useEffect(() => {
     const speaker = createSpeaker(createBrowserSpeakerEnv(), (next) => {
       setState(next);
-      if (next === 'playing')
+      // Once per run: a buffering pause can raise "playing" again, and the caller records each report.
+      if (next === 'playing' && !reportedRef.current) {
+        reportedRef.current = true;
         onSpokenRef.current?.({ autoplay: triggerRef.current === 'autoplay' });
+      }
     });
     speakerRef.current = speaker;
     return () => {
@@ -68,6 +72,7 @@ export function SpeakButton({
     const speaker = speakerRef.current;
     if (!speaker) return;
     triggerRef.current = trigger;
+    reportedRef.current = false;
     // Before any await, so the tap still counts as a gesture.
     speaker.prime();
     let fixedUrl: string | undefined;
@@ -78,7 +83,9 @@ export function SpeakButton({
         // No crypto on plain http. Fall through to the service and the browser voice.
       }
     }
-    await speaker.play({ text, lang, fixedUrl });
+    // The screen may have been left, or the speaker replaced, during the await.
+    if (speakerRef.current !== speaker) return;
+    await speaker.play({ text, lang, fixedUrl, autoplay: trigger === 'autoplay' });
   };
 
   useEffect(() => {
