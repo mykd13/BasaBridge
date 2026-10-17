@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import '@basabridge/ui/tokens.css';
 import '@basabridge/ui/components.css';
 import './globals.css';
+import { UnsupportedBrowser } from '@/components/UnsupportedBrowser';
 import { atkinson, lexend } from './fonts';
 
 export const metadata: Metadata = {
@@ -13,7 +14,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${lexend.variable} ${atkinson.variable}`}>
-      <body>{children}</body>
+      <body>
+        <UnsupportedBrowser />
+        {children}
+      </body>
     </html>
   );
 }

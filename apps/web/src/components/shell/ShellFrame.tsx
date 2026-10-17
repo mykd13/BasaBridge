@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ReloadOnRestore } from '@/components/ReloadOnRestore';
 import { t } from '@/i18n';
 import { Logo } from './Logo';
 import './shell.css';
@@ -7,6 +8,7 @@ import './shell.css';
 export function ShellFrame({ nav, children }: { nav: ReactNode; children: ReactNode }) {
   return (
     <div className="bb-shell">
+      <ReloadOnRestore />
       <a className="bb-skip" href="#main">
         {t('skip.toContent')}
       </a>

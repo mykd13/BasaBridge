@@ -30,6 +30,17 @@ export const en = {
   'errors.notFound.body': 'The link may be old, or the page may have moved.',
   'errors.notFound.action': 'Go to sign in',
 
+  'browser.unsupported.title': 'This browser may not work well',
+  'browser.unsupported.body':
+    'Reading out loud needs a newer browser. You can still sign in. For the best result, use the latest Chrome, Edge, Samsung Internet or Firefox, or Safari 16.4 or newer.',
+
+  'loading.page': 'Loading',
+  'net.retrying': 'The connection is slow. Trying again.',
+
+  'idle.title': 'Are you still there?',
+  'idle.body': 'You will be signed out soon to keep your account safe.',
+  'idle.stay': 'Stay signed in',
+
   'screens.signIn': 'Sign in',
   'screens.signUp': 'Create an account',
   'screens.home': 'Student home and level',

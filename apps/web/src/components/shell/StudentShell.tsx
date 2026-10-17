@@ -1,5 +1,6 @@
 import { BookOpen, House, Star, User } from '@basabridge/ui/icons';
 import type { ReactNode } from 'react';
+import { IdleSignOut } from '@/components/IdleSignOut';
 import { t } from '@/i18n';
 import { NavLink } from './NavLink';
 import { ShellFrame } from './ShellFrame';
@@ -27,6 +28,7 @@ export function StudentShell({ children }: { children: ReactNode }) {
         </>
       }
     >
+      <IdleSignOut />
       {children}
     </ShellFrame>
   );
