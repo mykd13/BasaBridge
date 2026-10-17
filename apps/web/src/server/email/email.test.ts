@@ -1,15 +1,22 @@
 import { createHmac } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createCaptureMailer, createResendMailer, mailerFromEnv } from './mailer';
+import { createCaptureMailer, createResendMailer, emailHashSecret, mailerFromEnv } from './mailer';
 import { sendEmail } from './send';
 import {
+  assertSafeUrl,
   guardianApprovalConfirmed,
   guardianApprovalRequest,
   passwordReset,
   type EmailLanguage,
   type RenderedEmail,
 } from './templates';
-import { suppressionsFrom, verifyWebhook, WEBHOOK_TOLERANCE_SECONDS } from './webhook';
+import {
+  handleWebhook,
+  suppressionsFrom,
+  verifyWebhook,
+  WEBHOOK_TOLERANCE_SECONDS,
+  type Suppression,
+} from './webhook';
 
 beforeEach(() => {
   vi.spyOn(console, 'info').mockImplementation(() => {});
@@ -63,6 +70,36 @@ describe('templates', () => {
     expect(() => passwordReset('en', { ...reset, resetUrl: 'http://evil.example/reset' })).toThrow(
       'https',
     );
+  });
+
+  it('refuse other schemes even with a localhost host', () => {
+    const dev = { NODE_ENV: 'development' };
+    expect(() => assertSafeUrl('javascript://localhost/%0aalert(1)', dev)).toThrow('https');
+    expect(() => assertSafeUrl('data://localhost/x', dev)).toThrow('https');
+    expect(() => assertSafeUrl('file://localhost/etc/passwd', dev)).toThrow('https');
+  });
+
+  it('allow http only for localhost outside production', () => {
+    expect(assertSafeUrl('http://localhost:3000/x', { NODE_ENV: 'development' })).toBe(
+      'http://localhost:3000/x',
+    );
+    expect(() => assertSafeUrl('http://localhost:3000/x', { NODE_ENV: 'production' })).toThrow(
+      'https',
+    );
+    expect(() => assertSafeUrl('http://127.0.0.1:3000/x', { NODE_ENV: 'development' })).toThrow(
+      'https',
+    );
+    expect(assertSafeUrl('https://basabridge.vercel.app/x', { NODE_ENV: 'production' })).toBe(
+      'https://basabridge.vercel.app/x',
+    );
+  });
+
+  it('say recordings are kept only if the child chooses, in both languages', () => {
+    const en = guardianApprovalRequest('en', approval).text + guardianApprovalConfirmed('en').text;
+    const fil =
+      guardianApprovalRequest('fil', approval).text + guardianApprovalConfirmed('fil').text;
+    expect(en).toContain('unless the child chooses to keep');
+    expect(fil).toContain('maliban kung piliin ng bata');
   });
 
   it('escape a link so it cannot inject html', () => {
@@ -198,5 +235,96 @@ describe('webhook', () => {
     ]);
     expect(suppressionsFrom({ type: 'email.delivered', data })).toEqual([]);
     expect(suppressionsFrom('nonsense')).toEqual([]);
+  });
+});
+
+describe('email hash secret', () => {
+  it('uses EMAIL_HASH_SECRET when set and refuses to run without it in production', () => {
+    expect(emailHashSecret({ EMAIL_HASH_SECRET: 'k' })).toBe('k');
+    expect(() => emailHashSecret({ NODE_ENV: 'production' })).toThrow('EMAIL_HASH_SECRET');
+    expect(emailHashSecret({ NODE_ENV: 'development' }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('Resend timeout', () => {
+  it('passes an abort signal, so a hung provider fails instead of hanging', async () => {
+    const fetchImpl = vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        }),
+    );
+    const mailer = createResendMailer({
+      apiKey: 're_test',
+      from: 'a@example.test',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      timeoutMs: 20,
+    });
+    await expect(
+      mailer.send({ ...passwordReset('en', reset), to: 'parent@example.test' }),
+    ).rejects.toThrow('aborted');
+  });
+});
+
+describe('webhook route logic', () => {
+  const secretBytes = Buffer.from('route-test-secret');
+  const webhookSecret = `whsec_${secretBytes.toString('base64')}`;
+
+  function signedRequest(body: string, id = 'msg_1', ts = Math.floor(Date.now() / 1000)) {
+    const sig = createHmac('sha256', secretBytes).update(`${id}.${ts}.${body}`).digest('base64');
+    return new Request('https://example.test/api/email/webhook', {
+      method: 'POST',
+      body,
+      headers: { 'svix-id': id, 'svix-timestamp': String(ts), 'svix-signature': `v1,${sig}` },
+    });
+  }
+
+  it('answers 503 when the webhook is not set up', async () => {
+    const res = await handleWebhook(signedRequest('{}'), {
+      webhookSecret: undefined,
+      record: vi.fn(),
+    });
+    expect(res.status).toBe(503);
+  });
+
+  it('answers 401 on a bad signature and stores nothing', async () => {
+    const record = vi.fn();
+    const req = new Request('https://example.test/api/email/webhook', {
+      method: 'POST',
+      body: '{}',
+      headers: { 'svix-id': 'm', 'svix-timestamp': '1', 'svix-signature': 'v1,AAAA' },
+    });
+    const res = await handleWebhook(req, { webhookSecret, record });
+    expect(res.status).toBe(401);
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('answers 400 on a signed body that is not JSON', async () => {
+    const res = await handleWebhook(signedRequest('not json'), { webhookSecret, record: vi.fn() });
+    expect(res.status).toBe(400);
+  });
+
+  it('stores a permanent bounce and answers 204', async () => {
+    const stored: Suppression[] = [];
+    const body = JSON.stringify({
+      type: 'email.bounced',
+      data: { email_id: 'em_9', to: ['gone@example.test'], bounce: { type: 'Permanent' } },
+    });
+    const res = await handleWebhook(signedRequest(body), {
+      webhookSecret,
+      record: async (s) => void stored.push(s),
+    });
+    expect(res.status).toBe(204);
+    expect(stored).toEqual([
+      { address: 'gone@example.test', reason: 'bounce', providerEmailId: 'em_9' },
+    ]);
+  });
+
+  it('acknowledges other events without storing anything', async () => {
+    const record = vi.fn();
+    const body = JSON.stringify({ type: 'email.delivered', data: { to: ['a@example.test'] } });
+    const res = await handleWebhook(signedRequest(body), { webhookSecret, record });
+    expect(res.status).toBe(204);
+    expect(record).not.toHaveBeenCalled();
   });
 });

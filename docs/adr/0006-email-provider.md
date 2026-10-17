@@ -22,12 +22,13 @@ Use **Resend**, called over its HTTP API with no SDK.
 - Logs name the template only. They never include the address or a link.
 - Templates take links and numbers only. There is no input for a name, username, story text or score.
 - Templates are in English and Filipino, as plain text and simple HTML.
-- Resend webhooks report permanent bounces and complaints. The webhook checks the Svix signature and a 5 minute time window, then stores a SHA-256 hash of the address in `email_suppressions`. `sendEmail` refuses suppressed addresses and returns `suppressed`, so the caller can tell the learner (BB-8).
+- Resend webhooks report permanent bounces and complaints. The webhook checks the Svix signature and a 5 minute time window, then stores an HMAC-SHA256 of the address, keyed with `EMAIL_HASH_SECRET`, in `email_suppressions`. A plain hash of an email can be tested offline against guessed addresses; a keyed one cannot without the secret. `sendEmail` refuses suppressed addresses and returns `suppressed`, so the caller can tell the learner (BB-8).
 
 ## Consequences
 
-- New variables: `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `EMAIL_FROM`.
-- New table: `email_suppressions`, holding hashes only.
+- New variables: `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `EMAIL_FROM`, `EMAIL_HASH_SECRET`.
+- New table: `email_suppressions`, holding keyed hashes only, with `reason` limited to `bounce` or `complaint`.
+- `EMAIL_HASH_SECRET` is set once per database. Changing it makes every stored suppression unmatchable.
 - When BB-7 merges, its password reset uses this module instead of its own console mailer.
 - Moving to another provider means writing one new `Mailer` and one new webhook parser.
 

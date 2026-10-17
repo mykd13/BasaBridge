@@ -9,7 +9,7 @@ export type SendResult =
 /** The one way the app sends mail. Refuses addresses on the suppression list. */
 export async function sendEmail(
   mailer: Mailer,
-  lookup: (address: string) => ReturnType<typeof getSuppression>,
+  lookup: (address: string) => Promise<{ reason: string } | undefined>,
   email: OutgoingEmail,
 ): Promise<SendResult> {
   const suppressed = await lookup(email.to);
@@ -18,4 +18,5 @@ export async function sendEmail(
   return { status: 'sent', id };
 }
 
-export const suppressionLookup = (db: Db) => (address: string) => getSuppression(db, address);
+export const suppressionLookup = (db: Db, secret: string) => (address: string) =>
+  getSuppression(db, secret, address);

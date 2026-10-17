@@ -39,13 +39,23 @@ export interface ResendOptions {
   apiKey: string;
   from: string;
   fetchImpl?: typeof fetch;
+  /** A hung provider must not hang the caller, for example a password reset request. */
+  timeoutMs?: number;
 }
 
-export function createResendMailer({ apiKey, from, fetchImpl = fetch }: ResendOptions): Mailer {
+export const RESEND_TIMEOUT_MS = 10_000;
+
+export function createResendMailer({
+  apiKey,
+  from,
+  fetchImpl = fetch,
+  timeoutMs = RESEND_TIMEOUT_MS,
+}: ResendOptions): Mailer {
   return {
     async send(email) {
       const res = await fetchImpl('https://api.resend.com/emails', {
         method: 'POST',
+        signal: AbortSignal.timeout(timeoutMs),
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           from,
@@ -76,4 +86,19 @@ export function mailerFromEnv(env: NodeJS.ProcessEnv = process.env): Mailer {
     throw new Error('RESEND_API_KEY and EMAIL_FROM must be set in production.');
   }
   return createCaptureMailer();
+}
+
+/** Only for local development and tests. Production refuses to use it. */
+const DEV_EMAIL_HASH_SECRET = 'dev-only-email-hash-secret';
+
+/**
+ * The key for hashing suppressed addresses (EMAIL_HASH_SECRET). Set it once per database:
+ * changing it makes every stored suppression unmatchable.
+ */
+export function emailHashSecret(env: Record<string, string | undefined> = process.env): string {
+  if (env.EMAIL_HASH_SECRET) return env.EMAIL_HASH_SECRET;
+  if (env.NODE_ENV === 'production') {
+    throw new Error('EMAIL_HASH_SECRET must be set in production.');
+  }
+  return DEV_EMAIL_HASH_SECRET;
 }

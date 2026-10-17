@@ -60,3 +60,41 @@ export function suppressionsFrom(event: unknown): Suppression[] {
     .filter((a): a is string => typeof a === 'string' && a.includes('@'))
     .map((address) => ({ address, reason, providerEmailId: emailId }));
 }
+
+export interface WebhookDeps {
+  /** RESEND_WEBHOOK_SECRET, or undefined when the webhook is not set up. */
+  webhookSecret: string | undefined;
+  /** Stores one suppression. The route passes the database write. */
+  record: (s: Suppression) => Promise<void>;
+}
+
+/**
+ * The webhook route's logic, kept apart from the route so it can be tested:
+ * 503 when not set up, 401 on a bad signature, 400 on a bad body, 204 otherwise.
+ * The raw body is read before parsing, because the signature covers the exact bytes.
+ */
+export async function handleWebhook(req: Request, deps: WebhookDeps): Promise<Response> {
+  if (!deps.webhookSecret) return new Response('Not configured', { status: 503 });
+
+  const raw = await req.text();
+  const ok = verifyWebhook(
+    deps.webhookSecret,
+    {
+      id: req.headers.get('svix-id'),
+      timestamp: req.headers.get('svix-timestamp'),
+      signature: req.headers.get('svix-signature'),
+    },
+    raw,
+  );
+  if (!ok) return new Response('Invalid signature', { status: 401 });
+
+  let event: unknown;
+  try {
+    event = JSON.parse(raw);
+  } catch {
+    return new Response('Bad body', { status: 400 });
+  }
+
+  for (const s of suppressionsFrom(event)) await deps.record(s);
+  return new Response(null, { status: 204 });
+}
