@@ -7,7 +7,10 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@basabridge/contracts": "workspace:*"
+    "@basabridge/contracts": "workspace:*",
+    "@basabridge/learn": "workspace:*",
+    "ai": "^7.0.142",
+    "zod": "^4.6.7"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
