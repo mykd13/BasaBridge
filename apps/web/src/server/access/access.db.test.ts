@@ -1,5 +1,3 @@
-import { fileURLToPath } from 'node:url';
-import { PGlite } from '@electric-sql/pglite';
 import {
   createLearner,
   createReadingSession,
@@ -8,28 +6,20 @@ import {
   parentLinks,
   type Db,
 } from '@basabridge/db';
-import * as schema from '@basabridge/db/schema';
-import { drizzle } from 'drizzle-orm/pglite';
-import { migrate } from 'drizzle-orm/pglite/migrator';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { createTestDb, type TestDb } from '@basabridge/db/testing';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AccessDenied, canRead, readLearnerLevel, readReadingSession, type Viewer } from './index';
 
-const migrationsFolder = fileURLToPath(
-  new URL('../../../../../packages/db/migrations', import.meta.url),
-);
-
+let testDb: TestDb;
 let db: Db;
-let client: PGlite;
 let student: Viewer;
 let parent: Viewer;
 let stranger: Viewer;
 let sessionId: string;
 
 beforeAll(async () => {
-  client = new PGlite();
-  const pg = drizzle(client, { schema });
-  await migrate(pg, { migrationsFolder });
-  db = pg as unknown as Db;
+  testDb = await createTestDb();
+  db = testDb.db;
 
   const s = await createUser(db, { role: 'student', username: 'access-s', passwordHash: 'x' });
   const p = await createUser(db, { role: 'parent', username: 'access-p', passwordHash: 'x' });
@@ -60,6 +50,8 @@ beforeAll(async () => {
   });
 });
 
+afterAll(() => testDb.close());
+
 describe('access against a real database', () => {
   it('lets the student read their own level and session', async () => {
     expect(await readLearnerLevel(student, student.id, db)).toEqual({ level: 1, levelPasses: 0 });
@@ -80,7 +72,7 @@ describe('access against a real database', () => {
 
   it('applies a revoke on the very next call', async () => {
     expect(await readLearnerLevel(parent, student.id, db)).toBeDefined();
-    await client.query(`update parent_links set status = 'revoked' where parent_user_id = $1`, [
+    await testDb.exec(`update parent_links set status = 'revoked' where parent_user_id = $1`, [
       parent.id,
     ]);
     await expect(readLearnerLevel(parent, student.id, db)).rejects.toThrow('link_not_active');

@@ -170,9 +170,6 @@ importers:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
     devDependencies:
-      '@electric-sql/pglite':
-        specifier: ^0.5.10
-        version: 0.5.10
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5
@@ -182,9 +179,6 @@ importers:
       '@types/react-dom':
         specifier: ^19.3.0
         version: 19.3.0(@types/react@19.3.0)
-      drizzle-orm:
-        specifier: ^0.45.4
-        version: 0.45.4
 
   packages/contracts:
     dependencies:
