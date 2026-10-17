@@ -325,3 +325,15 @@ export const learnerSettings = pgTable('learner_settings', {
   /** ReadingHelp from packages/contracts. */
   readingHelp: jsonb('reading_help').notNull().default({}),
 });
+
+/**
+ * Addresses that bounced or complained (BB-64). Mail is never sent to them again. Only a SHA-256
+ * hash of the lowercased address is kept, so this table holds no readable email addresses.
+ */
+export const emailSuppressions = pgTable('email_suppressions', {
+  addressHash: text('address_hash').primaryKey(),
+  reason: text('reason').notNull(),
+  /** The provider's id for the message that bounced, to trace it in the provider dashboard. */
+  providerEmailId: text('provider_email_id'),
+  createdAt: createdAt(),
+});
