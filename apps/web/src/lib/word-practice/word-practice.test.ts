@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WordResult } from '@basabridge/contracts';
+import { POST } from '../../app/api/learn/words/check/route';
+import { startCapture } from './capture';
 import { splitIntoChunks } from './chunks';
+import { messagesFor } from './messages';
 import { checkWord, parseWordCheck } from './check';
 import { getFlaggedWords, pickFlaggedWords } from './flagged';
 import { currentWord, initialState, reduce } from './session';
@@ -104,5 +107,112 @@ describe('word check seam', () => {
     expect(parseWordCheck('match')).toBe('match');
     expect(parseWordCheck('no_match')).toBe('no_match');
     expect(parseWordCheck('boom')).toBe('unavailable');
+  });
+});
+
+describe('brand text', () => {
+  it('is in every language and wording', () => {
+    for (const lang of ['en', 'fil'] as const) {
+      for (const wording of ['simple', 'standard'] as const) {
+        expect(messagesFor(lang, wording).brand).toBe('BasaBridge');
+      }
+    }
+  });
+});
+
+describe('startCapture', () => {
+  function setup(opts: { recorderThrows?: boolean; startThrows?: boolean } = {}) {
+    const tracks = [{ stop: vi.fn() }, { stop: vi.fn() }];
+    const stream = { getTracks: () => tracks };
+    class FakeRecorder {
+      state: 'inactive' | 'recording' = 'inactive';
+      mimeType = 'audio/webm';
+      ondataavailable: ((e: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+      constructor() {
+        if (opts.recorderThrows) throw new Error('unsupported');
+      }
+      start() {
+        if (opts.startThrows) throw new Error('nope');
+        this.state = 'recording';
+      }
+      stop() {
+        this.state = 'inactive';
+        this.ondataavailable?.({ data: new Blob(['a']) });
+        this.onstop?.();
+      }
+    }
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+    });
+    vi.stubGlobal('MediaRecorder', FakeRecorder);
+    return { tracks };
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('stops the microphone when the recorder constructor throws', async () => {
+    const { tracks } = setup({ recorderThrows: true });
+    expect(await startCapture(vi.fn())).toBeNull();
+    tracks.forEach((t) => expect(t.stop).toHaveBeenCalled());
+  });
+
+  it('stops the microphone when start throws', async () => {
+    const { tracks } = setup({ startThrows: true });
+    expect(await startCapture(vi.fn())).toBeNull();
+    tracks.forEach((t) => expect(t.stop).toHaveBeenCalled());
+  });
+
+  it('returns null when the microphone is blocked', async () => {
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia: vi.fn().mockRejectedValue(new Error('denied')) },
+    });
+    vi.stubGlobal('MediaRecorder', class {});
+    expect(await startCapture(vi.fn())).toBeNull();
+  });
+
+  it('hands over the audio and stops the tracks on stop', async () => {
+    const { tracks } = setup();
+    const onAudio = vi.fn();
+    const capture = await startCapture(onAudio);
+    capture?.stop();
+    expect(onAudio).toHaveBeenCalledTimes(1);
+    tracks.forEach((t) => expect(t.stop).toHaveBeenCalled());
+  });
+
+  it('stops the tracks and never calls back when cancelled mid-recording', async () => {
+    const { tracks } = setup();
+    const onAudio = vi.fn();
+    const capture = await startCapture(onAudio);
+    capture?.cancel();
+    capture?.cancel();
+    expect(onAudio).not.toHaveBeenCalled();
+    tracks.forEach((t) => expect(t.stop).toHaveBeenCalled());
+  });
+});
+
+describe('check route', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('keeps no audio: nothing is logged and the answer carries no audio', async () => {
+    const spies = (['log', 'info', 'warn', 'error', 'debug'] as const).map((m) =>
+      vi.spyOn(console, m).mockImplementation(() => {}),
+    );
+    const body = new FormData();
+    body.set('word', 'patient');
+    body.set('audio', new Blob(['secret-audio-bytes']));
+    const res = await POST(new Request('http://localhost/x', { method: 'POST', body }));
+    const text = await res.text();
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
+    expect(JSON.parse(text)).toEqual({ result: 'unavailable' });
+    expect(text).not.toContain('secret-audio-bytes');
+    spies.forEach((spy) => expect(spy).not.toHaveBeenCalled());
+  });
+
+  it('rejects a missing recording', async () => {
+    const body = new FormData();
+    body.set('word', 'patient');
+    const res = await POST(new Request('http://localhost/x', { method: 'POST', body }));
+    expect(res.status).toBe(400);
   });
 });

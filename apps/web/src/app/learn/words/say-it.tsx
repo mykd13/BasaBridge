@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import Link from 'next/link';
+import { startCapture, type Capture } from '../../../lib/word-practice/capture';
 import { splitIntoChunks } from '../../../lib/word-practice/chunks';
 import { parseWordCheck } from '../../../lib/word-practice/check';
 import { messagesFor, type Lang, type Wording } from '../../../lib/word-practice/messages';
@@ -26,61 +27,68 @@ function speak(text: string, rate: number) {
 export function SayIt({ words, lang, wording }: { words: string[]; lang: Lang; wording: Wording }) {
   const t = messagesFor(lang, wording);
   const [state, dispatch] = useReducer(reduce, words, initialState);
-  const recorder = useRef<MediaRecorder | null>(null);
+  const capture = useRef<Capture | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const request = useRef<AbortController | null>(null);
+  const unmounted = useRef(false);
   const word = currentWord(state);
 
   const stopRecording = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
-    if (recorder.current && recorder.current.state === 'recording') recorder.current.stop();
+    capture.current?.stop();
   }, []);
 
   useEffect(() => {
+    unmounted.current = false;
     return () => {
-      stopRecording();
+      unmounted.current = true;
+      if (timer.current) clearTimeout(timer.current);
+      capture.current?.cancel();
+      capture.current = null;
+      request.current?.abort();
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
     };
-  }, [stopRecording]);
+  }, []);
 
   const startRecording = useCallback(async () => {
     if (!word) return;
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices || !window.MediaRecorder) {
-      dispatch({ type: 'mic_blocked' });
-      return;
-    }
-    let stream: MediaStream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      dispatch({ type: 'mic_blocked' });
-      return;
-    }
-    const chunks: Blob[] = [];
-    const rec = new MediaRecorder(stream);
-    recorder.current = rec;
-    rec.ondataavailable = (e) => chunks.push(e.data);
-    rec.onstop = async () => {
-      stream.getTracks().forEach((track) => track.stop());
-      recorder.current = null;
+    const onAudio = async (audio: Blob) => {
+      capture.current = null;
+      if (unmounted.current) return;
       dispatch({ type: 'checking' });
       // The recording only lives in memory for this one request and is never stored.
       const body = new FormData();
       body.set('word', word);
-      body.set('audio', new Blob(chunks, { type: rec.mimeType }));
-      chunks.length = 0;
+      body.set('audio', audio);
+      const controller = new AbortController();
+      request.current = controller;
       try {
-        const res = await fetch('/api/learn/words/check', { method: 'POST', body });
+        const res = await fetch('/api/learn/words/check', {
+          method: 'POST',
+          body,
+          signal: controller.signal,
+        });
         const json: unknown = await res.json();
+        if (unmounted.current) return;
         const result = parseWordCheck((json as { result?: unknown } | null)?.result);
         dispatch({ type: 'checked', result });
       } catch {
-        dispatch({ type: 'checked', result: 'unavailable' });
+        if (!unmounted.current) dispatch({ type: 'checked', result: 'unavailable' });
       }
     };
+    const started = await startCapture(onAudio);
+    if (!started) {
+      if (!unmounted.current) dispatch({ type: 'mic_blocked' });
+      return;
+    }
+    if (unmounted.current) {
+      started.cancel();
+      return;
+    }
+    capture.current = started;
     dispatch({ type: 'record' });
-    rec.start();
     timer.current = setTimeout(stopRecording, RECORD_MS);
   }, [word, stopRecording]);
 
@@ -103,7 +111,7 @@ export function SayIt({ words, lang, wording }: { words: string[]; lang: Lang; w
   return (
     <>
       <header className={styles.header}>
-        <div className={styles.brand}>BasaBridge</div>
+        <div className={styles.brand}>{t.brand}</div>
         <div className={styles.headerRight}>
           <span className={styles.muted}>{t.progress(state.index + 1, words.length)}</span>
           <Link href="/learn" className={styles.leave}>

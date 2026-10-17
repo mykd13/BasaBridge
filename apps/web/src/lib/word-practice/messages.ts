@@ -7,6 +7,7 @@ export type Lang = 'en' | 'fil';
 export type Wording = 'simple' | 'standard';
 
 export interface Messages {
+  brand: string;
   title: string;
   progress: (n: number, total: number) => string;
   leave: string;
@@ -28,6 +29,7 @@ export interface Messages {
 
 const en: Record<Wording, Messages> = {
   standard: {
+    brand: 'BasaBridge',
     title: 'Say it',
     progress: (n, total) => `Word ${n} of ${total}`,
     leave: 'Leave',
@@ -48,6 +50,7 @@ const en: Record<Wording, Messages> = {
     back: 'Back to Learn',
   },
   simple: {
+    brand: 'BasaBridge',
     title: 'Say it',
     progress: (n, total) => `Word ${n} of ${total}`,
     leave: 'Leave',
@@ -70,6 +73,7 @@ const en: Record<Wording, Messages> = {
 
 const fil: Record<Wording, Messages> = {
   standard: {
+    brand: 'BasaBridge',
     title: 'Sabihin mo',
     progress: (n, total) => `Salita ${n} sa ${total}`,
     leave: 'Umalis',
@@ -90,6 +94,7 @@ const fil: Record<Wording, Messages> = {
     back: 'Bumalik sa Learn',
   },
   simple: {
+    brand: 'BasaBridge',
     title: 'Sabihin mo',
     progress: (n, total) => `Salita ${n} sa ${total}`,
     leave: 'Umalis',

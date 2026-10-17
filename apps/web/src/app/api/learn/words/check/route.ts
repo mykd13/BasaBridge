@@ -6,6 +6,10 @@ const MAX_WORD_LENGTH = 40;
 /**
  * Check one spoken word. Word practice never changes a level and keeps no audio:
  * the blob is read, passed to the check and dropped. Nothing here logs the word or the audio.
+ *
+ * TODO before the real check is wired (the seam in check.ts drops audio and returns 'unavailable' today):
+ * this route has no sign-in, no BB-10 authorization and no server-side under-13 microphone gate
+ * (golden rules 4 and 5). All three must land first. Until then it must never store, forward or log audio.
  */
 export async function POST(request: Request) {
   let form: FormData;
