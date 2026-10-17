@@ -6,6 +6,8 @@ import {
   QuestionTags,
   READING_HELP_PRESETS,
   ReadingHelp,
+  ReadingPattern,
+  ReadingPatterns,
   SUBSKILL_PARENT,
   SubSkill,
 } from './index';
@@ -104,5 +106,40 @@ describe('placement result', () => {
     expect(PlacementResult.safeParse({ ...base, level: 34 }).success).toBe(true);
     expect(PlacementResult.safeParse({ ...base, level: 0 }).success).toBe(false);
     expect(PlacementResult.safeParse({ ...base, level: 101 }).success).toBe(false);
+  });
+});
+
+describe('reading patterns', () => {
+  const pattern = {
+    kind: 'dropped_ending',
+    key: 'ed',
+    count: 4,
+    tries: 2,
+    tryIds: ['a', 'b'],
+    opportunities: 8,
+    unclearWords: 0,
+    confidence: 'medium',
+    examples: [{ expected: 'walked', heard: 'walk' }],
+  };
+
+  it('accepts a well-formed pattern and an empty result', () => {
+    expect(ReadingPattern.safeParse(pattern).success).toBe(true);
+    expect(
+      ReadingPatterns.safeParse({ triesAnalysed: 0, unclearWords: 0, patterns: [] }).success,
+    ).toBe(true);
+  });
+
+  it('rejects a zero count, an unknown kind and more than five examples', () => {
+    expect(ReadingPattern.safeParse({ ...pattern, count: 0 }).success).toBe(false);
+    expect(ReadingPattern.safeParse({ ...pattern, kind: 'lisp' }).success).toBe(false);
+    const example = { expected: 'walked', heard: null };
+    const six = Array.from({ length: 6 }, () => example);
+    expect(ReadingPattern.safeParse({ ...pattern, examples: six }).success).toBe(false);
+  });
+
+  it('rejects numbers that cannot all be true', () => {
+    expect(ReadingPattern.safeParse({ ...pattern, tries: 3 }).success).toBe(false);
+    expect(ReadingPattern.safeParse({ ...pattern, count: 1 }).success).toBe(false);
+    expect(ReadingPattern.safeParse({ ...pattern, count: 9 }).success).toBe(false);
   });
 });

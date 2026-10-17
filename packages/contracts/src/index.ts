@@ -231,23 +231,31 @@ export const PatternExample = z.object({
 });
 export type PatternExample = z.infer<typeof PatternExample>;
 
-export const ReadingPattern = z.object({
-  kind: ReadingPatternKind,
-  /** What the pattern is about: an ending ("ing"), letters ("th"), a pair ("was>saw") or "full_stop". */
-  key: z.string().min(1),
-  /** Times it happened across all tries. */
-  count: z.number().int().positive(),
-  /** Distinct tries it appeared in. */
-  tries: z.number().int().positive(),
-  /** Tries it appeared in, by the ids the caller passed in. */
-  tryIds: z.array(z.string()).min(1),
-  /** Times it could have happened, so a count can be read as a rate. */
-  opportunities: z.number().int().positive(),
-  /** Words left out of the count because the audio was unclear. */
-  unclearWords: z.number().int().nonnegative(),
-  confidence: PatternConfidence,
-  examples: z.array(PatternExample).max(5),
-});
+export const ReadingPattern = z
+  .object({
+    kind: ReadingPatternKind,
+    /** What the pattern is about: an ending ("ing"), letters ("th"), a pair ("was>saw") or "full_stop". */
+    key: z.string().min(1),
+    /** Times it happened across all tries. */
+    count: z.number().int().positive(),
+    /** Distinct tries it appeared in. */
+    tries: z.number().int().positive(),
+    /**
+     * Tries it appeared in, by the ids the caller passed in. For the app only: never put these in a
+     * model prompt. Send counts and word pairs.
+     */
+    tryIds: z.array(z.string()).min(1),
+    /** Times it could have happened, so a count can be read as a rate. */
+    opportunities: z.number().int().positive(),
+    /** Words left out of the count because the audio was unclear. */
+    unclearWords: z.number().int().nonnegative(),
+    confidence: PatternConfidence,
+    examples: z.array(PatternExample).max(5),
+  })
+  .refine((p) => p.tries === p.tryIds.length, { message: 'tries must equal the number of tryIds' })
+  .refine((p) => p.count >= p.tries && p.count <= p.opportunities, {
+    message: 'count must be at least tries and at most opportunities',
+  });
 export type ReadingPattern = z.infer<typeof ReadingPattern>;
 
 /** What the AI explanation step reads (BB-28). */

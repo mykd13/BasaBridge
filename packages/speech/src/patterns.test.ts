@@ -101,7 +101,7 @@ describe('aggregateReadingPatterns', () => {
     expect(find(result, 'repeated_substitution', 'was>saw')).toMatchObject({
       count: 3,
       tries: 2,
-      opportunities: 3,
+      opportunities: 4,
     });
     expect(find(result, 'repeated_substitution', 'was>is')).toBeUndefined();
   });
@@ -167,6 +167,102 @@ describe('aggregateReadingPatterns', () => {
     expect(result.unclearWords).toBe(2);
   });
 
+  it('does not report words read right as errors when the aligner joins them', () => {
+    const expected = ['We', "don't", 'know', 'Mr.', 'Cruz', "can't", 'go'];
+    const said = (text: string): HeardWord[] =>
+      text.split(' ').map((w, i) => ({ text: w, start: i, end: i + 0.5, confidence: 0.95 }));
+    const tries = ['a', 'b'].map((tryId) => ({
+      tryId,
+      expected,
+      words: alignWords(expected, said('We do not know Mr Cruz can not go')),
+    }));
+    expect(tries[0]!.words.every((w) => w.expected === null || w.outcome === 'correct')).toBe(true);
+    expect(aggregateReadingPatterns(tries).patterns).toEqual([]);
+  });
+
+  it('counts every clear read of a word as a chance for a repeated substitution', () => {
+    const words = [wrong('was', 'saw'), ...Array.from({ length: 9 }, () => right('was'))];
+    const result = aggregateReadingPatterns([
+      tryOf('a', words),
+      tryOf('b', [wrong('was', 'saw'), ...Array.from({ length: 9 }, () => right('was'))]),
+    ]);
+    expect(find(result, 'repeated_substitution', 'was>saw')).toMatchObject({
+      count: 2,
+      opportunities: 20,
+      confidence: 'low',
+    });
+  });
+
+  it('keeps a rare slip low however many tries it appears in', () => {
+    const clean = Array.from({ length: 30 }, () => right('thin'));
+    const result = aggregateReadingPatterns([
+      tryOf('a', [wrong('thin', 'tin'), ...clean]),
+      tryOf('b', [wrong('thin', 'tin'), ...clean]),
+    ]);
+    expect(find(result, 'letter_pattern', 'th')).toMatchObject({ count: 2, confidence: 'low' });
+  });
+
+  it('does not treat abbreviations, initials or ellipses as full stops', () => {
+    const words = [
+      right('Mr.'),
+      right('Cruz'),
+      right('J.'),
+      right('Reyes'),
+      right('wait...'),
+      right('go'),
+    ];
+    const pauses = words.map(() => 0);
+    const result = aggregateReadingPatterns([tryOf('a', words, pauses), tryOf('b', words, pauses)]);
+    expect(find(result, 'missing_pause', 'full_stop')).toBeUndefined();
+  });
+
+  it('does not treat words that only end in the same letters as having an ending', () => {
+    const result = aggregateReadingPatterns([
+      tryOf('a', [wrong('thing', 'the'), wrong('this', 'thi'), wrong('over', 'ov')]),
+      tryOf('b', [wrong('thing', 'the'), wrong('this', 'thi'), wrong('over', 'ov')]),
+    ]);
+    expect(result.patterns.filter((p) => p.kind === 'dropped_ending')).toEqual([]);
+  });
+
+  it('finds a dropped ending where the spelling changes', () => {
+    const result = aggregateReadingPatterns([
+      tryOf('a', [wrong('stories', 'story'), wrong('cried', 'cry')]),
+      tryOf('b', [wrong('stories', 'story')]),
+    ]);
+    expect(find(result, 'dropped_ending', 'es')?.count).toBe(2);
+    expect(find(result, 'dropped_ending', 'ed')).toBeUndefined();
+  });
+
+  it('rejects two tries with the same id', () => {
+    expect(() =>
+      aggregateReadingPatterns([tryOf('a', [right('go')]), tryOf('a', [right('go')])]),
+    ).toThrow(/tryId/);
+  });
+
+  it('handles a single word, all words omitted and a try with no words', () => {
+    expect(aggregateReadingPatterns([tryOf('a', [right('go')])]).patterns).toEqual([]);
+    const gone = [omitted('walked'), omitted('home')];
+    expect(aggregateReadingPatterns([tryOf('a', gone), tryOf('b', gone)])).toEqual({
+      triesAnalysed: 2,
+      unclearWords: 0,
+      patterns: [],
+    });
+    expect(aggregateReadingPatterns([tryOf('a', [])])).toEqual({
+      triesAnalysed: 1,
+      unclearWords: 0,
+      patterns: [],
+    });
+  });
+
+  it('gives the same output whatever order the tries come in', () => {
+    const tries = [
+      tryOf('c', [wrong('jumped', 'jump'), wrong('was', 'saw')]),
+      tryOf('a', [wrong('walked', 'walk'), wrong('was', 'saw')]),
+      tryOf('b', [wrong('played', 'play'), wrong('was', 'saw'), wrong('walked', 'walk')]),
+    ];
+    expect(aggregateReadingPatterns([...tries].reverse())).toEqual(aggregateReadingPatterns(tries));
+  });
+
   it('orders the strongest pattern first, the same way every time', () => {
     const tries = [
       tryOf('a', [wrong('walked', 'walk'), wrong('was', 'saw')]),
@@ -175,11 +271,7 @@ describe('aggregateReadingPatterns', () => {
     ];
     const first = aggregateReadingPatterns(tries);
     expect(first.patterns[0]).toMatchObject({ kind: 'dropped_ending', key: 'ed' });
-    expect(
-      aggregateReadingPatterns([...tries].reverse())
-        .patterns.map((p) => p.key)
-        .sort(),
-    ).toEqual(first.patterns.map((p) => p.key).sort());
+    expect(aggregateReadingPatterns([...tries].reverse()).patterns).toEqual(first.patterns);
   });
 
   it('carries words only: no audio, names or timings leak into the output', () => {

@@ -26,7 +26,7 @@ import { isLowConfidence } from './align';
 
 /** One try, ready to aggregate. Holds words and counts only: no names, no audio. */
 export interface TryEvidence {
-  /** Any id the caller can map back to a try. Never a name or username. */
+  /** Any id the caller can map back to a try. Never a name or username. Unique within one call. */
   tryId: string;
   /** The passage words as written, punctuation kept, in order. Used to find full stops. */
   expected: string[];
@@ -41,18 +41,106 @@ export interface TryEvidence {
 
 /** A pattern needs at least this many hits before it is reported. One slip is not a pattern. */
 export const MIN_PATTERN_COUNT = 2;
-/** A pause shorter than this after a full stop counts as missing. */
+/**
+ * A pause shorter than this after a full stop counts as missing. A first guess: tie it, and the
+ * confidence numbers below, to the pace review in BB-40 before launch.
+ */
 export const MIN_PAUSE_SECONDS = 0.25;
 /** When more than this share of the evidence is unclear, confidence drops one step. */
 export const UNCLEAR_SHARE_LIMIT = 0.3;
 /** Hit rate that a "high" pattern must reach. */
 export const HIGH_CONFIDENCE_RATE = 0.5;
+/** Below this hit rate a pattern stays "low", however many tries it appears in. */
+export const MEDIUM_CONFIDENCE_RATE = 0.2;
 export const HIGH_CONFIDENCE_TRIES = 3;
 export const HIGH_CONFIDENCE_COUNT = 4;
 const MAX_EXAMPLES = 5;
 
 /** Longest first, so "es" wins over "s". */
 const ENDINGS = ['ing', 'est', 'ed', 'es', 'ly', 'er', 's'];
+
+/** Words that end in an ending's letters but do not carry that ending. */
+const NOT_INFLECTED = new Set([
+  // s
+  'this',
+  'thus',
+  'plus',
+  'always',
+  'perhaps',
+  'across',
+  'famous',
+  // er
+  'never',
+  'after',
+  'under',
+  'other',
+  'mother',
+  'father',
+  'brother',
+  'sister',
+  'water',
+  'paper',
+  'together',
+  'another',
+  'whether',
+  'either',
+  'neither',
+  'finger',
+  'river',
+  'number',
+  'letter',
+  'dinner',
+  'summer',
+  'winter',
+  'flower',
+  'power',
+  'order',
+  'wonder',
+  'corner',
+  'answer',
+  'ladder',
+  'silver',
+  // ed
+  'hundred',
+  'sacred',
+  // ly
+  'family',
+  'early',
+  'only',
+  'belly',
+  'jelly',
+  'ugly',
+  'reply',
+  'supply',
+  'apply',
+  // est
+  'forest',
+  'interest',
+  'honest',
+  'guest',
+  'request',
+  // ing
+  'morning',
+  'evening',
+  'during',
+  'ceiling',
+  'something',
+  'nothing',
+  'anything',
+  'everything',
+]);
+
+/** Written forms that look like a full stop but are not the end of a sentence. */
+const ABBREVIATIONS = new Set(['mr', 'mrs', 'ms', 'dr', 'st', 'sr', 'jr', 'prof', 'vs', 'etc']);
+
+/** True when the written word ends a sentence: not an abbreviation, initial or ellipsis. */
+function endsSentence(written: string): boolean {
+  if (!/[.!?]["')\]]*$/.test(written)) return false;
+  if (/\.\.\.|…/.test(written)) return false;
+  const bare = written.replace(/[^A-Za-z.]/g, '');
+  if (/^[A-Za-z]\.$/.test(bare)) return false; // an initial: "J."
+  return !(written.endsWith('.') && ABBREVIATIONS.has(normal(written)));
+}
 
 const LETTER_PATTERNS = [
   // digraphs and silent-letter pairs
@@ -150,13 +238,17 @@ class Tallies {
       return;
     }
     tally.opportunities += 1;
-    if (!hit) return;
+    if (hit) this.hit(tally, tryId, example);
+  }
+
+  /** Record a hit without a chance, for patterns whose chances are counted separately. */
+  hit(tally: Tally, tryId: string, example: PatternExample): void {
     tally.count += 1;
     tally.tryIds.add(tryId);
     const seen = tally.examples.some(
       (e) => e.expected === example.expected && e.heard === example.heard,
     );
-    if (!seen && tally.examples.length < MAX_EXAMPLES) tally.examples.push(example);
+    if (!seen) tally.examples.push(example);
   }
 
   all(): Tally[] {
@@ -164,18 +256,28 @@ class Tallies {
   }
 }
 
+/**
+ * The ending a word carries, or null when it only ends in the same letters ("his", "thing"). The
+ * rest must look like a word: three or more letters with a vowel, and not a known exception.
+ */
 function endingOf(expected: string): string | null {
-  return (
-    ENDINGS.find((ending) => expected.length >= ending.length + 2 && expected.endsWith(ending)) ??
-    null
-  );
+  if (NOT_INFLECTED.has(expected)) return null;
+  for (const ending of ENDINGS) {
+    if (!expected.endsWith(ending)) continue;
+    const stem = expected.slice(0, -ending.length);
+    if (stem.length < 3 || !/[aeiouy]/.test(stem)) continue;
+    if (ending === 's' && /(s|u|i)$/.test(stem)) continue; // "glass", "bus", "this"
+    return ending;
+  }
+  return null;
 }
 
-/** What the word is without its ending: "run" for "running", "make" for "making". */
+/** What the word is without its ending: "run" for "running", "make" for "making", "story" for "stories". */
 function stemsOf(expected: string, ending: string): string[] {
   const stem = expected.slice(0, -ending.length);
   const stems = [stem, `${stem}e`];
   if (stem.length > 2 && stem.at(-1) === stem.at(-2)) stems.push(stem.slice(0, -1));
+  if (stem.endsWith('i')) stems.push(`${stem.slice(0, -1)}y`);
   return stems;
 }
 
@@ -201,7 +303,7 @@ export function patternConfidence(input: {
     rate >= HIGH_CONFIDENCE_RATE
   ) {
     label = 'high';
-  } else if (input.tries >= 2) {
+  } else if (input.tries >= 2 && rate >= MEDIUM_CONFIDENCE_RATE) {
     label = 'medium';
   }
   const seen = input.opportunities + input.unclearWords;
@@ -210,8 +312,15 @@ export function patternConfidence(input: {
 }
 
 export function aggregateReadingPatterns(tries: TryEvidence[]): ReadingPatterns {
+  const ids = new Set(tries.map((t) => t.tryId));
+  if (ids.size !== tries.length) {
+    throw new Error('aggregateReadingPatterns: every try needs its own tryId');
+  }
+
   const tallies = new Tallies();
   let unclearWords = 0;
+  /** Clear reads of each expected word, the chances for a repeated substitution. */
+  const clearReads = new Map<string, number>();
 
   for (const evidence of tries) {
     let index = -1;
@@ -230,7 +339,14 @@ export function aggregateReadingPatterns(tries: TryEvidence[]): ReadingPatterns 
       if (unclear) unclearWords += 1;
 
       const example: PatternExample = { expected, heard };
-      const differs = heard !== null && heard.length > 0 && heard !== expected;
+      // A clear word is wrong only when the aligner says so: it reports joined forms such as "do not"
+      // for "don't" as correct, with different text. An unclear word that does not look right is
+      // kept, so it can lower confidence.
+      const differs =
+        heard !== null &&
+        heard.length > 0 &&
+        heard !== expected &&
+        (unclear || word.outcome === 'substitution');
 
       // Dropped endings.
       const ending = endingOf(expected);
@@ -250,22 +366,19 @@ export function aggregateReadingPatterns(tries: TryEvidence[]): ReadingPatterns 
 
       // Repeated substitutions: the same expected word, said the same wrong way. A dropped ending
       // already explains the word, so it is not reported a second time.
+      // The chances are every clear read of the word, counted once all tries are in.
+      if (!unclear) clearReads.set(expected, (clearReads.get(expected) ?? 0) + 1);
       if (differs && !droppedEnding) {
-        tallies.see(
-          'repeated_substitution',
-          `${expected}>${heard}`,
-          evidence.tryId,
-          state,
-          true,
-          example,
-        );
+        const tally = tallies.get('repeated_substitution', `${expected}>${heard}`);
+        if (unclear) tally.unclear += 1;
+        else tallies.hit(tally, evidence.tryId, example);
       }
 
       // Pauses at full stops.
       const written = evidence.expected[index] ?? word.expected;
       const pause = evidence.pausesAfter?.[index];
       const isLast = index === expectedCount - 1;
-      if (/[.!?]["')\]]*$/.test(written) && !isLast && pause !== undefined && pause !== null) {
+      if (endsSentence(written) && !isLast && pause !== undefined && pause !== null) {
         tallies.see(
           'missing_pause',
           'full_stop',
@@ -278,24 +391,37 @@ export function aggregateReadingPatterns(tries: TryEvidence[]): ReadingPatterns 
     }
   }
 
+  for (const t of tallies.all()) {
+    if (t.kind === 'repeated_substitution') {
+      t.opportunities = clearReads.get(t.key.split('>')[0]!) ?? 0;
+    }
+  }
+
+  // Everything below sorts, so the same tries give the same output in any order.
   const patterns: ReadingPattern[] = tallies
     .all()
     .filter((t) => t.count >= MIN_PATTERN_COUNT)
     .map((t) => {
-      const tryIds = [...t.tryIds];
+      const tryIds = [...t.tryIds].sort();
       const tally = {
         count: t.count,
         tries: tryIds.length,
         opportunities: t.opportunities,
         unclearWords: t.unclear,
       };
+      const examples = [...t.examples]
+        .sort(
+          (a, b) =>
+            a.expected.localeCompare(b.expected) || (a.heard ?? '').localeCompare(b.heard ?? ''),
+        )
+        .slice(0, MAX_EXAMPLES);
       return {
         kind: t.kind,
         key: t.key,
         ...tally,
         tryIds,
         confidence: patternConfidence(tally),
-        examples: t.examples,
+        examples,
       };
     })
     .sort(
