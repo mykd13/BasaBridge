@@ -127,8 +127,49 @@ describe('retention on', () => {
     clock.now = new Date('2026-01-20T00:00:00Z');
     await handleRecording(deps, { ...base, tryId: 't2', retain: true });
     clock.now = new Date('2026-02-05T00:00:00Z');
-    expect(await purgeExpiredAudio(deps)).toBe(1);
+    expect(await purgeExpiredAudio(deps)).toEqual({ removed: 1, failed: [] });
     expect(repo.rows.map((r) => r.tryId)).toEqual(['t2']);
+    expect(store.size).toBe(1);
+  });
+
+  it('does not list an expired recording that is not purged yet', async () => {
+    const { deps, clock } = setup();
+    await handleRecording(deps, { ...base, retain: true });
+    expect(await listOwnAudio(deps, 'learner-1')).toHaveLength(1);
+    clock.now = new Date('2026-02-01T00:00:00Z');
+    expect(await listOwnAudio(deps, 'learner-1')).toHaveLength(0);
+  });
+
+  it('purge continues past a failed delete and reports it', async () => {
+    const { deps, clock, store, repo } = setup();
+    for (const t of ['t1', 't2', 't3'])
+      await handleRecording(deps, { ...base, tryId: t, retain: true });
+    const bad = repo.rows[0]!;
+    const realDelete = store.delete.bind(store);
+    store.delete = async (key: string) => {
+      if (key === bad.storageKey) throw new Error('store down');
+      return realDelete(key);
+    };
+    clock.now = new Date('2026-02-05T00:00:00Z');
+    const result = await purgeExpiredAudio(deps);
+    expect(result.removed).toBe(2);
+    expect(result.failed.map((f) => f.id)).toEqual([bad.id]);
+    expect(repo.rows.map((r) => r.id)).toEqual([bad.id]);
+    expect(store.size).toBe(1);
+  });
+
+  it('account deletion continues past a failed delete and reports it', async () => {
+    const { deps, store, repo } = setup();
+    for (const t of ['t1', 't2']) await handleRecording(deps, { ...base, tryId: t, retain: true });
+    const bad = repo.rows[1]!;
+    const realDelete = store.delete.bind(store);
+    store.delete = async (key: string) => {
+      if (key === bad.storageKey) throw new Error('store down');
+      return realDelete(key);
+    };
+    const result = await deleteAccountAudio(deps, 'learner-1');
+    expect(result.removed).toBe(1);
+    expect(result.failed.map((f) => f.id)).toEqual([bad.id]);
     expect(store.size).toBe(1);
   });
 
@@ -136,7 +177,7 @@ describe('retention on', () => {
     const { deps, store, repo } = setup();
     await handleRecording(deps, { ...base, retain: true });
     await handleRecording(deps, { ...base, tryId: 't2', retain: true });
-    expect(await deleteAccountAudio(deps, 'learner-1')).toBe(2);
+    expect(await deleteAccountAudio(deps, 'learner-1')).toEqual({ removed: 2, failed: [] });
     expect(store.size).toBe(0);
     expect(repo.rows).toHaveLength(0);
   });
