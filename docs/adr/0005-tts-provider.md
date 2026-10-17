@@ -17,7 +17,14 @@ Azure offers a Filipino neural voice, which is the hard requirement. The adapter
 
 ## What is sent
 
-Only the sentence to be spoken and its language. No names, usernames, audio or learner ids. Teacher notes carry word-level differences and levels only, as the AGENTS.md privacy rules require. Logs carry language, character count and estimated cost, never the text.
+Only the sentence to be spoken and its language. No names, usernames, audio or learner ids. Logs carry language, character count, cost and failure status, never the text.
+
+This is a promise the route cannot check yet. `POST /api/tts` takes raw text, so it relies on callers to send only fixed wording, questions, options and teacher notes (which carry levels and word-level differences only). It has a size cap on text, a per-client rate limit and a size cap on the cache, but no sign-in check. When the authorization layer (BB-10) exists, the route should take an id (a catalog key, question id or note id), look the text up there, check the caller may hear it, and send only that text to the provider. Until then, keep `TTS_API_KEY` unset in every shared environment.
+
+## Rules before use
+
+- No real learner traffic may use this provider until BB-41 has read the Azure terms for children's use.
+- The generated mp3 files for fixed sentences are committed as static assets. `pnpm audio:generate` makes them and is never part of `pnpm build`. After a voice change, run it with `--force`.
 
 ## Open items
 

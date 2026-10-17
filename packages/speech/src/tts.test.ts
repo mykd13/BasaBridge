@@ -61,6 +61,41 @@ describe('speakCached', () => {
     expect(JSON.stringify(events)).not.toContain('Maria');
   });
 
+  it('shares one provider call between requests made at the same time', async () => {
+    let calls = 0;
+    let release: () => void = () => {};
+    const slow: TtsProvider = {
+      name: 'slow',
+      synthesize: () => {
+        calls += 1;
+        return new Promise((resolve) => {
+          release = () => resolve({ bytes: new Uint8Array([1]), contentType: 'audio/mpeg' });
+        });
+      },
+    };
+    const base = { provider: slow, cache: new MemoryTtsCache(), costPerMillionChars: 16 };
+    const all = Promise.all(
+      Array.from({ length: 30 }, () => speakCached('Same question', 'en', base)),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    release();
+    const results = await all;
+    expect(calls).toBe(1);
+    expect(results.every((r) => r.bytes.length === 1)).toBe(true);
+  });
+
+  it('keeps the cache under its size cap', async () => {
+    const cache = new MemoryTtsCache(2);
+    const audio = { bytes: new Uint8Array([1]), contentType: 'audio/mpeg' };
+    await cache.set('a', audio);
+    await cache.set('b', audio);
+    await cache.get('a');
+    await cache.set('c', audio);
+    expect(await cache.get('b')).toBeNull();
+    expect(await cache.get('a')).not.toBeNull();
+    expect(await cache.get('c')).not.toBeNull();
+  });
+
   it('rejects empty text', async () => {
     await expect(
       speakCached('  ', 'en', {
@@ -82,6 +117,14 @@ describe('azureTtsProvider', () => {
     expect(url).toContain('southeastasia.tts.speech.microsoft.com');
     expect(String(init.body)).toContain('fil-PH');
     expect(String(init.body)).toContain('A &amp; B');
+  });
+  it('rejects a 200 response with no audio', async () => {
+    const p = azureTtsProvider({
+      apiKey: 'k',
+      region: 'r',
+      fetch: async () => new Response(new Uint8Array(), { status: 200 }),
+    });
+    await expect(p.synthesize('x', 'en')).rejects.toThrow('no audio');
   });
   it('throws on a failed response', async () => {
     const p = azureTtsProvider({

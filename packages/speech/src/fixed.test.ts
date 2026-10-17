@@ -52,4 +52,15 @@ describe('generateFixedAudio', () => {
     expect(p.calls).toHaveLength(1);
     expect(second).toEqual({ generated: 0, skipped: 1 });
   });
+
+  it('regenerates existing files with force', async () => {
+    const store = memoryStore();
+    const p = provider();
+    const opts = { provider: p, store, publicDir: 'public', costPerMillionChars: 16 };
+    const sentences = { en: ['Hello'], fil: [] };
+    await generateFixedAudio(sentences, opts);
+    const again = await generateFixedAudio(sentences, { ...opts, force: true });
+    expect(p.calls).toHaveLength(2);
+    expect(again).toEqual({ generated: 1, skipped: 0 });
+  });
 });

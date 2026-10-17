@@ -14,11 +14,24 @@ const setup = (over: Partial<SpeakerEnv> = {}) => {
 };
 
 describe('createSpeaker', () => {
-  it('plays nothing until play is called', () => {
-    const { env } = setup();
-    expect(env.playUrl).not.toHaveBeenCalled();
+  it('goes back to idle when the browser blocks autoplay, without trying other sources', async () => {
+    const blocked = Object.assign(new Error('blocked'), { name: 'NotAllowedError' });
+    const { env, states, speaker } = setup({
+      playUrl: vi.fn(async () => {
+        throw blocked;
+      }),
+    });
+    await speaker.play({ text: 'Tap start', lang: 'en', fixedUrl: '/audio/en/x.mp3' });
     expect(env.fetchServiceUrl).not.toHaveBeenCalled();
     expect(env.speakBrowser).not.toHaveBeenCalled();
+    expect(states).toEqual(['loading', 'idle']);
+  });
+
+  it('prime reaches the environment', () => {
+    const prime = vi.fn();
+    const { speaker } = setup({ prime });
+    speaker.prime();
+    expect(prime).toHaveBeenCalledOnce();
   });
 
   it('uses the fixed file first and never asks the service', async () => {

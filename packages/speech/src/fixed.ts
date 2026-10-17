@@ -3,7 +3,14 @@
  * One mp3 per sentence per language, named by the same hash the on-demand cache uses,
  * so the browser can find a file from the text alone.
  */
-import { cacheKey, normaliseText, type TtsCostEvent, type TtsLang, type TtsProvider } from './tts';
+// The ".ts" extension lets Node run the build script without a bundler (see allowImportingTsExtensions).
+import {
+  cacheKey,
+  normaliseText,
+  type TtsCostEvent,
+  type TtsLang,
+  type TtsProvider,
+} from './tts.ts';
 
 export type FixedSentences = Record<TtsLang, string[]>;
 
@@ -33,6 +40,8 @@ export async function generateFixedAudio(
     publicDir: string;
     costPerMillionChars: number;
     onCost?: (event: TtsCostEvent) => void;
+    /** Regenerate files that exist, for example after the voice changes. */
+    force?: boolean;
   },
 ): Promise<FixedAudioResult> {
   const result: FixedAudioResult = { generated: 0, skipped: 0 };
@@ -40,7 +49,7 @@ export async function generateFixedAudio(
     const unique = new Set(sentences[lang].map(normaliseText).filter(Boolean));
     for (const text of unique) {
       const target = `${options.publicDir}${await fixedAudioPath(text, lang)}`;
-      if (await options.store.exists(target)) {
+      if (!options.force && (await options.store.exists(target))) {
         result.skipped += 1;
         continue;
       }

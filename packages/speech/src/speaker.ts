@@ -16,8 +16,13 @@ export interface SpeakerEnv {
   fetchServiceUrl(text: string, lang: TtsLang): Promise<string>;
   /** Speak with the browser's voice. Reject when there is none. */
   speakBrowser(text: string, lang: TtsLang, onStart: () => void): Promise<void>;
-  /** Stop whatever is playing. */
+  /** Stop whatever is playing. A pending playUrl or speakBrowser promise must settle (reject). */
   stopAll(): void;
+  /**
+   * Called synchronously inside the learner's tap, before any await, so browsers that only
+   * allow sound during a gesture (iOS Safari) let later playback through.
+   */
+  prime?(): void;
 }
 
 export interface SpeakRequest {
@@ -28,8 +33,15 @@ export interface SpeakRequest {
 }
 
 export interface Speaker {
+  /** Call first thing in a tap handler, before any await. */
+  prime(): void;
   play(request: SpeakRequest): Promise<void>;
   stop(): void;
+}
+
+/** The browser refused to play without a tap. Wait for the learner instead of trying other sources. */
+function isBlockedByBrowser(error: unknown): boolean {
+  return error instanceof Error && error.name === 'NotAllowedError';
 }
 
 export function createSpeaker(env: SpeakerEnv, onState: (state: SpeakerState) => void): Speaker {
@@ -68,12 +80,17 @@ export function createSpeaker(env: SpeakerEnv, onState: (state: SpeakerState) =>
         await attempt();
         if (current()) onState('idle');
         return;
-      } catch {
+      } catch (error) {
+        if (isBlockedByBrowser(error)) {
+          // Blocked autoplay: do not spend a paid call or show an error. The button waits for a tap.
+          if (current()) onState('idle');
+          return;
+        }
         // try the next source
       }
     }
     if (current()) onState('error');
   };
 
-  return { play, stop };
+  return { prime: () => env.prime?.(), play, stop };
 }

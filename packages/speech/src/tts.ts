@@ -23,13 +23,28 @@ export interface TtsCache {
   set(key: string, audio: TtsAudio): Promise<void>;
 }
 
+/** Least recently used cache with a size cap, so unique strings cannot fill memory. */
 export class MemoryTtsCache implements TtsCache {
   private readonly items = new Map<string, TtsAudio>();
+  private readonly maxEntries: number;
+  constructor(maxEntries = 500) {
+    this.maxEntries = maxEntries;
+  }
   async get(key: string): Promise<TtsAudio | null> {
-    return this.items.get(key) ?? null;
+    const hit = this.items.get(key);
+    if (!hit) return null;
+    this.items.delete(key);
+    this.items.set(key, hit);
+    return hit;
   }
   async set(key: string, audio: TtsAudio): Promise<void> {
+    this.items.delete(key);
     this.items.set(key, audio);
+    while (this.items.size > this.maxEntries) {
+      const oldest = this.items.keys().next().value;
+      if (oldest === undefined) break;
+      this.items.delete(oldest);
+    }
   }
 }
 
@@ -68,6 +83,9 @@ export interface SpokenAudio extends TtsAudio {
   cacheHit: boolean;
 }
 
+/** Requests being generated right now, so a class asking for one sentence makes one provider call. */
+const inFlight = new Map<string, Promise<TtsAudio>>();
+
 /** Speak a sentence: serve from the cache, or generate it once and store it. */
 export async function speakCached(
   text: string,
@@ -89,8 +107,20 @@ export async function speakCached(
     });
     return { ...hit, key, cacheHit: true };
   }
-  const audio = await options.provider.synthesize(clean, lang, options.signal);
-  await options.cache.set(key, audio);
+  const flightKey = `${options.provider.name}:${key}`;
+  let pending = inFlight.get(flightKey);
+  const shared = pending !== undefined;
+  if (!pending) {
+    pending = options.provider.synthesize(clean, lang, options.signal).then(async (audio) => {
+      await options.cache.set(key, audio);
+      return audio;
+    });
+    inFlight.set(flightKey, pending);
+    const clear = () => inFlight.delete(flightKey);
+    pending.then(clear, clear);
+  }
+  const audio = await pending;
+  if (shared) return { ...audio, key, cacheHit: true };
   options.onCost?.({
     provider: options.provider.name,
     lang,
@@ -145,7 +175,9 @@ export function azureTtsProvider(config: AzureTtsConfig): TtsProvider {
         },
       );
       if (!res.ok) throw new Error(`Text-to-speech failed with status ${res.status}`);
-      return { bytes: new Uint8Array(await res.arrayBuffer()), contentType: 'audio/mpeg' };
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes.length === 0) throw new Error('Text-to-speech returned no audio');
+      return { bytes, contentType: 'audio/mpeg' };
     },
   };
 }

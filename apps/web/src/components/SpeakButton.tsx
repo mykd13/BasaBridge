@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   createSpeaker,
   fixedAudioPath,
@@ -10,16 +10,27 @@ import {
 } from '@basabridge/speech';
 import { createBrowserSpeakerEnv } from '../lib/browser-speaker-env';
 
+export interface SpokenEvent {
+  /** True when the first-screen autoplay started the sound, false when the learner pressed the button. */
+  autoplay: boolean;
+}
+
 export interface SpeakButtonProps {
   text: string;
   lang: TtsLang;
   /** Set true only for a fixed sentence that has a build-time audio file. */
   fixed?: boolean;
   /**
-   * The first-screen autoplay. The caller passes true only when the learner has turned it on.
-   * Without it, nothing plays until the learner presses the button.
+   * The first-screen autoplay. The caller decides from the learner's reading help setting:
+   * on by default for the levels ADR 0004 names, and the learner can turn it off. The level
+   * rule itself lives in packages/levels. Without this prop nothing plays until the button is pressed.
    */
   autoplay?: boolean;
+  /**
+   * Fires when sound actually starts. The caller sends it with the answer it affects, so the
+   * server can record the accommodation (AGENTS.md rule 12). The browser only reports it.
+   */
+  onSpoken?: (event: SpokenEvent) => void;
   /** Text for the button, from the i18n catalog. */
   labels: { play: string; stop: string; error: string };
 }
@@ -30,27 +41,48 @@ export function SpeakButton({
   lang,
   fixed = false,
   autoplay = false,
+  onSpoken,
   labels,
 }: SpeakButtonProps) {
   const [state, setState] = useState<SpeakerState>('idle');
   const speakerRef = useRef<Speaker | null>(null);
+  const triggerRef = useRef<'autoplay' | 'button'>('button');
+  const onSpokenRef = useRef(onSpoken);
+  onSpokenRef.current = onSpoken;
 
-  const speaker = useMemo(() => {
-    const s = createSpeaker(createBrowserSpeakerEnv(), setState);
-    speakerRef.current = s;
-    return s;
+  // Created on mount so cleanup always stops the speaker that is playing.
+  useEffect(() => {
+    const speaker = createSpeaker(createBrowserSpeakerEnv(), (next) => {
+      setState(next);
+      if (next === 'playing')
+        onSpokenRef.current?.({ autoplay: triggerRef.current === 'autoplay' });
+    });
+    speakerRef.current = speaker;
+    return () => {
+      speaker.stop();
+      speakerRef.current = null;
+    };
   }, []);
 
-  const start = async () => {
-    await speaker.play({
-      text,
-      lang,
-      fixedUrl: fixed ? await fixedAudioPath(text, lang) : undefined,
-    });
+  const start = async (trigger: 'autoplay' | 'button') => {
+    const speaker = speakerRef.current;
+    if (!speaker) return;
+    triggerRef.current = trigger;
+    // Before any await, so the tap still counts as a gesture.
+    speaker.prime();
+    let fixedUrl: string | undefined;
+    if (fixed) {
+      try {
+        fixedUrl = await fixedAudioPath(text, lang);
+      } catch {
+        // No crypto on plain http. Fall through to the service and the browser voice.
+      }
+    }
+    await speaker.play({ text, lang, fixedUrl });
   };
 
   useEffect(() => {
-    if (autoplay) void start();
+    if (autoplay) void start('autoplay');
     return () => speakerRef.current?.stop();
     // Autoplay runs once for this sentence; a new sentence is a new screen.
   }, [autoplay, text, lang]);
@@ -61,9 +93,8 @@ export function SpeakButton({
   return (
     <button
       type="button"
-      onClick={() => (busy ? speaker.stop() : void start())}
+      onClick={() => (busy ? speakerRef.current?.stop() : void start('button'))}
       aria-label={label}
-      aria-pressed={busy}
       data-state={state}
       style={{
         display: 'inline-flex',
