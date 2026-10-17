@@ -32,11 +32,6 @@ export function checkTry(input: TryCheckInput): TryCheckResult {
   };
 }
 
-/** A try held for review does not move a level until it is confirmed. Older tries count. */
-export function countsForLevelMovement(checks: TryChecks | undefined): boolean {
-  return checks === undefined || checks.review !== 'needs_review';
-}
-
 export function confirmReview(checks: TryChecks): TryChecks {
   return checks.review === 'needs_review' ? { ...checks, review: 'confirmed' } : checks;
 }

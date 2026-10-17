@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { alignWords } from './align';
 import { assessAuthenticity, timingSignature } from './authenticity';
-import { checkTry, confirmReview, countsForLevelMovement } from './checks';
+import { checkTry, confirmReview } from './checks';
 import { detectConditions, type AudioFrame } from './conditions';
 import { assessRoom } from './environment';
 import type { HeardWord } from './index';
@@ -177,19 +177,13 @@ describe('assessAuthenticity', () => {
   });
 });
 
-describe('checkTry and level movement', () => {
-  it('holds a flagged try out of level movement until confirmed', () => {
+describe('checkTry and review', () => {
+  it('flags a try for review until it is confirmed', () => {
     const heard = words(12);
     const earlier = timingSignature(heard);
     const r = checkTry({ heard, frames: [], earlierSignatures: [earlier] });
     expect(r.checks.review).toBe('needs_review');
-    expect(countsForLevelMovement(r.checks)).toBe(false);
-    expect(countsForLevelMovement(confirmReview(r.checks))).toBe(true);
-  });
-
-  it('counts tries with only conditions, and older tries without checks', () => {
-    expect(countsForLevelMovement({ conditions: ['low_volume'], review: 'none' })).toBe(true);
-    expect(countsForLevelMovement(undefined)).toBe(true);
+    expect(confirmReview(r.checks).review).toBe('confirmed');
   });
 
   it('keeps no audio: the result holds only words, numbers and codes', () => {

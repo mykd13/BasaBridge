@@ -6,7 +6,7 @@ Code: `packages/speech/src/environment.ts`, `conditions.ts`, `authenticity.ts`, 
 
 - **Before a try:** `assessRoom` reads loudness numbers from a short quiet moment and, if the learner says a test phrase, from that too. It returns `good`, `noisy`, `too_quiet` or `retry`, with fixed tip keys.
 - **During a try:** `detectConditions` marks overlapping voices, long background speech and very low volume. Words touched by a condition get a confidence just under the low-confidence threshold. The alignment engine then flags them and never counts them as errors.
-- **Playback:** `assessAuthenticity` sends a try for review when it has the same word timing as an earlier try, or when loudness and pacing are both unnaturally steady. It does not identify voices. `countsForLevelMovement` is false for a try that needs review until `confirmReview` is applied.
+- **Playback:** `assessAuthenticity` sends a try for review when it has the same word timing as an earlier try, or when loudness and pacing are both unnaturally steady. It does not identify voices. A try that needs review stays flagged until `confirmReview` is applied. Speech only sets the flag; mastery decides what it means for levels.
 
 ## Privacy
 
@@ -53,5 +53,5 @@ Tests fail if clean tries are flagged for conditions in 1% or more, or for revie
 ## Wiring (not done in BB-70)
 
 - `checkTry` trusts what it is given. The server must compute the loudness frames from the upload and load the learner's `earlierSignatures` itself. A client that sends empty frames or no earlier signatures would skip both checks.
-- Level movement in `packages/levels` and `packages/mastery` must call `countsForLevelMovement` before a try counts. Level rules live only there.
+- Level movement in `packages/mastery` calls `countsForLevelMovement` (in `packages/mastery/src/evidence.ts`) before a try counts. Level rules live only there, never in `packages/speech`.
 - The keys in `LEARNER_MESSAGE_KEYS` are not in any catalog yet. English and Filipino entries (simple and standard) belong with the PR that adds the i18n catalog. Tracked in the PR description.

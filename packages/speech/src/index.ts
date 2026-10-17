@@ -34,7 +34,7 @@ export { CONDITION_THRESHOLDS, detectConditions } from './conditions';
 export type { AudioFrame, ConditionResult } from './conditions';
 export { AUTHENTICITY_THRESHOLDS, assessAuthenticity, timingSignature } from './authenticity';
 export type { ReviewReason } from './authenticity';
-export { checkTry, confirmReview, countsForLevelMovement, LEARNER_MESSAGE_KEYS } from './checks';
+export { checkTry, confirmReview, LEARNER_MESSAGE_KEYS } from './checks';
 export type { TryCheckInput, TryCheckResult } from './checks';
 
 /** Words right per minute. Zero when there is no elapsed time. */
