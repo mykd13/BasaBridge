@@ -55,7 +55,7 @@ describe('toSpeechError', () => {
   });
   it('gives the UI a message and a retry hint', () => {
     const e = new SpeechError('empty_result');
-    expect(e.userMessage.length).toBeGreaterThan(0);
+    expect(e.messageKey).toBe('speech.error.empty_result');
     expect(e.retryable).toBe(true);
     expect(new SpeechError('not_configured').retryable).toBe(false);
   });
@@ -119,7 +119,7 @@ describe('withSpeechGuards', () => {
     const err = await run(p).catch((e: SpeechError) => e);
     expect(err).toBeInstanceOf(SpeechError);
     expect((err as SpeechError).message).not.toContain('cat');
-    expect((err as SpeechError).userMessage).not.toContain('cat');
+    expect((err as SpeechError).messageKey).not.toContain('cat');
   });
 });
 

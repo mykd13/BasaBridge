@@ -11,7 +11,7 @@ const speech = createSpeechProvider(); // reads SPEECH_PROVIDER, SPEECH_API_KEY,
 try {
   const words = await speech.transcribe(audio, { referenceText });
 } catch (e) {
-  if (e instanceof SpeechError) show(e.userMessage, e.retryable);
+  if (e instanceof SpeechError) show(t(e.messageKey), e.retryable); // wording comes from the i18n catalog;
 }
 ```
 

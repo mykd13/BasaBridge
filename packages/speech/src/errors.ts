@@ -1,5 +1,5 @@
 /**
- * Typed speech errors (BB-24). The UI shows `userMessage` and uses `retryable` to offer another try.
+ * Typed speech errors (BB-24). The UI looks up `messageKey` in the i18n catalog and uses `retryable` to offer another try.
  * Messages never carry audio, the reference text or learner details.
  */
 export type SpeechErrorCode =
@@ -11,40 +11,20 @@ export type SpeechErrorCode =
   | 'rate_limited'
   | 'provider_unavailable';
 
-const DETAILS: Record<SpeechErrorCode, { userMessage: string; retryable: boolean }> = {
-  not_configured: {
-    userMessage: 'Reading help is not set up yet. Please tell a grown-up.',
-    retryable: false,
-  },
-  empty_result: {
-    userMessage: 'I could not hear any words. Check your microphone and try again.',
-    retryable: true,
-  },
-  timeout: {
-    userMessage: 'That took too long. Please try again.',
-    retryable: true,
-  },
-  aborted: {
-    userMessage: 'The recording was stopped.',
-    retryable: true,
-  },
-  bad_audio: {
-    userMessage: 'I could not use that recording. Please read again.',
-    retryable: true,
-  },
-  rate_limited: {
-    userMessage: 'Lots of readers are busy right now. Please wait a moment and try again.',
-    retryable: true,
-  },
-  provider_unavailable: {
-    userMessage: 'I could not listen just now. Please try again soon.',
-    retryable: true,
-  },
+const RETRYABLE: Record<SpeechErrorCode, boolean> = {
+  not_configured: false,
+  empty_result: true,
+  timeout: true,
+  aborted: true,
+  bad_audio: true,
+  rate_limited: true,
+  provider_unavailable: true,
 };
 
 export class SpeechError extends Error {
   readonly code: SpeechErrorCode;
-  readonly userMessage: string;
+  /** i18n catalog key for the text the UI shows. The wording lives in the catalog, not here. */
+  readonly messageKey: string;
   readonly retryable: boolean;
 
   constructor(code: SpeechErrorCode, options: { cause?: unknown } = {}) {
@@ -52,8 +32,8 @@ export class SpeechError extends Error {
     super(`speech error: ${code}`, { cause: options.cause });
     this.name = 'SpeechError';
     this.code = code;
-    this.userMessage = DETAILS[code].userMessage;
-    this.retryable = DETAILS[code].retryable;
+    this.messageKey = `speech.error.${code}`;
+    this.retryable = RETRYABLE[code];
   }
 }
 
