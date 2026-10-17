@@ -12,6 +12,7 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "eslint .",
+    "audio:generate": "node scripts/generate-interface-audio.mjs",
     "test": "turbo run test",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
