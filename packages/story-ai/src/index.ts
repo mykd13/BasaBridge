@@ -120,3 +120,5 @@ export interface GenerateStoryInput {
 export async function generateStory(_input: GenerateStoryInput): Promise<Story> {
   throw new Error('generateStory is not implemented yet (BB-15)');
 }
+
+export * from './bank';
