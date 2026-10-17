@@ -60,3 +60,6 @@ export function summariseTry(words: WordResult[], seconds: number): TryAnalysis 
     words,
   };
 }
+
+export * from './audio-store';
+export * from './audio';
