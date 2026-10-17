@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./audio-server": "./src/audio-server.ts"
+    "./audio-server": "./src/audio-server.ts",
+    "./capture": "./src/capture/index.ts"
   },
   "dependencies": {
     "@basabridge/contracts": "workspace:*"
