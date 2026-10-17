@@ -181,9 +181,9 @@ describe('ChunkUploader', () => {
     up.push(chunk(), 1);
     await up.finish(2);
     expect(urls).toEqual([
-      '/api/speech/chunks?try=t1&index=0',
-      '/api/speech/chunks?try=t1&index=1',
-      '/api/speech/chunks?try=t1&index=2&final=1',
+      '/api/speech/chunks?index=0',
+      '/api/speech/chunks?index=1',
+      '/api/speech/chunks?index=2&final=1',
     ]);
   });
 

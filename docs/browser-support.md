@@ -31,5 +31,5 @@ canvas D3 help for all of them, with "no microphone" wording for `no-device` and
 
 - The try id is made in the browser for now. The server will issue it (BB-24), and the try count and the
   under-13 microphone gate stay on the server.
-- The server route only validates and acknowledges chunks. It stores nothing.
-- Recovery covers dropped requests and lost replies. If the tab is closed or reloaded mid try, that try is gone.
+- The server route validates size, type, index and try id, and acknowledges chunks. It stores nothing, and it must not store or forward audio until BB-10 (authorization, learner ownership, Origin check) and BB-24 (server-issued try, under-13 gate) land. The try id travels in a header, not the URL.
+- Recovery covers dropped requests and lost replies. If the tab is closed or reloaded mid try, that try is gone. A finished take keeps sending if the learner navigates inside the app, and Start again is disabled until it is sent.
