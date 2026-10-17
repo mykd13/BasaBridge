@@ -3,7 +3,7 @@
  * They do not check who is asking: learner data must be reached through the authorization
  * layer (BB-10), which calls these. Pages and routes must not call them directly for learner data.
  */
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import * as schema from './schema';
 
@@ -101,4 +101,24 @@ export async function insertTry(db: Db, values: NewTry) {
 export async function insertAnswer(db: Db, values: NewAnswer) {
   const [row] = await db.insert(schema.answers).values(values).returning();
   return row!;
+}
+
+export type ParentLink = typeof schema.parentLinks.$inferSelect;
+
+/** The link between one parent and one learner, or undefined. Read fresh; never cache it. */
+export async function getParentLink(
+  db: Db,
+  parentUserId: string,
+  learnerUserId: string,
+): Promise<ParentLink | undefined> {
+  const [row] = await db
+    .select()
+    .from(schema.parentLinks)
+    .where(
+      and(
+        eq(schema.parentLinks.parentUserId, parentUserId),
+        eq(schema.parentLinks.learnerUserId, learnerUserId),
+      ),
+    );
+  return row;
 }
