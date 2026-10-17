@@ -78,10 +78,7 @@ export function readingMeasures(t: TryAnalysis): ReadingMeasures {
   };
 }
 
-export function storyResult(
-  t: TryAnalysis,
-  answers: readonly { correct: boolean }[],
-): StoryResult {
+export function storyResult(t: TryAnalysis, answers: readonly { correct: boolean }[]): StoryResult {
   return {
     wordsRightShare: readingMeasures(t).wordsRightShare,
     questionsCorrect: answers.filter((a) => a.correct).length,

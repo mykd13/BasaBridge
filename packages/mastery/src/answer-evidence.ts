@@ -9,13 +9,7 @@ import type {
   QuestionType,
   SubSkill,
 } from '@basabridge/contracts';
-import {
-  evidenceWeight,
-  guessFor,
-  isRushed,
-  itemDifficulty,
-  type ItemEvidence,
-} from './ability';
+import { evidenceWeight, guessFor, isRushed, itemDifficulty, type ItemEvidence } from './ability';
 
 /** One answer as stored in `answers`, joined with its question. */
 export interface AnswerInput {

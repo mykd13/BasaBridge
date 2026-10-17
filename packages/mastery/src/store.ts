@@ -7,7 +7,12 @@
 import type { ComprehensionSkill, Decision, TryAnalysis } from '@basabridge/contracts';
 import type { StoryResult } from '@basabridge/levels';
 import type { AbilitySummary, Posterior } from './ability';
-import { scoreAnswer, toItemEvidence, type AnswerInput, type ScoredAnswer } from './answer-evidence';
+import {
+  scoreAnswer,
+  toItemEvidence,
+  type AnswerInput,
+  type ScoredAnswer,
+} from './answer-evidence';
 import { analysisDecision, compactEstimates, focusDecision, levelDecision } from './decisions';
 import {
   decideLevel,

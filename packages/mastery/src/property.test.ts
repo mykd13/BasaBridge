@@ -57,7 +57,10 @@ describe('properties', () => {
     for (let run = 0; run < RUNS; run++) {
       const r = rng(1000 + run);
       const stories: StoryAnswers[] = Array.from({ length: 1 + Math.floor(r() * 10) }, () => ({
-        questions: Array.from({ length: 5 }, () => ({ skill: pick(r, SKILLS), correct: r() < 0.5 })),
+        questions: Array.from({ length: 5 }, () => ({
+          skill: pick(r, SKILLS),
+          correct: r() < 0.5,
+        })),
       }));
       for (const e of Object.values(estimateSkills(stories))) {
         if (e.estimate === null) continue;

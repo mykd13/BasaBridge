@@ -103,7 +103,11 @@ describe('applyStoryResult', () => {
     expect(out.level.moved).toBe('up');
     expect(s.state().learners[L]).toEqual({ level: 41, passes: 0 });
     const level = s.state().decisions.find((d) => d.decision.kind === 'level');
-    expect(level?.decision.evidence).toMatchObject({ fromLevel: 40, toLevel: 41, model: 'ability' });
+    expect(level?.decision.evidence).toMatchObject({
+      fromLevel: 40,
+      toLevel: 41,
+      model: 'ability',
+    });
   });
 
   it('commits nothing when a write fails partway', async () => {

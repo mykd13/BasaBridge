@@ -25,9 +25,7 @@ const scored = [
 
 const FORBIDDEN = ['name', 'username', 'email', 'audio'];
 const keysOf = (x: unknown): string[] =>
-  x && typeof x === 'object'
-    ? Object.entries(x).flatMap(([k, v]) => [k, ...keysOf(v)])
-    : [];
+  x && typeof x === 'object' ? Object.entries(x).flatMap(([k, v]) => [k, ...keysOf(v)]) : [];
 
 describe('decision rows', () => {
   it('analysis lists every answer with its weight, rushed flag and read-aloud use', () => {
