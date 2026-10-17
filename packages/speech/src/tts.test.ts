@@ -77,7 +77,9 @@ describe('speakCached', () => {
     const all = Promise.all(
       Array.from({ length: 30 }, () => speakCached('Same question', 'en', base)),
     );
-    await new Promise((r) => setTimeout(r, 0));
+    // Wait until the provider was called, then let every other caller reach the shared request.
+    await vi.waitFor(() => expect(calls).toBe(1));
+    await new Promise((r) => setTimeout(r, 50));
     release();
     const results = await all;
     expect(calls).toBe(1);
