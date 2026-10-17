@@ -1,3 +1,9 @@
+/* Point the token font stacks at the self-hosted faces from fonts.ts. */
+:root {
+  --font-display: var(--font-lexend), var(--font-atkinson), system-ui, sans-serif;
+  --font-body: var(--font-atkinson), system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
 *,
 *::before,
 *::after {
@@ -9,19 +15,21 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 17px;
-  line-height: 1.55;
+  /* 17px at the medium text size. The reading-help text size changes the root. */
+  font-size: 1.0625rem;
+  line-height: var(--leading);
 }
 
 h1,
 h2,
 h3 {
   font-family: var(--font-display);
+  font-weight: 600;
   line-height: 1.2;
   margin: 0;
 }
 
 :focus-visible {
-  outline: 3px solid var(--mark);
+  outline: var(--focus-ring);
   outline-offset: 2px;
 }
