@@ -57,8 +57,9 @@ interface Op {
   hn: number;
 }
 
+/** A missing, NaN or infinite confidence counts as 0 (low), so it can never count as an error. */
 const clamp = (value: number): number =>
-  Number.isNaN(value) ? 0 : Math.min(1, Math.max(0, value));
+  Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
 
 function editDistance(a: string, b: string): number {
   let previous = Array.from({ length: b.length + 1 }, (_, k) => k);
@@ -83,6 +84,18 @@ function looksLikeAttempt(spoken: string, target: string): boolean {
     distance <= 1 ||
     (spoken[0] === target[0] && distance <= Math.floor(Math.max(spoken.length, target.length) / 2))
   );
+}
+
+/** Words this short are one edit from almost any filler ("um" for "up"), so they are never read as a misrecognition. */
+const MIN_MISREAD_LENGTH = 4;
+
+/**
+ * True when a low-confidence word is plausibly the recogniser's miss of the expected word, so it
+ * is flagged instead of counted as an error. Short words are excluded: a low-confidence filler next
+ * to one would otherwise stand in for a skipped word and finish a stopped reading.
+ */
+function plausibleMisread(spoken: string, target: string): boolean {
+  return target.length >= MIN_MISREAD_LENGTH && looksLikeAttempt(spoken, target);
 }
 
 /**
@@ -119,7 +132,7 @@ function alignItems(expected: Item[], heard: Heard[]): Op[] {
   const pairCost = (i: number, j: number): number => {
     if (keysMatch(expected[i]!.keys, heard[j]!.keys)) return 0;
     if (!isLowConfidence(heard[j]!.word.confidence)) return SUBSTITUTE;
-    return looksLikeAttempt(heard[j]!.keys[0]!, expected[i]!.keys[0]!)
+    return plausibleMisread(heard[j]!.keys[0]!, expected[i]!.keys[0]!)
       ? SUBSTITUTE_LOW_CONFIDENCE
       : SUBSTITUTE_NOISE;
   };
@@ -239,8 +252,12 @@ export function alignWords(expected: string[], heard: HeardWord[]): WordResult[]
   const words: Item[] = expected
     .map((text) => ({ text, keys: wordKeys(text) }))
     .filter((item) => item.keys.length > 0);
+  // Clean confidence once, so the alignment and the results read the same value.
   const spoken: Heard[] = heard
-    .map((word) => ({ word, text: word.text, keys: wordKeys(word.text) }))
+    .map((raw) => {
+      const word = { ...raw, confidence: clamp(raw.confidence) };
+      return { word, text: word.text, keys: wordKeys(word.text) };
+    })
     .filter((item) => item.keys.length > 0);
   const ops = alignItems(words, spoken);
 

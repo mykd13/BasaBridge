@@ -230,6 +230,15 @@ describe('alignWords contractions, both directions', () => {
     ["it's", 'it is'],
     ["here's", 'here is'],
     ["let's", 'let us'],
+    ["shan't", 'shall not'],
+    ["mustn't", 'must not'],
+    ["needn't", 'need not'],
+    ["mightn't", 'might not'],
+    ["who's", 'who is'],
+    ["where's", 'where is'],
+    ["he's", 'he has'],
+    ["Mom's", 'Mom is'],
+    ["Dad'll", 'Dad will'],
   ];
   const allCorrect = (expected: string, heard: string): boolean =>
     run(expected, heard).every((r) => r.outcome === 'correct');
@@ -241,6 +250,16 @@ describe('alignWords contractions, both directions', () => {
   it.each(pairs)('"%s" printed in full, said as %s', (printed, spoken) => {
     // The passage spells it out, and the provider returns the contraction.
     expect(allCorrect(`Then ${spoken} go now`, `then ${printed} go now`)).toBe(true);
+  });
+
+  it('reads a passage that holds both forms of will, would and are', () => {
+    const passage = "I'll go. I will stay. We're here. We are home. He'd run. He would walk.";
+    expect(
+      allCorrect(passage, 'i will go ill stay were here we are home hed run he would walk'),
+    ).toBe(true);
+    expect(
+      allCorrect(passage, "i'll go i will stay we are here we're home he would run he'd walk"),
+    ).toBe(true);
   });
 
   it('reports each expected word once when a contraction is spoken in full', () => {
@@ -277,6 +296,12 @@ describe('alignWords numbers (S1)', () => {
     ['It was 2024', 'it was twenty twenty four'],
     ['The 2nd dog', 'the second dog'],
     ['The 21st dog', 'the twenty first dog'],
+    ['It cost 105 coins', 'it cost one hundred and five coins'],
+    ['It cost 121 coins', 'it cost one hundred and twenty one coins'],
+    ['It cost 1,121 coins', 'it cost one thousand one hundred and twenty one coins'],
+    ['A 10-year-old boy', 'a ten year old boy'],
+    ['It is 50% full', 'it is fifty percent full'],
+    ['It is 50% full', 'it is 50 percent full'],
   ])('%s', (expected, heard) => {
     expect(allCorrect(expected, heard)).toBe(true);
   });
@@ -308,10 +333,10 @@ describe('alignWords other normalisation', () => {
 
 describe('alignWords low confidence', () => {
   it('flags a low-confidence mismatch instead of counting an error', () => {
-    const result = run('The cat sat', 'the cot:0.3 sat');
+    const result = run('The kitten sat', 'the kitton:0.3 sat');
     expect(result[1]).toMatchObject({
-      expected: 'cat',
-      heard: 'cot',
+      expected: 'kitten',
+      heard: 'kitton',
       outcome: 'correct',
       confidence: 0.3,
     });
@@ -337,9 +362,39 @@ describe('alignWords low confidence', () => {
     ]);
   });
 
-  it('treats a NaN confidence as low', () => {
-    const result = alignWords(['cat'], [{ text: 'cot', start: 0, end: 1, confidence: Number.NaN }]);
-    expect(result[0]).toMatchObject({ outcome: 'correct', confidence: 0 });
+  it('does not let a low-confidence filler stand in for a short skipped word (W1)', () => {
+    for (const [expected, heard] of [
+      ['Tom is up', 'tom is um:0.3'],
+      ['The dog is in', 'the dog is an:0.3'],
+    ] as const) {
+      const result = run(expected, heard);
+      expect(result.at(-1)).toMatchObject({ outcome: 'omission' });
+      expect(summariseTry(result, 3).completed).toBe(false);
+    }
+  });
+
+  it('treats a NaN or missing confidence as low', () => {
+    const lookalike = alignWords(
+      ['kitten'],
+      [{ text: 'kitton', start: 0, end: 1, confidence: Number.NaN }],
+    );
+    expect(lookalike[0]).toMatchObject({ outcome: 'correct', confidence: 0 });
+    const missing = alignWords(
+      ['kitten'],
+      [{ text: 'kitton', start: 0, end: 1 } as unknown as HeardWord],
+    );
+    expect(missing[0]!.confidence).toBe(0);
+  });
+
+  it('does not let a NaN-confidence noise word hide an omission (W2)', () => {
+    const noisy = (confidence: number | undefined): HeardWord[] =>
+      say('one two three cough').map((w, i) => (i === 3 ? ({ ...w, confidence } as HeardWord) : w));
+    for (const confidence of [Number.NaN, undefined]) {
+      const result = alignWords(words('One two three four'), noisy(confidence));
+      expect(result.map((r) => r.outcome)).toEqual(['correct', 'correct', 'correct', 'omission']);
+      expect(summariseTry(result, 3).completed).toBe(false);
+      expect(result.every((r) => Number.isFinite(r.confidence))).toBe(true);
+    }
   });
 
   it('drops low-confidence extra words such as background speech', () => {
@@ -348,7 +403,7 @@ describe('alignWords low confidence', () => {
   });
 
   it('does not lower the right-word count in the try summary', () => {
-    const t = summariseTry(run('The cat sat', 'the cot:0.3 sat'), 3);
+    const t = summariseTry(run('The kitten sat', 'the kitton:0.3 sat'), 3);
     expect(t.wordsRight).toBe(3);
   });
 });
