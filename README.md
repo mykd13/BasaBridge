@@ -18,6 +18,8 @@ pnpm install
 pnpm dev          # http://localhost:3000
 ```
 
+`pnpm install` also turns on the pre-commit hook in `.githooks`. It runs Prettier and ESLint on staged files.
+
 Copy `example.env` to `.env.local` and fill in values when a task needs them. Never commit real values.
 
 ## Commands
