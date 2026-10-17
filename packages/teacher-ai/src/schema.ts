@@ -6,7 +6,7 @@
 import {
   ComprehensionSkill,
   DistractorType,
-  HomeActivity,
+  type HomeActivity,
   Level,
   SubSkill,
 } from '@basabridge/contracts';
