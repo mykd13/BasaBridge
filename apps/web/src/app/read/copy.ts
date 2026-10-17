@@ -5,6 +5,7 @@
  */
 export const copy = {
   brand: 'BasaBridge',
+  pageTitle: 'Read out loud · BasaBridge',
   micAria: 'Microphone',
   meterAria: 'Microphone level',
 

@@ -112,9 +112,10 @@ export class ChunkUploader {
         try {
           const ack = await this.send(item);
           if (this.cancelled) return;
-          // The server must be at or past this chunk. If it is behind, our copy of its state is wrong.
-          if (ack.next < item.index)
-            throw new Error(`server expects chunk ${ack.next}, sent ${item.index}`);
+          // A chunk must move the server forward. If it still expects this index (it did not keep the chunk)
+          // or an earlier one, that is a failure, so it goes through the backoff and the failure counter.
+          const progressed = item.final ? ack.next >= item.index : ack.next > item.index;
+          if (!progressed) throw new Error(`server expects chunk ${ack.next}, sent ${item.index}`);
           // If a reply was lost but the chunk landed, the server is ahead. Skip what it has.
           while (this.queue[0] && !this.queue[0].final && this.queue[0].index < ack.next) {
             this.queue.shift();

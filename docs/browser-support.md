@@ -18,7 +18,8 @@ these, change that list in one place.
 
 `denied` (prompt dismissed), `blocked` (browser setting), `no-device`, `unavailable` (another app holds the
 microphone), `unsupported` (no recording API, or the page is not on https or localhost). The screen shows the
-canvas D3 help for all of them, with "no microphone" wording for `no-device` and `unsupported`.
+canvas D3 layout for all of them with help text for each: `no-device` says to plug in a microphone, and
+`unsupported` says to use a newer browser on a secure page. A microphone lost mid try shows its own message.
 
 ## Checked and not checked
 

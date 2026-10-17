@@ -175,6 +175,36 @@ describe('ChunkUploader (review S2, S3 and nits)', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(4);
   });
 
+  it('re-review B1: an ack of the same index (chunk not kept) backs off and gives up instead of flooding', async () => {
+    const sleeps: number[] = [];
+    const fetchImpl = vi.fn(async (u: RequestInfo | URL) => ok(indexOf(u))); // "next = index": I did not store it
+    const up = new ChunkUploader({
+      endpoint: '/e',
+      tryId: 't',
+      fetchImpl,
+      maxAttempts: 4,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+      },
+      backoff: (n) => 100 * (n + 1),
+    });
+    up.push(chunk(), 0);
+    await expect(up.finish(1)).rejects.toThrow(/expects chunk 0, sent 0/);
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    expect(sleeps).toEqual([100, 200, 300]);
+  });
+
+  it('re-review B1: a chunk the server kept on a later attempt still goes through', async () => {
+    let calls = 0;
+    const fetchImpl = vi.fn(async (u: RequestInfo | URL) =>
+      ok(++calls < 3 ? indexOf(u) : indexOf(u) + 1),
+    );
+    const up = new ChunkUploader({ endpoint: '/e', tryId: 't', fetchImpl, ...noWait });
+    up.push(chunk(), 0);
+    await up.finish(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(4); // 3 attempts at chunk 0, then the final marker
+  });
+
   it('S3: cancel aborts the request in flight and stops retrying', async () => {
     let signal: AbortSignal | undefined;
     const fetchImpl = vi.fn(
