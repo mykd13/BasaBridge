@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./audio-server": "./src/audio-server.ts",
     "./capture": "./src/capture/index.ts"
   },
   "dependencies": {
@@ -13,5 +14,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5"
   }
 }
