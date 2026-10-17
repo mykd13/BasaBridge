@@ -1,5 +1,5 @@
 {
-  "id": "fd95559f-8d3e-482b-9114-5166f2da8395",
+  "id": "1048899e-7a7c-4cdf-92ed-f6c5be6f0878",
   "prevId": "653925c2-ec0e-4b8c-8097-ea15bdabc8ef",
   "version": "7",
   "dialect": "postgresql",
@@ -482,7 +482,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "email_suppressions_reason_check": {
+          "name": "email_suppressions_reason_check",
+          "value": "\"email_suppressions\".\"reason\" in ('bounce', 'complaint')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.guardian_approvals": {

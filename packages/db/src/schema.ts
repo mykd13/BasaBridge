@@ -4,8 +4,10 @@
  * parents see learner data only through an active parent_links row and its share flags.
  * Nothing here stores audio unless audio_objects is used, which only happens when retention is on.
  */
+import { sql } from 'drizzle-orm';
 import {
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -327,13 +329,19 @@ export const learnerSettings = pgTable('learner_settings', {
 });
 
 /**
- * Addresses that bounced or complained (BB-64). Mail is never sent to them again. Only a SHA-256
- * hash of the lowercased address is kept, so this table holds no readable email addresses.
+ * Addresses that bounced or complained (BB-64). Mail is never sent to them again. Only a keyed
+ * hash of the address is kept, which cannot be checked against guessed addresses without the
+ * server secret.
  */
-export const emailSuppressions = pgTable('email_suppressions', {
-  addressHash: text('address_hash').primaryKey(),
-  reason: text('reason').notNull(),
-  /** The provider's id for the message that bounced, to trace it in the provider dashboard. */
-  providerEmailId: text('provider_email_id'),
-  createdAt: createdAt(),
-});
+export const emailSuppressions = pgTable(
+  'email_suppressions',
+  {
+    /** HMAC-SHA256 of the lowercased address with EMAIL_HASH_SECRET. Never the address. */
+    addressHash: text('address_hash').primaryKey(),
+    reason: text('reason').notNull(),
+    /** The provider's id for the message that bounced, to trace it in the provider dashboard. */
+    providerEmailId: text('provider_email_id'),
+    createdAt: createdAt(),
+  },
+  (t) => [check('email_suppressions_reason_check', sql`${t.reason} in ('bounce', 'complaint')`)],
+);
