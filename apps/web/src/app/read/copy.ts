@@ -1,6 +1,8 @@
 /**
  * Every learner-facing string on the reading microphone screens, in one keyed place.
- * The English and Filipino catalog with simple and standard wording (BB-58) will replace this module.
+ * Stand-in for the i18n catalog (golden rule 13). The English and Filipino catalog with simple and
+ * standard wording (BB-58) will replace this module. Keep every string keyed here, with no strings
+ * inline in components, so each key moves to the catalog unchanged.
  * Wording follows design canvas B2 (S4-Mic) and D3 (S13-MicBlocked).
  */
 export const copy = {

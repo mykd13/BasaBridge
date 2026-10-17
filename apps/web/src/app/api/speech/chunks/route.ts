@@ -27,9 +27,10 @@ async function readCapped(request: Request): Promise<number | null> {
 
 /**
  * Receives audio chunks for one try (BB-23).
- * For now it only validates and acknowledges. It keeps no audio and logs none. It must not store or
- * forward audio until the authorization layer (BB-10) and the server-issued try (BB-24) exist,
- * because it has no learner ownership check, no under-13 gate and no Origin check yet.
+ * For now it only validates and acknowledges. It keeps no audio and logs none. Do not store or forward
+ * audio here until all three of these land: authorization with a learner ownership check (BB-10),
+ * the under-13 microphone gate (server side), and an Origin check. The server-issued try (BB-24)
+ * must exist too. None of them are in place yet.
  * It answers with the next index it expects so the browser can resume after a dropped connection.
  */
 export async function POST(request: Request) {
