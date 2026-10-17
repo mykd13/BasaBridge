@@ -28,13 +28,13 @@ import { isLowConfidence } from './align';
 export interface TryEvidence {
   /** Any id the caller can map back to a try. Never a name or username. Unique within one call. */
   tryId: string;
-  /** The passage words as written, punctuation kept, in order. Used to find full stops. */
-  expected: string[];
-  /** Output of `alignWords` for this try. */
+  /** Output of `alignWords` for this try. The aligner keeps the written word, punctuation included. */
   words: WordResult[];
   /**
-   * Seconds of silence after each expected word, by expected-word index. `null` or missing when
-   * unknown. Leave it out when the provider gives no timings.
+   * Seconds of silence after each aligned expected word. The index counts the results of
+   * `alignWords` that have an `expected` word, in order, omissions included. The aligner drops
+   * passage tokens with no letters or digits (a lone dash), so index the aligned words, not the
+   * passage tokens. `null` or missing when unknown. Leave it out when the provider gives no timings.
    */
   pausesAfter?: (number | null)[];
 }
@@ -135,10 +135,11 @@ const ABBREVIATIONS = new Set(['mr', 'mrs', 'ms', 'dr', 'st', 'sr', 'jr', 'prof'
 
 /** True when the written word ends a sentence: not an abbreviation, initial or ellipsis. */
 function endsSentence(written: string): boolean {
-  if (!/[.!?]["')\]]*$/.test(written)) return false;
+  // Closing quotes and brackets may follow the stop, straight or curly.
+  if (!/[.!?]["'”’)\]]*$/.test(written)) return false;
   if (/\.\.\.|…/.test(written)) return false;
   const bare = written.replace(/[^A-Za-z.]/g, '');
-  if (/^[A-Za-z]\.$/.test(bare)) return false; // an initial: "J."
+  if (/^[A-HJ-Z]\.$/.test(bare)) return false; // an initial: "J." ("I." can end a sentence)
   return !(written.endsWith('.') && ABBREVIATIONS.has(normal(written)));
 }
 
@@ -190,7 +191,17 @@ const LETTER_PATTERNS = [
   'tw',
 ];
 
-const normal = (text: string): string => text.toLowerCase().replace(/[^a-z]/g, '');
+/** Lower case letters and inner apostrophes, so "we'll" stays apart from "well". */
+const normal = (text: string): string =>
+  text
+    .toLowerCase()
+    .replace(/[’‘]/g, "'")
+    .replace(/[^a-z']/g, '')
+    .replace(/^'+|'+$/g, '');
+
+/** True when the heard word looks like a try at the expected word, not a skip or a wild guess. */
+const looksLikeAttempt = (heard: string, expected: string): boolean =>
+  heard[0] === expected[0] || (heard.length > 1 && heard.slice(-2) === expected.slice(-2));
 
 interface Tally {
   kind: ReadingPatternKind;
@@ -228,12 +239,12 @@ class Tallies {
     kind: ReadingPatternKind,
     key: string,
     tryId: string,
-    state: 'clear' | 'unclear',
+    unclear: boolean,
     hit: boolean,
     example: PatternExample,
   ): void {
     const tally = this.get(kind, key);
-    if (state === 'unclear') {
+    if (unclear) {
       tally.unclear += 1;
       return;
     }
@@ -261,7 +272,7 @@ class Tallies {
  * rest must look like a word: three or more letters with a vowel, and not a known exception.
  */
 function endingOf(expected: string): string | null {
-  if (NOT_INFLECTED.has(expected)) return null;
+  if (NOT_INFLECTED.has(expected) || expected.includes("'")) return null; // "it's" is not a plural
   for (const ending of ENDINGS) {
     if (!expected.endsWith(ending)) continue;
     const stem = expected.slice(0, -ending.length);
@@ -334,33 +345,31 @@ export function aggregateReadingPatterns(tries: TryEvidence[]): ReadingPatterns 
       const heard = word.heard === null ? null : normal(word.heard);
       if (expected.length === 0) continue;
 
-      const unclear = isLowConfidence(word.confidence);
-      const state = unclear ? 'unclear' : 'clear';
+      // Unclear audio: low confidence on a word whose text does not match. A low-confidence word
+      // that matches was still read right, so it is a normal chance.
+      const textDiffers = heard !== null && heard.length > 0 && heard !== expected;
+      const unclear = textDiffers && isLowConfidence(word.confidence);
       if (unclear) unclearWords += 1;
 
       const example: PatternExample = { expected, heard };
       // A clear word is wrong only when the aligner says so: it reports joined forms such as "do not"
-      // for "don't" as correct, with different text. An unclear word that does not look right is
-      // kept, so it can lower confidence.
-      const differs =
-        heard !== null &&
-        heard.length > 0 &&
-        heard !== expected &&
-        (unclear || word.outcome === 'substitution');
+      // for "don't" as correct, with different text. An unclear one is kept so it can lower confidence.
+      const differs = textDiffers && (unclear || word.outcome === 'substitution');
 
       // Dropped endings.
       const ending = endingOf(expected);
       const droppedEnding =
         ending !== null && differs && stemsOf(expected, ending).includes(heard!);
       if (ending !== null)
-        tallies.see('dropped_ending', ending, evidence.tryId, state, droppedEnding, example);
+        tallies.see('dropped_ending', ending, evidence.tryId, unclear, droppedEnding, example);
 
-      // Letter patterns. A dropped ending already explains the word, so it is not blamed twice.
+      // Letter patterns. A dropped ending already explains the word, so it is not blamed twice, and
+      // a word that looks nothing like the expected one is a skip or a guess, not a letter problem.
       if (!droppedEnding) {
         for (const letters of LETTER_PATTERNS) {
           if (!expected.includes(letters)) continue;
-          const hit = differs && !heard!.includes(letters);
-          tallies.see('letter_pattern', letters, evidence.tryId, state, hit, example);
+          const hit = differs && looksLikeAttempt(heard!, expected) && !heard!.includes(letters);
+          tallies.see('letter_pattern', letters, evidence.tryId, unclear, hit, example);
         }
       }
 
@@ -375,7 +384,7 @@ export function aggregateReadingPatterns(tries: TryEvidence[]): ReadingPatterns 
       }
 
       // Pauses at full stops.
-      const written = evidence.expected[index] ?? word.expected;
+      const written = word.expected;
       const pause = evidence.pausesAfter?.[index];
       const isLast = index === expectedCount - 1;
       if (endsSentence(written) && !isLast && pause !== undefined && pause !== null) {
@@ -383,7 +392,7 @@ export function aggregateReadingPatterns(tries: TryEvidence[]): ReadingPatterns 
           'missing_pause',
           'full_stop',
           evidence.tryId,
-          state,
+          unclear,
           pause < MIN_PAUSE_SECONDS,
           example,
         );

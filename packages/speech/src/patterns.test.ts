@@ -36,7 +36,6 @@ const tryOf = (
   pausesAfter?: (number | null)[],
 ): TryEvidence => ({
   tryId,
-  expected: words.map((w) => w.expected ?? ''),
   words,
   pausesAfter,
 });
@@ -173,7 +172,6 @@ describe('aggregateReadingPatterns', () => {
       text.split(' ').map((w, i) => ({ text: w, start: i, end: i + 0.5, confidence: 0.95 }));
     const tries = ['a', 'b'].map((tryId) => ({
       tryId,
-      expected,
       words: alignWords(expected, said('We do not know Mr Cruz can not go')),
     }));
     expect(tries[0]!.words.every((w) => w.expected === null || w.outcome === 'correct')).toBe(true);
@@ -231,6 +229,81 @@ describe('aggregateReadingPatterns', () => {
     ]);
     expect(find(result, 'dropped_ending', 'es')?.count).toBe(2);
     expect(find(result, 'dropped_ending', 'ed')).toBeUndefined();
+  });
+
+  it('sees a full stop that is followed by a curly closing quote', () => {
+    const words = ['He', 'said,', '“Go.”', 'Tom', 'ran.', 'Sam', 'hid.', 'Done'].map(right);
+    const pauses = words.map(() => 0);
+    const result = aggregateReadingPatterns([tryOf('a', words, pauses), tryOf('b', words, pauses)]);
+    expect(find(result, 'missing_pause', 'full_stop')).toMatchObject({
+      count: 6,
+      opportunities: 6,
+    });
+  });
+
+  it('counts "I." as the end of a sentence but not other initials', () => {
+    const words = ['It', 'was', 'Ben', 'and', 'I.', 'Then', 'J.', 'Cruz', 'left.', 'Done'].map(
+      right,
+    );
+    const pauses = words.map(() => 0);
+    const result = aggregateReadingPatterns([tryOf('a', words, pauses), tryOf('b', words, pauses)]);
+    expect(find(result, 'missing_pause', 'full_stop')).toMatchObject({
+      count: 4,
+      opportunities: 4,
+    });
+  });
+
+  it('keeps contractions apart from the words they look like', () => {
+    const result = aggregateReadingPatterns([
+      tryOf('a', [wrong("we'll", 'will'), right('well')]),
+      tryOf('b', [wrong("we'll", 'will'), right('well')]),
+    ]);
+    expect(find(result, 'repeated_substitution', "we'll>will")).toMatchObject({
+      count: 2,
+      opportunities: 2,
+      examples: [{ expected: "we'll", heard: 'will' }],
+    });
+  });
+
+  it('indexes pauses by the aligned words when the aligner drops a token', () => {
+    const passage = ['Tom', '-', 'ran.', 'He', 'hid.', 'Done'];
+    const heard: HeardWord[] = 'Tom ran He hid Done'
+      .split(' ')
+      .map((text, i) => ({ text, start: i, end: i + 0.5, confidence: 0.95 }));
+    const tryWith = (tryId: string): TryEvidence => ({
+      tryId,
+      words: alignWords(passage, heard),
+      // Aligned words: Tom, ran., He, hid., Done. Both full stops are run through.
+      pausesAfter: [0.5, 0.0, 0.5, 0.0, null],
+    });
+    const result = aggregateReadingPatterns([tryWith('a'), tryWith('b')]);
+    expect(find(result, 'missing_pause', 'full_stop')).toMatchObject({
+      count: 4,
+      opportunities: 4,
+    });
+  });
+
+  it('treats a low-confidence word that matches as read right, not unclear', () => {
+    const mumbled = { ...right('jumped'), confidence: 0.3 };
+    const tries = ['a', 'b', 'c'].map((id) =>
+      tryOf(id, [wrong('walked', 'walk'), wrong('played', 'play'), mumbled]),
+    );
+    const result = aggregateReadingPatterns(tries);
+    expect(result.unclearWords).toBe(0);
+    expect(find(result, 'dropped_ending', 'ed')).toMatchObject({
+      count: 6,
+      opportunities: 9,
+      unclearWords: 0,
+      confidence: 'high',
+    });
+  });
+
+  it('does not blame a letter pattern for a skip or a wild guess', () => {
+    const result = aggregateReadingPatterns([
+      tryOf('a', [wrong('the', 'a'), wrong('three', 'home')]),
+      tryOf('b', [wrong('the', 'a'), wrong('three', 'home')]),
+    ]);
+    expect(find(result, 'letter_pattern', 'th')).toBeUndefined();
   });
 
   it('rejects two tries with the same id', () => {
@@ -333,7 +406,6 @@ describe('with the alignment engine', () => {
   const passage = 'Sam walked and played with his thin dog';
   const read = (id: string, said: string, confidence?: number): TryEvidence => ({
     tryId: id,
-    expected: passage.split(' '),
     words: alignWords(passage.split(' '), heardFrom(said, confidence)),
   });
 
@@ -370,7 +442,6 @@ describe('hand-built reading sessions', () => {
         const pauses = t.pauses;
         return {
           tryId: t.id,
-          expected: expectedWords,
           words: alignWords(expectedWords, heard),
           pausesAfter: pauses ? expectedWords.map((_, i) => pauses[i] ?? null) : undefined,
         };
