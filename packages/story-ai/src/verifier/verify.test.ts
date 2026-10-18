@@ -235,3 +235,35 @@ describe('verifyStory hardening', () => {
     expect((await out).ok).toBe(true);
   });
 });
+
+describe('verifyStory for a Learn practice item (BB-54)', () => {
+  const item = {
+    title: 'Practice',
+    text: 'Ana had a dog. It played in the rain all day.',
+    level: 12,
+    questions: [q(1, 0)],
+    notes: ['Look at what the dog did.', 'The last sentence holds the clue.'],
+  };
+
+  it('keeps a one-question item when minQuestions is 1 and sends the notes', async () => {
+    const { callModel, deps } = setup(async () => ({ answers: answers([0]), safety: safe }));
+    const out = await verifyStory(item, { ...deps, minQuestions: 1 });
+    expect(out.ok).toBe(true);
+    expect(callModel.mock.calls[0]![0].prompt).toContain('- Look at what the dog did.');
+  });
+
+  it('rejects an item whose notes are flagged unsafe', async () => {
+    const { deps } = setup(async () => ({
+      answers: answers([0]),
+      safety: { safe: false, categories: ['fear'], reason: 'scary hint' },
+    }));
+    const out = await verifyStory(item, { ...deps, minQuestions: 1 });
+    expect(out).toMatchObject({ ok: false, kind: 'rejected', categories: ['fear'] });
+  });
+
+  it('still needs the story minimum by default', async () => {
+    const { deps } = setup(async () => ({ answers: answers([0]), safety: safe }));
+    const out = await verifyStory(item, deps);
+    expect(out).toMatchObject({ ok: false, kind: 'rejected' });
+  });
+});

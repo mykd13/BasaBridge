@@ -22,6 +22,8 @@ export interface VerifyDeps {
   callModel: CallVerifierModel;
   /** Defaults to DEFAULT_VERIFIER_TIMEOUT_MS. A timeout is a `model_call` failure. */
   timeoutMs?: number;
+  /** Questions that must survive. Defaults to the story minimum; Learn practice items use 1. */
+  minQuestions?: number;
   /** Called exactly once per verification with counts only. */
   onRecord?: (record: VerificationRecord) => void;
 }
@@ -51,7 +53,10 @@ export type VerifyOutcome =
  * only. In part 2 these kinds map onto the story error kinds.
  */
 export async function verifyStory(
-  story: Pick<Story, 'title' | 'text' | 'level' | 'questions'>,
+  story: Pick<Story, 'title' | 'text' | 'level' | 'questions'> & {
+    /** Extra learner-visible text judged for safety, such as Learn hints. */
+    notes?: readonly string[];
+  },
   deps: VerifyDeps,
 ): Promise<VerifyOutcome> {
   const questionsIn = story.questions.length;
@@ -84,7 +89,9 @@ export async function verifyStory(
       },
     });
 
-  const prompt = buildVerifierPrompt(toVerifierInput(story.title, story.text, story.questions));
+  const prompt = buildVerifierPrompt(
+    toVerifierInput(story.title, story.text, story.questions, story.notes),
+  );
 
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -112,7 +119,7 @@ export async function verifyStory(
   const parsed = parseVerifierReply(raw, questionsIn);
   if (!parsed.ok) return failure('invalid_output', parsed.reason, 'invalid_reply');
 
-  const verdict = judgeVerification(story.questions, parsed.reply);
+  const verdict = judgeVerification(story.questions, parsed.reply, deps.minQuestions);
   if (verdict.ok) {
     return finish({
       ok: true,
