@@ -2,8 +2,13 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  // PGlite takes several seconds to start on a busy machine or CI runner.
-  test: { testTimeout: 60_000, hookTimeout: 60_000 },
+  test: {
+    // Playwright specs in e2e/ run with `pnpm e2e`, not vitest.
+    exclude: ['e2e/**', 'node_modules/**', '.next/**'],
+    // PGlite takes several seconds to start on a busy machine or CI runner.
+    testTimeout: 60_000,
+    hookTimeout: 60_000,
+  },
   // tsconfig keeps jsx as "preserve" for Next, so tests use the automatic runtime here.
   oxc: { jsx: { runtime: 'automatic' } },
   resolve: {

@@ -7,8 +7,19 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "e2e": "playwright test",
+    "check:bundle": "node scripts/check-bundle-size.mjs"
   },
+  "browserslist": [
+    "last 2 chrome versions",
+    "last 2 edge versions",
+    "last 2 samsung versions",
+    "last 2 and_chr versions",
+    "safari >= 16.4",
+    "ios_saf >= 16.4",
+    "firefox esr"
+  ],
   "dependencies": {
     "@basabridge/contracts": "workspace:*",
     "@basabridge/db": "workspace:*",
@@ -28,6 +39,7 @@
   },
   "devDependencies": {
     "@formatjs/icu-messageformat-parser": "3.5.21",
+    "@playwright/test": "1.64.1",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0"
