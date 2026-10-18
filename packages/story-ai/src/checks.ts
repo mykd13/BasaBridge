@@ -53,6 +53,9 @@ export function countWords(text: string): number {
 const normalise = (s: string) =>
   s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
 
+/** Lowercase, straight quotes, single spaces. Used to compare texts for repeats. */
+export const normaliseText = normalise;
+
 /** Why a story or one of its questions failed. Codes are stable: tests and retry feedback use them. */
 export type StoryFailureCode = 'too_short' | 'too_long' | 'too_hard' | 'too_few_questions';
 
@@ -65,7 +68,17 @@ export type QuestionFailureCode =
   | 'vocab_word_missing'
   | 'duplicate_question';
 
-export type CheckFailureCode = StoryFailureCode | QuestionFailureCode;
+/** Failures only Learn practice items can have (BB-54). */
+export type PracticeFailureCode =
+  | 'bad_item'
+  | 'wrong_subskill'
+  | 'bad_tags'
+  | 'bad_hint'
+  | 'hint_gives_answer'
+  | 'bad_explanation'
+  | 'repeats_practice';
+
+export type CheckFailureCode = StoryFailureCode | QuestionFailureCode | PracticeFailureCode;
 
 export interface CheckFailure {
   code: CheckFailureCode;
