@@ -222,3 +222,129 @@ describe('stricter matching', () => {
     expect(!same.ok && same.failures.map((f) => f.code)).toContain('duplicate_question');
   });
 });
+
+describe('question tags', () => {
+  const tagged = (over: Record<string, unknown> = {}) =>
+    q({
+      subskill: 'key_detail',
+      distractors: [null, 'wrong_detail', 'unrelated', 'not_stated'],
+      ...over,
+    });
+  const four = (first: Record<string, unknown>) => [
+    tagged(first),
+    ...[0, 1, 2].map((i) => tagged({ question: `Tagged question ${i}?` })),
+  ];
+
+  it('keeps the tags in question order', () => {
+    const r = checkStory(PASSAGE, four({}), 24, { requireTags: true });
+    expect(r.ok && r.tags.map((t) => t?.subskill)).toEqual([
+      'key_detail',
+      'key_detail',
+      'key_detail',
+      'key_detail',
+    ]);
+  });
+
+  it('allows untagged questions unless tags are required', () => {
+    const r = checkStory(PASSAGE, many(4), 24);
+    expect(r.ok && r.tags).toEqual([null, null, null, null]);
+    const untagged = q({ question: 'Untagged?' });
+    expect(codes(checkStory(PASSAGE, [...four({}), untagged], 24, { requireTags: true }))).toEqual([
+      'missing_tags',
+    ]);
+  });
+
+  it('checks tags that are present even when not required', () => {
+    expect(codes(checkStory(PASSAGE, [...four({}), tagged({ subskill: 'spelling' })], 24))).toEqual(
+      ['duplicate_question', 'bad_subskill'],
+    );
+    expect(
+      codes(
+        checkStory(PASSAGE, [...four({}), tagged({ question: 'Feel?', subskill: 'feelings' })], 24),
+      ),
+    ).toEqual(['subskill_mismatch']);
+  });
+
+  it('needs exactly one null distractor, at the answer', () => {
+    const bad = (distractors: unknown) =>
+      codes(
+        checkStory(PASSAGE, [...four({}), tagged({ question: 'Tags?', distractors })], 24),
+      ).includes('bad_distractors');
+    expect(bad([null, null, 'unrelated', 'not_stated'])).toBe(true);
+    expect(bad(['wrong_detail', null, 'unrelated', 'not_stated'])).toBe(true);
+    expect(bad([null, 'wrong_detail', 'unrelated'])).toBe(true);
+    expect(bad([null, 'wrong_detail', 'unrelated', 'made_up'])).toBe(true);
+    expect(bad([null, 'wrong_detail', 'unrelated', 'not_stated'])).toBe(false);
+  });
+});
+
+describe('hard question types', () => {
+  const chooseAll = (over: Record<string, unknown> = {}) => ({
+    type: 'choose_all',
+    subskill: 'key_detail',
+    question: 'Which of these are true?',
+    options: ['Lia has a mango tree', 'The mangoes are green', 'Lia sells mangoes', 'It snows'],
+    answerIndexes: [1, 0],
+    evidence: 'The mangoes are still green.',
+    ...over,
+  });
+  const orderEvents = (over: Record<string, unknown> = {}) => ({
+    type: 'order_events',
+    subskill: 'sequence',
+    question: 'Put these in order.',
+    events: ['The wind blows hard', 'Three mangoes fall', 'Lia picks them up'],
+    evidence: 'One day, the wind blows hard. Three mangoes fall.',
+    ...over,
+  });
+
+  it('keeps valid choose-all and order-the-events questions', () => {
+    const r = checkStory(PASSAGE, [...many(4), chooseAll(), orderEvents()], 24, {
+      requireHardQuestion: true,
+    });
+    expect(r.ok && r.dropped).toEqual([]);
+    expect(r.ok && r.hardQuestions.map((h) => h.type)).toEqual(['choose_all', 'order_events']);
+    const first = r.ok ? r.hardQuestions[0] : undefined;
+    expect(first?.type === 'choose_all' && first.answerIndexes).toEqual([0, 1]);
+  });
+
+  it('needs one from the rule level, and allows none below it', () => {
+    const opts = { requireHardQuestion: true };
+    expect(codes(checkStory(PASSAGE, many(4), 24, opts))).toEqual(['no_hard_question']);
+    expect(checkStory(PASSAGE, many(4), 24).ok).toBe(true);
+    const tier1 = 'Sam has a red kite. The kite is up high. Sam runs fast.';
+    const easy = [0, 1, 2, 3].map((i) =>
+      q({ question: `Kite question ${i}?`, evidence: 'Sam runs fast.' }),
+    );
+    expect(checkStory(tier1, easy, 10, opts).ok).toBe(true);
+    expect(
+      codes(checkStory(tier1, [...easy, chooseAll({ evidence: 'Sam runs fast.' })], 10)),
+    ).toEqual(['type_not_allowed']);
+  });
+
+  it('needs a wrong option and distinct answers in choose-all', () => {
+    const drop = (over: Record<string, unknown>) =>
+      codes(checkStory(PASSAGE, [...many(4), chooseAll(over)], 24));
+    expect(drop({ answerIndexes: [0, 1, 2, 3] })).toEqual(['bad_choose_all_answers']);
+    expect(drop({ answerIndexes: [1, 1] })).toEqual(['bad_choose_all_answers']);
+    expect(drop({ answerIndexes: [4] })).toEqual(['answer_out_of_range']);
+    expect(drop({ answerIndexes: [] })).toEqual(['bad_shape']);
+    expect(drop({ subskill: 'spelling' })).toEqual(['bad_subskill']);
+    expect(drop({ options: ['a', 'A', 'b', 'c'] })).toEqual(['options_not_distinct']);
+    expect(drop({ evidence: 'The mangoes are' })).toEqual(['evidence_not_sentence']);
+  });
+
+  it('needs distinct events and the sequence sub-skill in order-the-events', () => {
+    const drop = (over: Record<string, unknown>) =>
+      codes(checkStory(PASSAGE, [...many(4), orderEvents(over)], 24));
+    expect(drop({ events: ['Fall', 'fall ', 'Pick'] })).toEqual(['events_not_distinct']);
+    expect(drop({ subskill: 'key_detail' })).toEqual(['subskill_mismatch']);
+    expect(drop({ events: ['Only', 'two'] })).toEqual(['bad_shape']);
+    expect(drop({ evidence: 'Lia flies away.' })).toEqual(['evidence_missing']);
+  });
+
+  it('treats an unknown type as a bad shape', () => {
+    expect(codes(checkStory(PASSAGE, [...many(4), q({ type: 'essay' })], 24))).toEqual([
+      'bad_shape',
+    ]);
+  });
+});

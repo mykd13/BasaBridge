@@ -3,7 +3,7 @@
  * version for each failure code. They are test data written by hand for the checks. They are not
  * learner data and not seed data for the app.
  */
-import { countWords, type CheckFailureCode, type RawQuestion } from '../checks';
+import { countWords, type CheckFailureCode, type CheckOptions, type RawQuestion } from '../checks';
 
 export interface StoryFixture {
   name: string;
@@ -11,6 +11,8 @@ export interface StoryFixture {
   level: number;
   text: string;
   questions: RawQuestion[];
+  /** Rules to switch on when checking. None when absent. */
+  options?: CheckOptions;
 }
 
 const q = (
@@ -330,6 +332,47 @@ const TIER_6: StoryFixture = {
 /** One good story for each of the six tiers, in tier order. */
 export const GOOD_STORIES: StoryFixture[] = [TIER_1, TIER_2, TIER_3, TIER_4, TIER_5, TIER_6];
 
+/** Sub-skill and distractor tags for the tier 2 questions, in the same order. */
+const TIER_2_TAGS: Pick<RawQuestion, 'subskill' | 'distractors'>[] = [
+  { subskill: 'key_detail', distractors: [null, 'not_stated', 'unrelated', 'wrong_detail'] },
+  { subskill: 'key_detail', distractors: ['wrong_detail', null, 'wrong_detail', 'unrelated'] },
+  { subskill: 'cause_effect', distractors: [null, 'not_stated', 'partly_right', 'not_stated'] },
+  { subskill: 'conclusion', distractors: ['unrelated', null, 'unrelated', 'not_stated'] },
+  { subskill: 'word_in_context', distractors: [null, 'word_sense', 'opposite', 'word_sense'] },
+];
+
+const CHOOSE_ALL: RawQuestion = {
+  type: 'choose_all',
+  subskill: 'key_detail',
+  question: 'Which of these are true about the mangoes?',
+  options: ['They grow on a tree', 'They are still green', 'They are sweet', 'Lia sells them'],
+  answerIndexes: [0, 1],
+  evidence: 'The mangoes are still green.',
+};
+
+const ORDER_EVENTS: RawQuestion = {
+  type: 'order_events',
+  subskill: 'sequence',
+  question: 'Put these events in the order they happened.',
+  events: ['The wind blows hard', 'Three mangoes fall', 'Lia picks them up'],
+  evidence: 'One day, the wind blows hard. Three mangoes fall.',
+};
+
+/** Every rule switched on: tags required, and a hard question type from the rule level. */
+export const ALL_RULES: CheckOptions = { requireTags: true, requireHardQuestion: true };
+
+/** The tier 2 story with tags on every question and one question of each hard type. */
+export const TAGGED_STORY: StoryFixture = {
+  ...TIER_2,
+  name: 'tier 2 (mango tree), tagged with hard question types',
+  questions: [
+    ...TIER_2.questions.map((question, i) => ({ ...question, ...TIER_2_TAGS[i] })),
+    CHOOSE_ALL,
+    ORDER_EVENTS,
+  ],
+  options: ALL_RULES,
+};
+
 export interface BadVersion {
   code: CheckFailureCode;
   name: string;
@@ -344,6 +387,17 @@ const withQuestion = (
 ): StoryFixture => ({
   ...TIER_2,
   questions: TIER_2.questions.map((question, i) => (i === index ? change(question) : question)),
+});
+
+/** Copies the tagged story with one question changed. Checked with every rule on. */
+const withTagged = (
+  index: number,
+  change: (question: RawQuestion) => RawQuestion,
+): StoryFixture => ({
+  ...TAGGED_STORY,
+  questions: TAGGED_STORY.questions.map((question, i) =>
+    i === index ? change(question) : question,
+  ),
 });
 
 const HARD_SENTENCE =
@@ -426,6 +480,56 @@ export const BAD_VERSIONS: BadVersion[] = [
     story: withQuestion(4, (question) => ({
       ...question,
       question: String(TIER_2.questions[0]?.question),
+    })),
+  },
+  {
+    code: 'no_hard_question',
+    name: 'tagged story without its choose-all and order-the-events questions',
+    story: { ...TAGGED_STORY, questions: TAGGED_STORY.questions.slice(0, 5) },
+  },
+  {
+    code: 'missing_tags',
+    name: 'a question without tags when tags are required',
+    story: withTagged(4, ({ subskill: _s, distractors: _d, ...question }) => question),
+  },
+  {
+    code: 'bad_subskill',
+    name: 'a sub-skill that does not exist',
+    story: withTagged(4, (question) => ({ ...question, subskill: 'spelling' })),
+  },
+  {
+    code: 'subskill_mismatch',
+    name: 'a vocabulary question tagged with a literal sub-skill',
+    story: withTagged(4, (question) => ({ ...question, subskill: 'key_detail' })),
+  },
+  {
+    code: 'bad_distractors',
+    name: 'two options marked as correct in the distractor tags',
+    story: withTagged(4, (question) => ({
+      ...question,
+      distractors: [null, null, 'opposite', 'word_sense'],
+    })),
+  },
+  {
+    code: 'type_not_allowed',
+    name: 'a choose-all question in a tier 1 story',
+    story: {
+      ...TIER_1,
+      name: 'type not allowed',
+      questions: [...TIER_1.questions, { ...CHOOSE_ALL, evidence: 'Sam runs fast.' }],
+    },
+  },
+  {
+    code: 'bad_choose_all_answers',
+    name: 'a choose-all question where every option is right',
+    story: withTagged(5, (question) => ({ ...question, answerIndexes: [0, 1, 2, 3] })),
+  },
+  {
+    code: 'events_not_distinct',
+    name: 'an order-the-events question with the same event twice',
+    story: withTagged(6, (question) => ({
+      ...question,
+      events: ['The wind blows hard', 'Three mangoes fall', 'three mangoes fall '],
     })),
   },
 ];
