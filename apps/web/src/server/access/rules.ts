@@ -29,6 +29,15 @@ export const DATA_KINDS = {
   never: ['audio', 'settings', 'consents', 'guardian_approvals', 'link_codes', 'account'],
 } as const;
 
+/**
+ * What a signed-in student may change about their own data. Everything else is written by the
+ * server from evidence, never on the student's say-so: levels, decisions and abilities come from
+ * `packages/levels` and `packages/mastery` (rule 1), tries and answers are counted and scored by
+ * the server (rule 5), and consents, approvals, link codes and the account have their own flows.
+ * A kind missing from this list is read only for the student.
+ */
+export const STUDENT_WRITABLE: readonly DataKind[] = ['sessions', 'settings'];
+
 export type DataKind = (typeof DATA_KINDS)[keyof typeof DATA_KINDS][number];
 
 /**
@@ -47,6 +56,7 @@ export type Reason =
   | 'not_shared'
   | 'never_shared'
   | 'parents_cannot_write'
+  | 'student_cannot_write'
   | 'wrong_kind_for_action'
   | 'unknown_role';
 
@@ -74,7 +84,11 @@ export function decide(
   if (action === 'mark_misheard' && kind !== 'tries') return deny('wrong_kind_for_action');
 
   if (viewer.role === 'student') {
-    return viewer.id === learnerId ? allow('own_data') : deny('not_own_data');
+    if (viewer.id !== learnerId) return deny('not_own_data');
+    if (action === 'read') return allow('own_data');
+    return STUDENT_WRITABLE.includes(kind) && action === 'write'
+      ? allow('own_data')
+      : deny('student_cannot_write');
   }
 
   if (viewer.role !== 'parent') return deny('unknown_role');

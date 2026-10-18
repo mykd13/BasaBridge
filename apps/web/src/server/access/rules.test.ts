@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DATA_KINDS,
+  STUDENT_WRITABLE,
   decide,
   type Action,
   type DataKind,
@@ -39,14 +40,46 @@ describe('every role, link and share-flag combination', () => {
           expect(decide(null, learner, kind, action, link).allowed).toBe(false);
   });
 
-  it('a student reads and changes all of their own data, whatever the links say', () => {
+  it('a student reads all of their own data, whatever the links say', () => {
     for (const kind of kinds)
-      for (const action of ['read', 'write'] as const)
-        for (const [, link] of links)
-          expect(decide(self, learner, kind, action, link)).toEqual({
-            allowed: true,
-            reason: 'own_data',
-          });
+      for (const [, link] of links)
+        expect(decide(self, learner, kind, 'read', link)).toEqual({
+          allowed: true,
+          reason: 'own_data',
+        });
+  });
+
+  it('a student writes only the kinds on the explicit list', () => {
+    for (const kind of kinds)
+      for (const [, link] of links) {
+        const decision = decide(self, learner, kind, 'write', link);
+        if (STUDENT_WRITABLE.includes(kind)) {
+          expect(decision).toEqual({ allowed: true, reason: 'own_data' });
+        } else {
+          expect(decision, kind).toEqual({ allowed: false, reason: 'student_cannot_write' });
+        }
+      }
+  });
+
+  it('a student never writes what code decides: levels, decisions, abilities, tries, answers', () => {
+    for (const kind of [
+      'level',
+      'decisions',
+      'abilities',
+      'lessons',
+      'tries',
+      'answers',
+      'audio',
+      'consents',
+      'guardian_approvals',
+      'link_codes',
+      'account',
+    ] as const)
+      expect(decide(self, learner, kind, 'write', null).allowed, kind).toBe(false);
+  });
+
+  it('a student cannot mark a word as misheard, which is a parent action', () => {
+    expect(decide(self, learner, 'tries', 'mark_misheard', null).allowed).toBe(false);
   });
 
   it("a student never reaches another student's data", () => {
