@@ -228,8 +228,28 @@ importers:
       '@basabridge/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@basabridge/levels':
+        specifier: workspace:*
+        version: link:../levels
+      '@basabridge/mastery':
+        specifier: workspace:*
+        version: link:../mastery
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
 
-  packages/levels: {}
+  packages/levels:
+    devDependencies:
+      '@basabridge/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
 
   packages/mastery:
     dependencies:
@@ -258,6 +278,10 @@ importers:
       '@basabridge/levels':
         specifier: workspace:*
         version: link:../levels
+    devDependencies:
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
 
   packages/teacher-ai:
     dependencies:

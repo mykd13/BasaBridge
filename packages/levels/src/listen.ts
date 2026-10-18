@@ -3,12 +3,14 @@
  * The learner hears the story read slowly with the words highlighted, then reads it.
  * Placeholders to tune with real learners. Keep every number here and nowhere else.
  */
-export const LISTEN_THEN_READ = {
+import { deepFreeze } from './freeze';
+
+export const LISTEN_THEN_READ = deepFreeze({
   /** Offered only at this level and below. */
   maxLevel: 10,
   /** Model voice speed, where 1 is a normal reading pace. */
   pace: 0.7,
-} as const;
+} as const);
 
 export interface ListenContext {
   level: number;
