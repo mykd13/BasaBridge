@@ -49,7 +49,13 @@ let shared: Db | undefined;
 
 /** The real store. Pass a database in tests; otherwise one is opened from the environment. */
 export function dbStore(db?: Db): ConsentStore {
-  const get = () => db ?? (shared ??= createDbFromEnv().db as unknown as Db);
+  const get = () => {
+    if (db) return db;
+    // Without a database the check cannot run. The layout gate lets only the dev role override
+    // through (never in production); anywhere else this error stands.
+    if (!process.env.DATABASE_URL) throw new NotWiredError('DATABASE_URL is not set');
+    return (shared ??= createDbFromEnv().db as unknown as Db);
+  };
   return {
     latest: async (userId, kind) => {
       let best: StoredConsent | null = null;

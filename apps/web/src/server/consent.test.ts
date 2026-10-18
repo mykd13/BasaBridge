@@ -94,6 +94,14 @@ describe('the database store', () => {
   });
 });
 
+describe('the database store without a database', () => {
+  it('throws NotWiredError when DATABASE_URL is not set', async () => {
+    vi.stubEnv('DATABASE_URL', '');
+    await expect(latestConsent(userId, 'privacy', dbStore())).rejects.toBeInstanceOf(NotWiredError);
+    vi.unstubAllEnvs();
+  });
+});
+
 describe('audit', () => {
   const other = '22222222-2222-4222-8222-222222222222';
 
