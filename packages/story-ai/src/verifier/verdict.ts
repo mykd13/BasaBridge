@@ -53,7 +53,7 @@ export function judgeVerification(questions: StoryQuestion[], reply: VerifierRep
     const what =
       disagreed.length === 0
         ? `The story had only ${kept.length} questions, and at least ${MIN_QUESTIONS} are needed.`
-        : `The checker disagreed with the answer key on question${disagreed.length === 1 ? '' : 's'} ${listNumbers(disagreed)}, leaving ${kept.length}.`;
+        : `The checker did not confirm the answer key on question${disagreed.length === 1 ? '' : 's'} ${listNumbers(disagreed)}, leaving ${kept.length}.`;
     return { ok: false, outcome: 'rejected_too_few', reason: what, disagreed, categories: [] };
   }
 

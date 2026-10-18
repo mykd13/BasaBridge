@@ -45,7 +45,7 @@ describe('judgeVerification', () => {
       expect(v.outcome).toBe('rejected_too_few');
       expect(v.disagreed).toEqual([2, 4]);
       expect(v.reason).toBe(
-        'The checker disagreed with the answer key on questions 2 and 4, leaving 3.',
+        'The checker did not confirm the answer key on questions 2 and 4, leaving 3.',
       );
     }
   });
@@ -87,5 +87,24 @@ describe('judgeVerification', () => {
   it('rejects a story that started with too few questions', () => {
     const v = judgeVerification(questions.slice(0, 3), reply([0, 1, 2]));
     expect(v).toMatchObject({ ok: false, outcome: 'rejected_too_few', disagreed: [] });
+  });
+});
+
+describe('judgeVerification with no named category', () => {
+  it('rejects safe:false even when no category is listed', () => {
+    const qs = [0, 1, 2, 3, 0].map((answerIndex, i) => ({
+      skill: 'literal' as const,
+      word: null,
+      question: `Q${i}?`,
+      options: ['a', 'b', 'c', 'd'],
+      answerIndex,
+      evidence: 'e',
+    }));
+    const reply = {
+      answers: qs.map((q, i) => ({ question: i + 1, answerIndex: q.answerIndex })),
+      safety: { safe: false, categories: [], reason: '' },
+    };
+    const out = judgeVerification(qs, reply);
+    expect(!out.ok && out.outcome).toBe('rejected_unsafe');
   });
 });

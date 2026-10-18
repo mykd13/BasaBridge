@@ -35,11 +35,6 @@ describe('parseVerifierReply', () => {
     );
   });
 
-  it('rejects an unknown safety category', () => {
-    const bad = { ...good, safety: { safe: false, categories: ['gore'], reason: 'x' } };
-    expect(parseVerifierReply(bad, 2).ok).toBe(false);
-  });
-
   it('rejects duplicate question numbers', () => {
     const bad = {
       ...good,
@@ -71,5 +66,36 @@ describe('parseVerifierReply', () => {
     for (const v of [null, undefined, 42, [], '']) {
       expect(parseVerifierReply(v, 2).ok).toBe(false);
     }
+  });
+});
+
+describe('parseVerifierReply hardening', () => {
+  const base = { answers: [{ question: 1, answerIndex: 0 }] };
+
+  it('removes duplicate categories', () => {
+    const out = parseVerifierReply(
+      { ...base, safety: { safe: false, categories: ['violence', 'violence'], reason: '' } },
+      1,
+    );
+    expect(out.ok && out.reply.safety.categories).toEqual(['violence']);
+  });
+
+  it('turns an unknown category into an unsafe verdict, not an invalid reply', () => {
+    const out = parseVerifierReply(
+      { ...base, safety: { safe: false, categories: ['gore'], reason: '' } },
+      1,
+    );
+    expect(out.ok && out.reply.safety.safe).toBe(false);
+    const flipped = parseVerifierReply(
+      { ...base, safety: { safe: true, categories: ['gore'], reason: '' } },
+      1,
+    );
+    expect(flipped.ok && flipped.reply.safety.safe).toBe(false);
+  });
+
+  it('reads JSON inside a code fence', () => {
+    const body = JSON.stringify({ ...base, safety: { safe: true, categories: [], reason: '' } });
+    const out = parseVerifierReply('```json\n' + body + '\n```', 1);
+    expect(out.ok).toBe(true);
   });
 });

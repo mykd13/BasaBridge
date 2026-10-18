@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StoryQuestion } from '@basabridge/contracts';
 import type { VerificationRecord } from './metrics';
 import { verifyStory, type CallVerifierModel } from './verify';
@@ -15,6 +15,7 @@ const q = (n: number, answerIndex: number): StoryQuestion => ({
 });
 
 const story = {
+  title: 'The red kite',
   text: 'Mila had a red kite. The wind took it over the hill.',
   level: 4,
   questions: [q(1, 0), q(2, 1), q(3, 2), q(4, 3), q(5, 0)],
@@ -23,7 +24,7 @@ const story = {
 const safe = { safe: true, categories: [], reason: 'ok' };
 const answers = (idx: number[]) => idx.map((answerIndex, i) => ({ question: i + 1, answerIndex }));
 
-function setup(reply: () => Promise<unknown>) {
+function setup(reply: CallVerifierModel) {
   const callModel = vi.fn<CallVerifierModel>(reply);
   const records: VerificationRecord[] = [];
   const onRecord = (r: VerificationRecord) => void records.push(r);
@@ -130,5 +131,107 @@ describe('verifyStory', () => {
       callModel: async () => ({ answers: answers([0, 1, 2, 3, 0]), safety: safe }),
     });
     expect(out.ok).toBe(true);
+  });
+});
+
+describe('verifyStory hardening', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('sends the title to the checker', async () => {
+    const { callModel, deps } = setup(async () => ({
+      answers: answers([0, 1, 2, 3, 0]),
+      safety: safe,
+    }));
+    await verifyStory(story, deps);
+    expect(callModel.mock.calls[0]![0].prompt).toContain('<title>The red kite</title>');
+  });
+
+  it('rejects when only the title is unsafe', async () => {
+    const { callModel, records, deps } = setup(async (input) => {
+      const titleUnsafe = input.prompt.includes('<title>Coca-Cola Superhero</title>');
+      return {
+        answers: answers([0, 1, 2, 3, 0]),
+        safety: titleUnsafe ? { safe: false, categories: ['brands'], reason: 'brand' } : safe,
+      };
+    });
+    const out = await verifyStory({ ...story, title: 'Coca-Cola Superhero' }, deps);
+    expect(out.ok).toBe(false);
+    expect(!out.ok && out.kind).toBe('rejected');
+    expect(!out.ok && out.categories).toEqual(['brands']);
+    expect(records[0]!.outcome).toBe('rejected_unsafe');
+    expect(callModel).toHaveBeenCalledTimes(1);
+  });
+
+  it('still returns the verdict when onRecord throws', async () => {
+    const callModel = vi.fn<CallVerifierModel>(async () => ({
+      answers: answers([0, 1, 2, 3, 0]),
+      safety: safe,
+    }));
+    const kept = await verifyStory(story, {
+      callModel,
+      onRecord: () => {
+        throw new Error('log write failed');
+      },
+    });
+    expect(kept.ok).toBe(true);
+
+    const rejected = await verifyStory(story, {
+      callModel: async () => ({
+        answers: answers([0, 1, 2, 3, 0]),
+        safety: { safe: false, categories: ['violence'], reason: 'x' },
+      }),
+      onRecord: () => {
+        throw new Error('log write failed');
+      },
+    });
+    expect(!rejected.ok && rejected.kind).toBe('rejected');
+
+    const failed = await verifyStory(story, {
+      callModel: async () => {
+        throw new Error('boom');
+      },
+      onRecord: () => {
+        throw new Error('log write failed');
+      },
+    });
+    expect(!failed.ok && failed.kind).toBe('model_call');
+  });
+
+  it('treats a stalled call as a model_call failure and aborts it', async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    const records: VerificationRecord[] = [];
+    const pending = verifyStory(story, {
+      timeoutMs: 1000,
+      onRecord: (r) => void records.push(r),
+      callModel: ({ signal: s }) => {
+        signal = s;
+        return new Promise(() => {});
+      },
+    });
+    await vi.advanceTimersByTimeAsync(1000);
+    const out = await pending;
+    expect(!out.ok && out.kind).toBe('model_call');
+    expect(signal?.aborted).toBe(true);
+    expect(records).toEqual([
+      {
+        level: 4,
+        questionsIn: 5,
+        agreed: 0,
+        disagreed: 0,
+        outcome: 'model_call_failed',
+        categories: [],
+      },
+    ]);
+  });
+
+  it('does not time out a call that answers in time', async () => {
+    vi.useFakeTimers();
+    const out = verifyStory(story, {
+      timeoutMs: 1000,
+      callModel: async () => ({ answers: answers([0, 1, 2, 3, 0]), safety: safe }),
+    });
+    await vi.advanceTimersByTimeAsync(2000);
+    expect((await out).ok).toBe(true);
   });
 });

@@ -24,7 +24,7 @@ describe('summariseVerifications', () => {
     expect(s.questions).toBe(20);
     expect(s.disagreementRate).toBeCloseTo(3 / 20);
     expect(s.rejectionRate).toBeCloseTo(3 / 5);
-    expect(s.rejectionsByOutcome).toEqual({
+    expect(s.outcomeCounts).toEqual({
       kept: 2,
       rejected_unsafe: 1,
       rejected_too_few: 1,
@@ -41,7 +41,7 @@ describe('summariseVerifications', () => {
     expect(s.disagreementRate).toBe(0);
     expect(s.rejectionRate).toBe(0);
     expect(s.stories).toBe(0);
-    for (const o of VERIFICATION_OUTCOMES) expect(s.rejectionsByOutcome[o]).toBe(0);
+    for (const o of VERIFICATION_OUTCOMES) expect(s.outcomeCounts[o]).toBe(0);
   });
 
   it('holds only numbers, enums and category lists', () => {

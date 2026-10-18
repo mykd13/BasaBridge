@@ -8,10 +8,20 @@ import { judgeVerification } from './verdict';
  * The model call, passed in so the core is testable with mocked replies. It gets the built prompt
  * and returns the raw reply (a JSON string or an object). Part 2 of BB-17 supplies the real one.
  */
-export type CallVerifierModel = (input: { system: string; prompt: string }) => Promise<unknown>;
+export type CallVerifierModel = (input: {
+  system: string;
+  prompt: string;
+  /** Aborted when the call takes longer than `timeoutMs`. The caller should pass it on to the model. */
+  signal: AbortSignal;
+}) => Promise<unknown>;
+
+/** Longest a checker call may take before the story is treated as unchecked. */
+export const DEFAULT_VERIFIER_TIMEOUT_MS = 30_000;
 
 export interface VerifyDeps {
   callModel: CallVerifierModel;
+  /** Defaults to DEFAULT_VERIFIER_TIMEOUT_MS. A timeout is a `model_call` failure. */
+  timeoutMs?: number;
   /** Called exactly once per verification with counts only. */
   onRecord?: (record: VerificationRecord) => void;
 }
@@ -41,12 +51,16 @@ export type VerifyOutcome =
  * only. In part 2 these kinds map onto the story error kinds.
  */
 export async function verifyStory(
-  story: Pick<Story, 'text' | 'level' | 'questions'>,
+  story: Pick<Story, 'title' | 'text' | 'level' | 'questions'>,
   deps: VerifyDeps,
 ): Promise<VerifyOutcome> {
   const questionsIn = story.questions.length;
   const finish = (outcome: VerifyOutcome): VerifyOutcome => {
-    deps.onRecord?.(outcome.record);
+    try {
+      deps.onRecord?.(outcome.record);
+    } catch {
+      // Logging must never change the gate result, and its error message is dropped.
+    }
     return outcome;
   };
   const failure = (
@@ -70,14 +84,29 @@ export async function verifyStory(
       },
     });
 
-  const prompt = buildVerifierPrompt(toVerifierInput(story.text, story.questions));
+  const prompt = buildVerifierPrompt(toVerifierInput(story.title, story.text, story.questions));
+
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error('timeout'));
+    }, deps.timeoutMs ?? DEFAULT_VERIFIER_TIMEOUT_MS);
+  });
 
   let raw: unknown;
   try {
-    raw = await deps.callModel(prompt);
+    // The async wrapper turns a synchronous throw into a rejection.
+    raw = await Promise.race([
+      (async () => deps.callModel({ ...prompt, signal: controller.signal }))(),
+      timedOut,
+    ]);
   } catch {
     // The error message may echo prompt text, so it is dropped.
     return failure('model_call', 'The checker model call failed.', 'model_call_failed');
+  } finally {
+    clearTimeout(timer);
   }
 
   const parsed = parseVerifierReply(raw, questionsIn);
