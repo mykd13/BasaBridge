@@ -4,7 +4,10 @@
  * Pages and routes ask this module for learner data. They never import learner tables or the
  * learner query helpers from `@basabridge/db`; ESLint enforces that in `src/app`.
  * The parent link is read fresh on every call, so a revoke takes effect on the next request.
+ * Modules in `src/server` are trusted; only `src/app` (pages and routes) is linted against the
+ * database packages.
  */
+import 'server-only';
 import {
   createDbFromEnv,
   getLearner,
@@ -87,14 +90,20 @@ export async function readLearnerLevel(
   return learner && { level: learner.level, levelPasses: learner.levelPasses };
 }
 
-/** Looks up the session's owner first, so the check is against the real learner. */
+/**
+ * A session is looked up by its own id, so its owner is only known after loading it.
+ * To avoid telling anyone whether an id exists, a session that is missing and a session the
+ * viewer may not see give the same answer: undefined. A signed-out viewer is refused before
+ * anything is loaded.
+ */
 export async function readReadingSession(
   viewer: Viewer | null,
   sessionId: string,
   db: Db = defaultDb(),
 ): Promise<ReadingSession | undefined> {
+  if (!viewer) throw new AccessDenied({ allowed: false, reason: 'not_signed_in' });
   const session = await getReadingSession(db, sessionId);
   if (!session) return undefined;
-  await assertAccess(viewer, session.learnerUserId, 'sessions', 'read', db);
-  return session;
+  const decision = await check(viewer, session.learnerUserId, 'sessions', 'read', db);
+  return decision.allowed ? session : undefined;
 }
