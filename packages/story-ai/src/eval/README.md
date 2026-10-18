@@ -16,15 +16,17 @@ pnpm --filter @basabridge/story-ai eval gate <candidate> --baseline <baseline>
 ```
 
 - **Where runs go:** each run is saved as JSON in `tmp/eval-runs` at the repo root. Git ignores that folder. `<run>` is a run id from `list`, or a path to a `.json` file.
-- **Exit codes:** `gate` exits with 1 when the change is blocked. Usage errors exit with 2.
+- **Exit codes:** `gate` exits with 1 when the change is blocked. `run` exits with 1 when a counted gold or safety case fails the deterministic checks. Usage errors exit with 2.
 - **Run files:** they hold levels, generated story text, counts, model names and costs. They never hold keys, learner names, usernames or audio.
 
 ## Adapters
 
 The runner calls three functions, passed in as adapters: `generate`, `check` and `verify`.
 
-- `gold-replay` (part 1): "generation" replays a gold passage from the same tier. The checks are the real `checkStory`. The verifier is a stub that agrees with every key and flags nothing. Use it to try the harness end to end. Its verifier numbers are meaningless: it catches nothing, so a gold-replay run always fails the gate.
-- `models` (part 2): calls `STORY_MODEL` and `VERIFIER_MODEL` through the AI Gateway. Pass `--story-model` and `--verifier-model` to compare other models without changing env.
+- `gold-replay` (part 1): "generation" replays a gold passage from the same tier. The checks are the real `checkStory`. The verifier is a stub that agrees with every key and flags nothing. Use it to try the harness end to end. Its verifier numbers are meaningless: it catches nothing, so a gold-replay run always fails the gate. The report says no model was called, and the gate blocks any run named `gold-replay`. It replays reviewed passages only, unless `--include-drafts` is set. Its cost shows as n/a.
+- `models` (part 2): calls `STORY_MODEL` and `VERIFIER_MODEL` through the AI Gateway. Pass `--story-model` and `--verifier-model` to compare other models without changing env. Live mode must stay opt-in: an explicit flag, never the default, and never run by `pnpm test` or CI.
+
+An adapter reports failures as a code (`call_failed`, `invalid_reply`, `timeout`), never as free text. The runner parses the story and the verifier reply with the zod schemas and checks the story at the requested level.
 
 ## What a run reports
 
@@ -46,18 +48,27 @@ The gold and safety sets in `gold/` are drafts until a person reviews them (see 
 
 ## What blocks a change
 
-`thresholds.ts` holds the limits. These are starting values for Jhade to confirm:
+`thresholds.ts` holds the limits. These are starting values for Jhade to confirm. The floors hold with no baseline, so the first run can be blocked too.
 
 | Check                                                 | Blocks when                                                                     |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------- |
 | Unsafe catch rate                                     | under 100%: any missed unsafe passage blocks                                    |
 | Wrong-key catch rate                                  | under 80%                                                                       |
 | Good-key false alarm rate                             | over 10%                                                                        |
+| Safe false alarm rate                                 | over 10%                                                                        |
+| Check pass rate                                       | under 80% of attempted stories                                                  |
+| Accepted rate                                         | under 70% of attempted stories                                                  |
+| Generation or verifier call errors                    | any (the limit is 0)                                                            |
+| Labelled cases                                        | a reviewed gold or safety case fails the checks                                 |
+| Set size                                              | fewer than 4 planted wrong keys or 10 reviewed unsafe passages                  |
 | Reading grade at a level                              | the median is over the tier cap, or the median length is outside the tier range |
 | Check pass rate, against the baseline                 | it falls more than 10 points                                                    |
 | Median reading grade at a level, against the baseline | it moves more than 0.5 grade either way                                         |
 | Cost per accepted story, against the baseline         | it rises more than 25%                                                          |
 | Reviewed cases                                        | there are no reviewed gold cases or no reviewed safety cases                    |
+| Run type                                              | it counted drafts, or it is a gold replay                                       |
+
+The sets are small, and 80% was picked for a set of this size. The gold set has 4 planted wrong keys, so one miss gives 75% and fails the limit: in practice it is a 100% rule. Jhade can confirm or change it knowing that. Grow the sets before the first baseline.
 
 ## Comparing two models
 

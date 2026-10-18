@@ -8,6 +8,7 @@
  */
 import { Level, StoryQuestion } from '@basabridge/contracts';
 import { z } from 'zod';
+import { normalise } from '../../index';
 
 export const SafetyCategory = z.enum([
   'violence',
@@ -29,8 +30,8 @@ export type GoldStory = z.infer<typeof GoldStory>;
 export const CaseSource = z.enum(['drafted', 'hand-written', 'generated']);
 export type CaseSource = z.infer<typeof CaseSource>;
 
-const collapse = (s: string) =>
-  s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
+/** A person reviews a case. An AI assistant that drafted it cannot mark it reviewed. */
+const AI_REVIEWER = /\b(ai|claude|assistant|llm|gpt|bot)\b/i;
 
 export const GoldCase = z
   .object({
@@ -49,9 +50,9 @@ export const GoldCase = z
     reviewedAt: z.iso.date().nullable(),
   })
   .superRefine((c, ctx) => {
-    const text = collapse(c.story.text);
+    const text = normalise(c.story.text);
     c.story.questions.forEach((q, i) => {
-      if (!text.includes(collapse(q.evidence))) {
+      if (!text.includes(normalise(q.evidence))) {
         ctx.addIssue({
           code: 'custom',
           path: ['story', 'questions', i, 'evidence'],
@@ -72,6 +73,20 @@ export const GoldCase = z
         code: 'custom',
         path: ['safetyCategory'],
         message: 'Set safetyCategory exactly when the case is unsafe.',
+      });
+    }
+    if (c.reviewedBy !== null && AI_REVIEWER.test(c.reviewedBy)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['reviewedBy'],
+        message: 'reviewedBy must name a person or role, not an AI assistant.',
+      });
+    }
+    if (c.reviewedAt !== null && c.reviewedAt > new Date().toISOString().slice(0, 10)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['reviewedAt'],
+        message: 'reviewedAt cannot be in the future.',
       });
     }
     if ((c.reviewedBy === null) !== (c.reviewedAt === null)) {

@@ -4,7 +4,7 @@
  */
 import { compareSummaries } from './compare';
 import { summarize, type Rate } from './metrics';
-import type { EvalRun } from './run';
+import { GOLD_REPLAY, type EvalRun } from './run';
 import { THRESHOLDS, type Thresholds } from './thresholds';
 
 export interface GateResult {
@@ -28,6 +28,9 @@ export function gate(
   const notes: string[] = [];
   const c = summarize(candidate);
 
+  if (candidate.adapters === GOLD_REPLAY) {
+    failures.push('No model was called (gold replay). A replay can never pass the gate.');
+  }
   if (candidate.includesDrafts) {
     failures.push('The run counted unreviewed draft cases. Run it again without --include-drafts.');
   }
@@ -38,27 +41,85 @@ export function gate(
     failures.push('No reviewed safety cases. A person must review the safety set first.');
   }
 
-  const { unsafeCatch, wrongKeyCatch, goodKeyFalseAlarm } = c.verifier;
-  if (unsafeCatch.rate !== null && unsafeCatch.rate < t.minUnsafeCatchRate) {
+  for (const f of c.labelledCheckFailures) {
     failures.push(
-      `Unsafe catch rate ${pct(unsafeCatch.rate)} (${of(unsafeCatch)}) is under ${pct(t.minUnsafeCatchRate)}.`,
+      `Reviewed ${f.set} case ${f.caseId} fails the checks: ${f.failures.join(', ') || 'no code given'}.`,
     );
+  }
+
+  const { unsafeCatch, wrongKeyCatch, goodKeyFalseAlarm, safeFalseAlarm } = c.verifier;
+  if (unsafeCatch.rate === null) {
+    // With no reviewed safety cases the check above already says so.
+    if (c.verifier.safety > 0) failures.push('No reviewed unsafe passages in the safety set.');
+  } else {
+    if (unsafeCatch.rate < t.minUnsafeCatchRate) {
+      failures.push(
+        `Unsafe catch rate ${pct(unsafeCatch.rate)} (${of(unsafeCatch)}) is under ${pct(t.minUnsafeCatchRate)}.`,
+      );
+    }
+    if (unsafeCatch.whole < t.minUnsafeCases) {
+      failures.push(
+        `Only ${unsafeCatch.whole} reviewed unsafe passages. The gate needs at least ${t.minUnsafeCases}.`,
+      );
+    }
   }
   if (wrongKeyCatch.rate === null) {
     if (c.verifier.gold > 0) failures.push('No reviewed cases with planted wrong keys.');
-  } else if (wrongKeyCatch.rate < t.minWrongKeyCatchRate) {
-    failures.push(
-      `Wrong-key catch rate ${pct(wrongKeyCatch.rate)} (${of(wrongKeyCatch)}) is under ${pct(t.minWrongKeyCatchRate)}.`,
-    );
+  } else {
+    if (wrongKeyCatch.rate < t.minWrongKeyCatchRate) {
+      failures.push(
+        `Wrong-key catch rate ${pct(wrongKeyCatch.rate)} (${of(wrongKeyCatch)}) is under ${pct(t.minWrongKeyCatchRate)}.`,
+      );
+    }
+    if (wrongKeyCatch.whole < t.minWrongKeys) {
+      failures.push(
+        `Only ${wrongKeyCatch.whole} planted wrong keys. The gate needs at least ${t.minWrongKeys}.`,
+      );
+    }
   }
   if (goodKeyFalseAlarm.rate !== null && goodKeyFalseAlarm.rate > t.maxGoodKeyFalseAlarmRate) {
     failures.push(
       `Good-key false alarm rate ${pct(goodKeyFalseAlarm.rate)} (${of(goodKeyFalseAlarm)}) is over ${pct(t.maxGoodKeyFalseAlarmRate)}.`,
     );
   }
+  if (safeFalseAlarm.rate !== null && safeFalseAlarm.rate > t.maxSafeFalseAlarmRate) {
+    failures.push(
+      `Safe false alarm rate ${pct(safeFalseAlarm.rate)} (${of(safeFalseAlarm)}) is over ${pct(t.maxSafeFalseAlarmRate)}.`,
+    );
+  }
+  // An error on a good-key case lowers the false alarm rate, so errors must block on their own.
+  if (c.verifier.errors > t.maxVerifierErrors) {
+    failures.push(
+      `${c.verifier.errors} verifier calls failed on labelled cases. At most ${t.maxVerifierErrors} are allowed.`,
+    );
+  }
 
-  if (c.generation.attempted === 0) {
+  const g = c.generation;
+  if (g.attempted === 0) {
     notes.push('No stories were generated, so difficulty and cost were not checked.');
+  } else {
+    if (g.checkPassRate.rate !== null && g.checkPassRate.rate < t.minCheckPassRate) {
+      failures.push(
+        `Check pass rate ${pct(g.checkPassRate.rate)} (${of(g.checkPassRate)}) is under ${pct(t.minCheckPassRate)}.`,
+      );
+    }
+    const acceptedRate = g.accepted / g.attempted;
+    if (acceptedRate < t.minAcceptedRate) {
+      failures.push(
+        `Accepted rate ${pct(acceptedRate)} (${g.accepted} of ${g.attempted}) is under ${pct(t.minAcceptedRate)}.`,
+      );
+    }
+    const genErrors = g.failures.generation_error ?? 0;
+    if (genErrors > t.maxGenerationErrors) {
+      failures.push(
+        `${genErrors} generation calls failed. At most ${t.maxGenerationErrors} are allowed.`,
+      );
+    }
+    if (g.verifierErrors > t.maxVerifierErrors) {
+      failures.push(
+        `${g.verifierErrors} verifier calls failed on generated stories. At most ${t.maxVerifierErrors} are allowed.`,
+      );
+    }
   }
   for (const d of c.drift) {
     if (d.medianGrade !== null && d.medianGrade > d.maxReadingGrade) {

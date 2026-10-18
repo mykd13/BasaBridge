@@ -16,7 +16,19 @@ export const Cost = z.object({
 });
 export type Cost = z.infer<typeof Cost>;
 
-export const NO_COST: Cost = { usd: 0, inputTokens: 0, outputTokens: 0 };
+/** No price is known: a call that threw may have been billed, and a replay ran no model. */
+export const UNPRICED: Cost = { usd: null, inputTokens: 0, outputTokens: 0 };
+
+/** The adapters name recorded for a run that called no model. Such a run can never pass a gate. */
+export const GOLD_REPLAY = 'gold-replay';
+
+/**
+ * Why a call failed, as a closed set of codes. A free-text error could carry prompt or story text
+ * from a provider into a run file, so only these codes are stored. report.ts maps each to a fixed
+ * sentence.
+ */
+export const ErrorCode = z.enum(['call_failed', 'invalid_reply', 'timeout', 'no_gold_passage']);
+export type ErrorCode = z.infer<typeof ErrorCode>;
 
 export function addCost(a: Cost, b: Cost): Cost {
   return {
@@ -27,8 +39,8 @@ export function addCost(a: Cost, b: Cost): Cost {
 }
 
 export const VerifierResult = z.object({
-  /** The call failed or the reply was invalid. Plain English, never model or story text. */
-  error: z.string().nullable(),
+  /** The call failed or the reply was invalid. A code only, never model or story text. */
+  error: ErrorCode.nullable(),
   /** 1-based questions the verifier answered differently from the key. */
   disagreed: z.array(z.number().int().min(1)),
   flaggedUnsafe: z.boolean(),
@@ -46,8 +58,8 @@ export type CheckOutcome = z.infer<typeof CheckOutcome>;
 export const GeneratedSample = z.object({
   level: Level,
   index: z.number().int().nonnegative(),
-  /** Generation failed before any story existed. Plain English. */
-  error: z.string().nullable(),
+  /** Generation failed before any story existed. A code only. */
+  error: ErrorCode.nullable(),
   title: z.string().nullable(),
   text: z.string().nullable(),
   words: z.number().int().nonnegative().nullable(),

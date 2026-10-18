@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compareSummaries } from './compare';
-import { genSample, healthyRun } from './fixtures';
+import { genSample, healthyRun, labSample } from './fixtures';
 import { gate } from './gate';
 import { summarize } from './metrics';
 import { formatComparison, formatGate, formatSummary } from './report';
@@ -13,6 +13,29 @@ describe('reports', () => {
     expect(text).toContain('Unsafe catch rate          100% (1 of 1)');
     expect(text).not.toContain('Secret passage text.');
     expect(text).not.toContain('DRY RUN');
+  });
+
+  it('shows labelled cases that fail the checks, by id and code only', () => {
+    const run = healthyRun();
+    run.labelled.push(
+      labSample({ caseId: 'gold-bad', checks: { passed: false, failures: ['too_hard'] } }),
+    );
+    expect(formatSummary(run, summarize(run))).toContain('gold gold-bad: too_hard');
+  });
+
+  it('maps stored error codes to fixed sentences', () => {
+    const run = healthyRun({
+      generated: [genSample({ error: 'timeout', checks: null, verifier: null })],
+    });
+    const text = formatSummary(run, summarize(run));
+    expect(text).toContain('The call timed out. 1');
+  });
+
+  it('says no model was called for a gold replay', () => {
+    const run = healthyRun({ adapters: 'gold-replay' });
+    expect(formatSummary(run, summarize(run))).toContain(
+      'No model was called. These numbers say nothing about a model.',
+    );
   });
 
   it('warns on a dry run with drafts', () => {

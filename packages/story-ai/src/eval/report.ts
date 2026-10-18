@@ -2,7 +2,7 @@
 import type { Delta, RunComparison } from './compare';
 import type { GateResult } from './gate';
 import type { Rate, RunSummary } from './metrics';
-import type { EvalRun } from './run';
+import { GOLD_REPLAY, type ErrorCode, type EvalRun } from './run';
 
 const pct = (x: number | null) => (x === null ? 'n/a' : `${Math.round(x * 1000) / 10}%`);
 const rate = (r: Rate) => `${pct(r.rate)} (${r.part} of ${r.whole})`;
@@ -14,11 +14,33 @@ function table(rows: string[][]): string[] {
   return rows.map((r) => `  ${r.map((cell, i) => cell.padEnd(widths[i]!)).join('  ')}`.trimEnd());
 }
 
+/** Fixed sentences for the stored error codes. Provider text never reaches a report. */
+export const ERROR_TEXT: Record<ErrorCode, string> = {
+  call_failed: 'The call failed.',
+  invalid_reply: 'The reply was not valid.',
+  timeout: 'The call timed out.',
+  no_gold_passage: 'No gold passage was available for the level.',
+};
+
+function errorLine(run: EvalRun): string {
+  const counts = new Map<ErrorCode, number>();
+  const add = (e: ErrorCode | null | undefined) => e && counts.set(e, (counts.get(e) ?? 0) + 1);
+  for (const g of run.generated) {
+    add(g.error);
+    add(g.verifier?.error);
+  }
+  for (const l of run.labelled) add(l.verifier.error);
+  return [...counts].map(([code, n]) => `${ERROR_TEXT[code]} ${n}`).join(' ') || 'none';
+}
+
 export function runHeader(run: EvalRun): string[] {
   const lines = [
     `Run ${run.id}`,
     `  adapters ${run.adapters}, story model ${run.storyModel ?? 'none'}, verifier model ${run.verifierModel ?? 'none'}, prompt ${run.promptVersion ?? 'none'}, git ${run.gitSha ?? 'unknown'}`,
   ];
+  if (run.adapters === GOLD_REPLAY) {
+    lines.push('  No model was called. These numbers say nothing about a model.');
+  }
   if (run.includesDrafts) {
     lines.push('  DRY RUN: unreviewed draft cases were counted. Do not quote these numbers.');
   }
@@ -40,6 +62,7 @@ export function formatSummary(run: EvalRun, s: RunSummary): string {
       ['Failures', failures || 'none'],
       ['Flagged unsafe by verifier', String(g.flaggedUnsafe)],
       ['Verifier errors', String(g.verifierErrors)],
+      ['Error causes', errorLine(run)],
       ['Accepted', String(g.accepted)],
     ]),
     '',
@@ -77,6 +100,13 @@ export function formatSummary(run: EvalRun, s: RunSummary): string {
       ['Safe false alarm rate', rate(s.verifier.safeFalseAlarm)],
       ['Call errors', String(s.verifier.errors)],
     ]),
+    '',
+    'Labelled cases that fail the checks',
+    ...(s.labelledCheckFailures.length === 0
+      ? ['  none']
+      : s.labelledCheckFailures.map(
+          (f) => `  ${f.set} ${f.caseId}: ${f.failures.join(', ') || 'no code given'}`,
+        )),
     '',
     'Cost',
     ...table([

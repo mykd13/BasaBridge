@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { GOLD_SET } from './gold/gold-set';
 import { SAFETY_SET } from './gold/safety-set';
-import { failureCode, goldReplayAdapters } from './gold-replay';
+import { checkStory } from '../index';
+import { checkWithCurrentRules, failureCode, goldReplayAdapters } from './gold-replay';
 import { gate } from './gate';
 import { summarize } from './metrics';
-import { EvalRun, NO_COST } from './run';
+import { ErrorCode, EvalRun, UNPRICED, VerifierResult } from './run';
+import { formatSummary } from './report';
 import { runEval, type EvalAdapters } from './runner';
 
 const reviewed = <T extends { reviewedBy: string | null }>(c: T): T => ({
@@ -31,6 +33,18 @@ describe('runEval with gold replay', () => {
     expect(run.storyModel).toBeNull();
     expect(run.generated).toHaveLength(4);
     expect(run.labelled).toHaveLength(0);
+    // Unreviewed drafts are not replayed as "generated" stories, so nothing is passed off as a result.
+    expect(run.generated.every((s) => s.error === 'no_gold_passage')).toBe(true);
+  });
+
+  it('replays drafts as stories only in a dry run that includes drafts', async () => {
+    const cases = [...GOLD_SET, ...SAFETY_SET];
+    const run = await runEval({
+      ...base,
+      cases,
+      includeDrafts: true,
+      adapters: goldReplayAdapters(cases, true),
+    });
     expect(run.generated.every((s) => s.checks?.passed)).toBe(true);
   });
 
@@ -54,7 +68,7 @@ describe('runEval with gold replay', () => {
     const adapters = goldReplayAdapters(GOLD_SET.filter((c) => c.story.level < 11));
     const run = await runEval({ ...base, levels: [24], perLevel: 1, cases: [], adapters });
     expect(run.generated[0]).toMatchObject({
-      error: 'No gold passage for level 24.',
+      error: 'no_gold_passage',
       checks: null,
     });
   });
@@ -105,7 +119,7 @@ describe('runEval with injected adapters', () => {
         check: () => ({ passed: false, failures: ['too_hard'] }),
         verify: async () => {
           calls += 1;
-          return { error: null, disagreed: [], flaggedUnsafe: false, cost: NO_COST };
+          return { error: null, disagreed: [], flaggedUnsafe: false, cost: UNPRICED };
         },
       }),
     });
@@ -128,21 +142,141 @@ describe('runEval with injected adapters', () => {
         },
       }),
     });
-    expect(run.generated[0]!.error).toBe('The generation call threw an error.');
-    expect(run.labelled[0]!.verifier.error).toBe('The verifier call threw an error.');
+    expect(run.generated[0]!.error).toBe('call_failed');
+    expect(run.labelled[0]!.verifier.error).toBe('call_failed');
+    // A thrown call may have been billed, so its price is unknown, not zero.
+    expect(run.generated[0]!.cost.usd).toBeNull();
+    expect(run.labelled[0]!.cost.usd).toBeNull();
     expect(JSON.stringify(run)).not.toContain('prompt text');
     expect(JSON.stringify(run)).not.toContain('reply text');
   });
 });
 
+describe('runEval at the adapter boundary', () => {
+  const story = GOLD_SET[0]!.story;
+  const adapters = (over: Partial<EvalAdapters> = {}): EvalAdapters => ({
+    name: 'fake',
+    storyModel: null,
+    verifierModel: null,
+    promptVersion: null,
+    generate: async () => ({ ok: true, story, cost: UNPRICED }),
+    check: () => ({ passed: true, failures: [] }),
+    verify: async () => ({ error: null, disagreed: [], flaggedUnsafe: false, cost: UNPRICED }),
+    ...over,
+  });
+
+  it('counts a story that does not parse as an invalid reply', async () => {
+    const bad = { title: 'x', text: 'y', level: 5, questions: [] } as never;
+    const run = await runEval({
+      ...base,
+      levels: [5],
+      perLevel: 1,
+      cases: [],
+      adapters: adapters({ generate: async () => ({ ok: true, story: bad, cost: UNPRICED }) }),
+    });
+    expect(run.generated[0]).toMatchObject({ error: 'invalid_reply', checks: null, text: null });
+    expect(summarize(run).generation.failures).toEqual({ generation_error: 1 });
+  });
+
+  it('checks and reports a story at the level that was asked for', async () => {
+    const seen: number[] = [];
+    const run = await runEval({
+      ...base,
+      levels: [24],
+      perLevel: 1,
+      cases: [],
+      adapters: adapters({
+        check: (s) => {
+          seen.push(s.level);
+          return { passed: true, failures: [] };
+        },
+      }),
+    });
+    expect(seen).toEqual([24]);
+    expect(run.generated[0]!.level).toBe(24);
+  });
+
+  it('turns a verifier reply with free text in error into an invalid reply', async () => {
+    const run = await runEval({
+      ...base,
+      levels: [5],
+      perLevel: 1,
+      cases: [],
+      adapters: adapters({
+        verify: async () =>
+          ({
+            error: 'provider said: Tala has a cat',
+            disagreed: [],
+            flaggedUnsafe: false,
+            cost: UNPRICED,
+          }) as never,
+      }),
+    });
+    expect(run.generated[0]!.verifier!.error).toBe('invalid_reply');
+    expect(JSON.stringify(run)).not.toContain('provider said');
+  });
+
+  it('rejects an error string that is not a known code', () => {
+    expect(ErrorCode.safeParse('call_failed').success).toBe(true);
+    expect(ErrorCode.safeParse('provider said: Tala has a cat').success).toBe(false);
+    expect(
+      VerifierResult.safeParse({ error: 'free text', disagreed: [], flaggedUnsafe: false }).success,
+    ).toBe(false);
+  });
+});
+
+describe('gold replay', () => {
+  it('records no price, so the report says n/a instead of $0', async () => {
+    const cases = [reviewed(GOLD_SET[0]!)];
+    const run = await runEval({
+      ...base,
+      levels: [5],
+      perLevel: 1,
+      cases,
+      adapters: goldReplayAdapters(cases),
+    });
+    const s = summarize(run);
+    expect(s.cost.usd).toBeNull();
+    expect(s.cost.perStoryUsd).toBeNull();
+    const text = formatSummary(run, s);
+    expect(text).toMatch(/Per story\s+n\/a/);
+    expect(text).toContain('No model was called. These numbers say nothing about a model.');
+  });
+
+  it('replays only reviewed passages unless drafts are included', async () => {
+    const request = { level: 5, index: 0 };
+    const drafts = await goldReplayAdapters(GOLD_SET).generate(request);
+    expect(drafts).toMatchObject({ ok: false, error: 'no_gold_passage' });
+    const withDrafts = await goldReplayAdapters(GOLD_SET, true).generate(request);
+    expect(withDrafts.ok).toBe(true);
+    const reviewedOne = await goldReplayAdapters(GOLD_SET.map(reviewed)).generate(request);
+    expect(reviewedOne.ok).toBe(true);
+  });
+});
+
 describe('failureCode', () => {
-  it('maps the current check reasons to the BB-16 codes', () => {
-    expect(failureCode('The passage had 3 words but must have 5-15.')).toBe('too_short');
-    expect(failureCode('The passage had 30 words but must have 5-15.')).toBe('too_long');
-    expect(failureCode('The passage was too hard (reading grade 4.0, maximum 2).')).toBe(
-      'too_hard',
-    );
-    expect(failureCode('Only 3 valid questions; need at least 4.')).toBe('too_few_questions');
+  const goodQuestions = GOLD_SET[0]!.story.questions;
+  // Level 5 allows 5-15 words and grade 2. Level 24 allows 25-50 words.
+  const words = (n: number) => Array.from({ length: n }, () => 'cat').join(' ') + '.';
+  const hard =
+    'Extraordinarily complicated international organizations unquestionably necessitate comprehensive administrative infrastructure.';
+
+  it('maps what checkStory really returns, so a change in the checks breaks this test', () => {
+    const cases: [string, ReturnType<typeof checkStory>][] = [
+      ['too_short', checkStory(words(2), goodQuestions, 5)],
+      ['too_long', checkStory(words(60), goodQuestions, 5)],
+      ['too_hard', checkStory(hard, goodQuestions, 5)],
+      ['too_few_questions', checkStory(GOLD_SET[0]!.story.text, goodQuestions.slice(0, 2), 5)],
+    ];
+    for (const [code, result] of cases) {
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(failureCode(result.reason)).toBe(code);
+    }
+  });
+
+  it('puts anything it does not know in other, and checkWithCurrentRules uses the real checks', () => {
     expect(failureCode('Something new.')).toBe('other');
+    const story = { ...GOLD_SET[0]!.story, text: words(2) };
+    expect(checkWithCurrentRules(story)).toEqual({ passed: false, failures: ['too_short'] });
   });
 });

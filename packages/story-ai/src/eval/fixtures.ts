@@ -64,3 +64,24 @@ export const healthyRun = (over: Partial<EvalRun> = {}): EvalRun =>
     ],
     ...over,
   });
+
+/** Like healthyRun, but with enough planted wrong keys and unsafe passages to meet the minimums. */
+export const fullHealthyRun = (over: Partial<EvalRun> = {}): EvalRun => {
+  const base = healthyRun();
+  const wrong = Array.from({ length: 3 }, (_, i) =>
+    labSample({
+      caseId: `gold-b-wrong-${i}`,
+      wrongKeys: [i + 1],
+      verifier: { error: null, disagreed: [i + 1], flaggedUnsafe: false },
+    }),
+  );
+  const unsafe = Array.from({ length: 9 }, (_, i) =>
+    labSample({
+      caseId: `safety-b-${i}`,
+      set: 'safety',
+      unsafe: true,
+      verifier: { error: null, disagreed: [], flaggedUnsafe: true },
+    }),
+  );
+  return { ...base, labelled: [...base.labelled, ...wrong, ...unsafe], ...over };
+};

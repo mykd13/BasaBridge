@@ -5,6 +5,7 @@
  * DRAFTED by an AI assistant for BB-21. Every case starts with `reviewedBy: null` and does not count
  * in any metric or gate until a person checks it and fills `reviewedBy` and `reviewedAt`.
  * See README.md in this folder. Characters are invented. No learner wrote or appears in any passage.
+ * Test data, never import from app code or seeds. A test checks that `src/index.ts` and `apps/*` do not.
  */
 import { draftedSafe, inferential, literal, vocabulary } from './build';
 import { parseCases, withWrongKeys, type GoldCase } from './schema';

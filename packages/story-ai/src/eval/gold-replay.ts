@@ -7,7 +7,7 @@
 import { tierFor } from '@basabridge/levels';
 import { checkStory } from '../index';
 import type { GoldCase, GoldStory } from './gold/schema';
-import { type CheckOutcome, NO_COST } from './run';
+import { type CheckOutcome, GOLD_REPLAY, UNPRICED } from './run';
 import type { EvalAdapters } from './runner';
 
 /** Gives the reason from checkStory a stable code, using the names the checks use in BB-16. */
@@ -26,10 +26,13 @@ export function checkWithCurrentRules(story: GoldStory): CheckOutcome {
     : { passed: false, failures: [failureCode(result.reason)] };
 }
 
-export function goldReplayAdapters(cases: GoldCase[]): EvalAdapters {
-  const pool = cases.filter((c) => !c.unsafe && c.wrongKeys.length === 0);
+/** Unreviewed drafts are left out of the replay pool unless `includeDrafts` is set. */
+export function goldReplayAdapters(cases: GoldCase[], includeDrafts = false): EvalAdapters {
+  const pool = cases.filter(
+    (c) => !c.unsafe && c.wrongKeys.length === 0 && (includeDrafts || c.reviewedBy !== null),
+  );
   return {
-    name: 'gold-replay',
+    name: GOLD_REPLAY,
     storyModel: null,
     verifierModel: null,
     promptVersion: null,
@@ -37,13 +40,12 @@ export function goldReplayAdapters(cases: GoldCase[]): EvalAdapters {
       const tier = tierFor(level);
       const inTier = pool.filter((c) => tierFor(c.story.level) === tier);
       const picked = inTier[index % Math.max(1, inTier.length)];
-      if (!picked)
-        return { ok: false, error: `No gold passage for level ${level}.`, cost: NO_COST };
-      return { ok: true, story: { ...picked.story, level }, cost: NO_COST };
+      if (!picked) return { ok: false, error: 'no_gold_passage', cost: UNPRICED };
+      return { ok: true, story: { ...picked.story, level }, cost: UNPRICED };
     },
     check: checkWithCurrentRules,
     async verify() {
-      return { error: null, disagreed: [], flaggedUnsafe: false, cost: NO_COST };
+      return { error: null, disagreed: [], flaggedUnsafe: false, cost: UNPRICED };
     },
   };
 }

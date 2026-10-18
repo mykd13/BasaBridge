@@ -4,7 +4,7 @@
  * replay in part 1 and for real models in part 2.
  */
 import { countWords, readingGrade } from '../index';
-import type { GoldCase, GoldStory } from './gold/schema';
+import { GoldStory, type GoldCase } from './gold/schema';
 import {
   addCost,
   type CheckOutcome,
@@ -12,8 +12,9 @@ import {
   type EvalRun,
   type GeneratedSample,
   type LabelledSample,
-  NO_COST,
-  type VerifierResult,
+  type ErrorCode,
+  UNPRICED,
+  VerifierResult,
 } from './run';
 
 export interface GenerateRequest {
@@ -23,7 +24,7 @@ export interface GenerateRequest {
 }
 
 export type GenerateResult =
-  { ok: true; story: GoldStory; cost: Cost } | { ok: false; error: string; cost: Cost };
+  { ok: true; story: GoldStory; cost: Cost } | { ok: false; error: ErrorCode; cost: Cost };
 
 export type VerifyResult = VerifierResult & { cost: Cost };
 
@@ -50,25 +51,30 @@ export interface RunOptions {
   adapters: EvalAdapters;
 }
 
-// A thrown error can carry prompt or story text, so only a fixed sentence is kept.
+// A thrown error can carry prompt or story text, so only a fixed code is kept.
 async function safeGenerate(a: EvalAdapters, r: GenerateRequest): Promise<GenerateResult> {
   try {
     return await a.generate(r);
   } catch {
-    return { ok: false, error: 'The generation call threw an error.', cost: NO_COST };
+    return { ok: false, error: 'call_failed', cost: UNPRICED };
   }
 }
 
+const failedVerify = (error: ErrorCode): VerifyResult => ({
+  error,
+  disagreed: [],
+  flaggedUnsafe: false,
+  cost: UNPRICED,
+});
+
 async function safeVerify(a: EvalAdapters, story: GoldStory): Promise<VerifyResult> {
   try {
-    return await a.verify(story);
+    const raw = await a.verify(story);
+    // Parse at the boundary: a reply with free text in `error` or bad numbers is an invalid reply.
+    const parsed = VerifierResult.safeParse(raw);
+    return parsed.success ? { ...parsed.data, cost: raw.cost } : failedVerify('invalid_reply');
   } catch {
-    return {
-      error: 'The verifier call threw an error.',
-      disagreed: [],
-      flaggedUnsafe: false,
-      cost: NO_COST,
-    };
+    return failedVerify('call_failed');
   }
 }
 
@@ -93,7 +99,25 @@ async function runGenerated(
       cost: generated.cost,
     };
   }
-  const { story } = generated;
+  // The adapter's story is untrusted until it parses. It is checked and reported at the level that
+  // was asked for, so a story that came back at another level cannot be judged by a different tier.
+  const parsed = GoldStory.safeParse(generated.story);
+  if (!parsed.success) {
+    return {
+      level,
+      index,
+      error: 'invalid_reply',
+      title: null,
+      text: null,
+      words: null,
+      readingGrade: null,
+      questions: null,
+      checks: null,
+      verifier: null,
+      cost: generated.cost,
+    };
+  }
+  const story: GoldStory = { ...parsed.data, level };
   const checks = a.check(story);
   const verified = checks.passed ? await safeVerify(a, story) : null;
   return {

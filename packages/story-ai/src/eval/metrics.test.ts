@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compareSummaries } from './compare';
 import { evalRun, genSample, healthyRun, labSample } from './fixtures';
-import { isAccepted, median, summarize } from './metrics';
+import { isAccepted, median, runExitCode, summarize } from './metrics';
 import { EvalRun } from './run';
 
 describe('median', () => {
@@ -19,7 +19,7 @@ describe('generation metrics', () => {
       genSample({ index: 1, checks: { passed: false, failures: ['too_hard'] }, verifier: null }),
       genSample({
         index: 2,
-        error: 'The model call failed.',
+        error: 'call_failed',
         title: null,
         text: null,
         words: null,
@@ -65,7 +65,7 @@ describe('isAccepted', () => {
   });
 
   it('rejects a story whose verifier call failed', () => {
-    const verifier = { error: 'The verifier call failed.', disagreed: [], flaggedUnsafe: false };
+    const verifier = { error: 'call_failed' as const, disagreed: [], flaggedUnsafe: false };
     expect(isAccepted(genSample({ verifier }))).toBe(false);
   });
 });
@@ -192,5 +192,50 @@ describe('privacy', () => {
       expect(keys.has(forbidden), forbidden).toBe(false);
     }
     expect(Object.keys(EvalRun.shape)).not.toContain('apiKey');
+  });
+});
+
+describe('disagreed question numbers', () => {
+  const v = (disagreed: number[]) => ({ error: null, disagreed, flaggedUnsafe: false });
+
+  it('counts a repeated or out-of-range number once or not at all when accepting a story', () => {
+    // [1, 1, 9] on five questions drops one question, not three.
+    expect(isAccepted(genSample({ verifier: v([1, 1, 9]) }))).toBe(true);
+    expect(isAccepted(genSample({ verifier: v([1, 2]) }))).toBe(false);
+  });
+
+  it('uses the same rule for the verifier metrics, so both agree', () => {
+    const run = evalRun({
+      labelled: [labSample({ wrongKeys: [], verifier: v([1, 1, 9]) })],
+    });
+    expect(summarize(run).verifier.goodKeyFalseAlarm).toEqual({ part: 1, whole: 5, rate: 0.2 });
+  });
+});
+
+describe('labelled check failures', () => {
+  const failing = labSample({
+    caseId: 'gold-bad',
+    checks: { passed: false, failures: ['too_hard'] },
+  });
+
+  it('lists counted cases that fail the checks, with ids and codes only', () => {
+    const run = healthyRun();
+    run.labelled.push(failing);
+    expect(summarize(run).labelledCheckFailures).toEqual([
+      { caseId: 'gold-bad', set: 'gold', failures: ['too_hard'] },
+    ]);
+  });
+
+  it('leaves out an unreviewed draft that fails, unless the run counts drafts', () => {
+    const draft = { ...failing, reviewed: false };
+    expect(summarize(evalRun({ labelled: [draft] })).labelledCheckFailures).toEqual([]);
+    expect(
+      summarize(evalRun({ includesDrafts: true, labelled: [draft] })).labelledCheckFailures,
+    ).toHaveLength(1);
+  });
+
+  it('makes eval run exit 1 only when a counted case fails', () => {
+    expect(runExitCode(summarize(healthyRun()))).toBe(0);
+    expect(runExitCode(summarize(evalRun({ labelled: [failing] })))).toBe(1);
   });
 });

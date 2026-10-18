@@ -11,6 +11,11 @@ import type { EvalRun, GeneratedSample, LabelledSample } from './run';
  */
 const MIN_QUESTIONS = 4;
 
+/** Distinct question numbers from 1 to `questions`. A repeated or out-of-range number counts once or not at all. */
+export function distinctDisagreed(disagreed: number[], questions: number): Set<number> {
+  return new Set(disagreed.filter((n) => Number.isInteger(n) && n >= 1 && n <= questions));
+}
+
 export interface Rate {
   part: number;
   whole: number;
@@ -45,7 +50,16 @@ export interface LevelDrift {
   overCap: number;
 }
 
+/** A counted gold or safety case that failed the deterministic checks. Ids and codes only. */
+export interface LabelledCheckFailure {
+  caseId: string;
+  set: 'gold' | 'safety';
+  failures: string[];
+}
+
 export interface RunSummary {
+  /** Counted labelled cases that fail `checkStory`. Both sets assume every case passes. */
+  labelledCheckFailures: LabelledCheckFailure[];
   generation: {
     attempted: number;
     /** A story came back at all. */
@@ -90,7 +104,8 @@ export interface RunSummary {
 export function isAccepted(s: GeneratedSample): boolean {
   if (!s.checks?.passed || !s.verifier) return false;
   if (s.verifier.error !== null || s.verifier.flaggedUnsafe) return false;
-  return (s.questions ?? 0) - s.verifier.disagreed.length >= MIN_QUESTIONS;
+  const dropped = distinctDisagreed(s.verifier.disagreed, s.questions ?? 0).size;
+  return (s.questions ?? 0) - dropped >= MIN_QUESTIONS;
 }
 
 function summarizeGeneration(samples: GeneratedSample[]): RunSummary['generation'] {
@@ -145,7 +160,7 @@ function summarizeVerifier(samples: LabelledSample[]): RunSummary['verifier'] {
   let goodKeys = 0;
   let goodAlarms = 0;
   for (const s of samples.filter((x) => !x.unsafe)) {
-    const disagreed = new Set(s.verifier.disagreed);
+    const disagreed = distinctDisagreed(s.verifier.disagreed, s.questions);
     for (let n = 1; n <= s.questions; n += 1) {
       if (s.wrongKeys.includes(n)) {
         wrongKeys += 1;
@@ -194,12 +209,23 @@ function summarizeCost(
 export const countedLabelled = (run: EvalRun): LabelledSample[] =>
   run.includesDrafts ? run.labelled : run.labelled.filter((s) => s.reviewed);
 
+function labelledCheckFailures(samples: LabelledSample[]): LabelledCheckFailure[] {
+  return samples
+    .filter((s) => !s.checks.passed)
+    .map((s) => ({ caseId: s.caseId, set: s.set, failures: [...s.checks.failures] }));
+}
+
 export function summarize(run: EvalRun): RunSummary {
   const generation = summarizeGeneration(run.generated);
+  const counted = countedLabelled(run);
   return {
+    labelledCheckFailures: labelledCheckFailures(counted),
     generation,
     drift: summarizeDrift(run.generated),
-    verifier: summarizeVerifier(countedLabelled(run)),
+    verifier: summarizeVerifier(counted),
     cost: summarizeCost(run.generated, run.labelled, generation.accepted),
   };
 }
+
+/** `eval run` exits 1 when a counted gold or safety case fails the checks. */
+export const runExitCode = (s: RunSummary): 0 | 1 => (s.labelledCheckFailures.length > 0 ? 1 : 0);

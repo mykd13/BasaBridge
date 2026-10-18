@@ -4,13 +4,13 @@
  */
 import { execFileSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
-import { TIERS } from '@basabridge/levels';
+import { MAX_LEVEL, MIN_LEVEL, TIERS } from '@basabridge/levels';
 import { compareSummaries } from './compare';
 import { gate } from './gate';
 import { GOLD_SET } from './gold/gold-set';
 import { SAFETY_SET } from './gold/safety-set';
 import { goldReplayAdapters } from './gold-replay';
-import { summarize } from './metrics';
+import { runExitCode, summarize } from './metrics';
 import { formatComparison, formatGate, formatSummary } from './report';
 import { runEval, type EvalAdapters } from './runner';
 import { listRuns, loadRun, newRunId, RunNotFound, RUNS_DIR, saveRun } from './store';
@@ -26,6 +26,8 @@ const USAGE = `Usage: pnpm --filter @basabridge/story-ai eval <command>
   gate <candidate> [--baseline <run>]
                                   exit 1 when the change is blocked
 
+run exits 1 when a counted gold or safety case fails the checks.
+
 <run> is a run id or a path to a .json file. Runs are saved in ${RUNS_DIR}
 (override with --dir). Model names come from STORY_MODEL and VERIFIER_MODEL unless
 the flags are given. Keys are never printed or saved.`;
@@ -38,8 +40,10 @@ const defaultLevels = () => TIERS.map((t) => Math.floor((t.from + t.to) / 2));
 function parseLevels(value: string | undefined): number[] {
   if (value === undefined) return defaultLevels();
   const levels = value.split(',').map((x) => Number(x.trim()));
-  if (levels.some((l) => !Number.isInteger(l) || l < 1 || l > 100)) {
-    throw new UsageError('--levels must be whole numbers from 1 to 100, separated by commas.');
+  if (levels.some((l) => !Number.isInteger(l) || l < MIN_LEVEL || l > MAX_LEVEL)) {
+    throw new UsageError(
+      `--levels must be whole numbers from ${MIN_LEVEL} to ${MAX_LEVEL}, separated by commas.`,
+    );
   }
   return levels;
 }
@@ -54,9 +58,11 @@ function gitSha(): string | null {
 
 function adaptersFor(
   name: string,
+  includeDrafts: boolean,
   models: { story: string | undefined; verifier: string | undefined },
 ): EvalAdapters {
-  if (name === 'gold-replay') return goldReplayAdapters([...GOLD_SET, ...SAFETY_SET]);
+  if (name === 'gold-replay')
+    return goldReplayAdapters([...GOLD_SET, ...SAFETY_SET], includeDrafts);
   if (name === 'models') {
     if (!models.story || !models.verifier) {
       throw new UsageError(
@@ -100,7 +106,7 @@ async function main(argv: string[]): Promise<number> {
     if (!Number.isInteger(perLevel) || perLevel < 0) {
       throw new UsageError('--per-level must be a whole number.');
     }
-    const adapters = adaptersFor(values.adapters, {
+    const adapters = adaptersFor(values.adapters, values['include-drafts'], {
       story: values['story-model'] ?? process.env.STORY_MODEL,
       verifier: values['verifier-model'] ?? process.env.VERIFIER_MODEL,
     });
@@ -116,9 +122,14 @@ async function main(argv: string[]): Promise<number> {
       adapters,
     });
     const path = await saveRun(run, dir);
-    console.log(formatSummary(run, summarize(run)));
-    console.log(`\nSaved ${path}`);
-    return 0;
+    const summary = summarize(run);
+    console.log(formatSummary(run, summary));
+    console.log(`${String.fromCharCode(10)}Saved ${path}`);
+    // A counted gold or safety case that fails the checks fails the run, visibly.
+    const code = runExitCode(summary);
+    if (code !== 0)
+      console.error('A counted gold or safety case fails the checks. See the list above.');
+    return code;
   }
 
   if (command === 'show') {

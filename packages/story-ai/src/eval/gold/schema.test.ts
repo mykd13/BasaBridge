@@ -89,4 +89,13 @@ describe('set helpers', () => {
     expect(wrong.story.questions.map((x) => x.answerIndex)).toEqual([0, 2, 2, 3]);
     expect(GoldCase.safeParse(wrong).success).toBe(true);
   });
+
+  it('rejects an AI assistant as the reviewer and a review date in the future', () => {
+    for (const reviewedBy of ['ai', 'Claude', 'assistant']) {
+      const c = { ...base(), reviewedBy, reviewedAt: '2026-10-17' };
+      expect(GoldCase.safeParse(c).success, reviewedBy).toBe(false);
+    }
+    const future = { ...base(), reviewedBy: 'teacher-a', reviewedAt: '2999-01-01' };
+    expect(GoldCase.safeParse(future).success).toBe(false);
+  });
 });
