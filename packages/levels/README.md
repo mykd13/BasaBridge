@@ -74,6 +74,7 @@ The ability model keeps a probability over each learner's ability and updates it
 - **Weights.** A rushed answer and an answer after a supported try count for less than a normal answer, which counts 1.
 - **Rushed answers.** An answer is rushed when it comes faster than a base time plus an allowance for each word on screen.
 - **Sub-skill offsets.** Each sub-skill starts a little easier or harder than the story level. Real answers recalibrate them later (BB-45).
+- **Calibration.** Once a question has enough real answers, its difficulty is re-estimated, pulled a little toward its starting value. A question is retired when almost everyone gets it right, almost no one beats guessing, or stronger readers do no better on it than weaker ones. Sub-skill offsets are suggested only from enough calibrated questions (BB-45).
 
 ## Placement rules
 
@@ -179,6 +180,7 @@ These are placeholders until the reading specialist reviews them (BB-74).
 - [ ] Rushed and supported-try weights
 - [ ] Move-up and move-down thresholds: certainty, margin, answers, passes, words right
 - [ ] Sub-skill difficulty offsets
+- [ ] Calibration: answers needed, pull toward the starting difficulty, retirement thresholds, questions needed per sub-skill offset
 - [ ] Rushed-answer timing: base time and per-word allowance
 - [ ] Placement: stories per test, stop certainty, step limit, start level per grade, default start, how far below the estimate to start, low-decoding share, retake period
 - [ ] Listen-then-read: highest level and voice speed
