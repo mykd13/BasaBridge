@@ -2,6 +2,7 @@
  * In-memory implementations of the engine's ports, for tests and for local wiring before the
  * database repositories exist. They hold data in process memory only and are not for production.
  */
+import { EngineError } from './errors';
 import type {
   AnalysisSource,
   LearnerProfile,
@@ -53,7 +54,9 @@ export class MemorySessions implements SessionRepository {
     this.rows.set(record.id, clone(record));
   }
   async save(record: SessionRecord) {
-    this.rows.set(record.id, clone(record));
+    const stored = this.rows.get(record.id);
+    if (stored && stored.version !== record.version) throw new EngineError('conflict');
+    this.rows.set(record.id, clone({ ...record, version: record.version + 1 }));
   }
   async recentStoryIds(learnerId: string, limit: number) {
     return [...this.rows.values()]
@@ -78,7 +81,9 @@ export class MemoryPlacements implements PlacementRepository {
     this.rows.set(record.id, clone(record));
   }
   async save(record: PlacementRecord) {
-    this.rows.set(record.id, clone(record));
+    const stored = this.rows.get(record.id);
+    if (stored && stored.version !== record.version) throw new EngineError('conflict');
+    this.rows.set(record.id, clone({ ...record, version: record.version + 1 }));
   }
 }
 

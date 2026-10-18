@@ -146,6 +146,7 @@ export async function startPlacement(deps: EngineDeps, learnerId: string): Promi
       },
     ],
     result: null,
+    version: 0,
     createdAt: deps.now(),
     finishedAt: null,
   };
@@ -175,6 +176,8 @@ export async function submitPlacementRead(
   if (p.status !== 'reading' || !cur) throw new EngineError('session_wrong_state');
 
   if (req.mode === 'silent') {
+    // A learner who may use the microphone cannot skip the read without saying why.
+    if (p.voiceMode === 'voice' && !req.micState) throw new EngineError('voice_required');
     cur.readStatus = 'silent';
   } else {
     // The under-13 microphone gate is enforced here, not in the browser (AGENTS.md rule 5).
@@ -232,10 +235,11 @@ export async function submitPlacementAnswer(
       supportedTry: false,
     }),
   );
-  if (cur.answers.length >= story.questions.length) {
-    await advance(deps, profile, p);
-  }
+  const finished = cur.answers.length >= story.questions.length ? await advance(deps, p) : null;
+  // Save the placement first: a stale copy is rejected there, so a second tab cannot place twice.
   await deps.placements.save(p);
+  if (finished)
+    await deps.learners.savePlacement(profile.id, finished.placement, finished.progress);
   return { accepted: true, placement: await viewOf(deps, p) };
 }
 
@@ -258,12 +262,16 @@ async function masteryState(deps: EngineDeps, p: PlacementRecord): Promise<Place
   return { startLevel: p.startLevel, stories };
 }
 
-/** A story is finished: pick the next one or finish placement. Mutates `p`. */
-async function advance(
-  deps: EngineDeps,
-  profile: LearnerProfile,
-  p: PlacementRecord,
-): Promise<void> {
+interface Finished {
+  placement: LearnerProfile['placement'];
+  progress: LearnerProgress;
+}
+
+/**
+ * A story is finished: pick the next one or finish placement. Mutates `p`. When placement is
+ * finished it returns what to write to the learner, for the caller to save after the placement.
+ */
+async function advance(deps: EngineDeps, p: PlacementRecord): Promise<Finished | null> {
   const state = await masteryState(deps, p);
   const next = nextPlacement(state);
   if (!next.done && next.level !== null) {
@@ -282,7 +290,7 @@ async function advance(
         answers: [],
       });
       p.status = 'reading';
-      return;
+      return null;
     }
     // The bank ran out: place on what we have rather than leave the learner stuck.
   }
@@ -308,11 +316,7 @@ async function advance(
     posterior: placementPosterior(state),
     history,
   };
-  await deps.learners.savePlacement(
-    profile.id,
-    { state: 'completed', finishedAt: p.finishedAt, result },
-    progress,
-  );
+  return { placement: { state: 'completed', finishedAt: p.finishedAt, result }, progress };
 }
 
 /**
@@ -322,12 +326,21 @@ async function advance(
 export async function skipPlacement(deps: EngineDeps, learnerId: string): Promise<PlacementGate> {
   const profile = await profileOf(deps, learnerId);
   const gate = placementGate(profile, deps.now());
-  if (gate.state === 'completed') throw new EngineError('placement_done');
+  // A skipped or finished placement already set the learner's level. Skipping again must not reset it.
+  if (gate.state === 'completed' || gate.state === 'skipped') {
+    throw new EngineError('placement_done');
+  }
   const open = await deps.placements.findInProgress(learnerId);
   if (open) {
     open.status = 'done';
     open.finishedAt = deps.now();
     await deps.placements.save(open);
+  }
+  if (profile.placement.result) {
+    // Abandoning a retake: the earlier result and the learner's progress stay as they are.
+    const restored = { ...profile.placement, state: 'completed' as const };
+    await deps.learners.savePlacement(learnerId, restored, null);
+    return placementGate({ ...profile, placement: restored }, deps.now());
   }
   const level = startLevelForGrade(profile.grade);
   const progress: LearnerProgress = {

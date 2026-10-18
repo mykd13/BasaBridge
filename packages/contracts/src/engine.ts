@@ -26,6 +26,10 @@ export const PublicQuestion = z.object({
 });
 export type PublicQuestion = z.infer<typeof PublicQuestion>;
 
+/** Why a learner who may use the microphone cannot read aloud now. */
+export const MicProblem = z.enum(['blocked', 'unavailable']);
+export type MicProblem = z.infer<typeof MicProblem>;
+
 export const VoiceMode = z.enum(['voice', 'silent']);
 export type VoiceMode = z.infer<typeof VoiceMode>;
 
@@ -101,7 +105,16 @@ export const SubmitTryRequest = z.discriminatedUnion('mode', [
     /** The learner heard the story read slowly first. The server checks it was allowed. */
     listened: z.boolean().default(false),
   }),
-  z.object({ mode: z.literal('silent'), listened: z.boolean().default(false) }),
+  z.object({
+    mode: z.literal('silent'),
+    listened: z.boolean().default(false),
+    /**
+     * Required when the session is a voice session (the learner may use the microphone): the
+     * learner says why they cannot read aloud. Without it the server answers 403 `voice_required`.
+     * A silent read never moves a level up.
+     */
+    micState: MicProblem.optional(),
+  }),
 ]);
 export type SubmitTryRequest = z.infer<typeof SubmitTryRequest>;
 
@@ -166,7 +179,7 @@ export const PlacementReadRequest = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('voice'), captureId: z.string().min(8).max(64) }),
   /** The recording failed on the device or upload. The server retries once, then skips the story. */
   z.object({ mode: z.literal('voice_failed') }),
-  z.object({ mode: z.literal('silent') }),
+  z.object({ mode: z.literal('silent'), micState: MicProblem.optional() }),
 ]);
 export type PlacementReadRequest = z.infer<typeof PlacementReadRequest>;
 
@@ -206,6 +219,8 @@ export const EngineErrorCode = z.enum([
   'session_wrong_state',
   'no_tries_left',
   'mic_not_allowed',
+  'voice_required',
+  'conflict',
   'analysis_not_found',
   'try_not_completed',
   'no_completed_try',

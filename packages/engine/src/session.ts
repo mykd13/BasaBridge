@@ -23,6 +23,7 @@ import {
   triesFor,
 } from '@basabridge/levels';
 import {
+  applyReadiness,
   estimateSkills,
   focusSkill,
   guessFor,
@@ -169,6 +170,7 @@ async function createSession(
     answers: [],
     inlineOffersShown: 0,
     result: null,
+    version: 0,
     createdAt: deps.now(),
   };
   await deps.sessions.create(record);
@@ -237,9 +239,13 @@ export async function submitTry(
   let share: number | null = null;
   let wpm = 0;
   let needsReview = false;
+  if (req.mode === 'silent' && s.voiceMode === 'voice' && !req.micState) {
+    // A learner who may use the microphone cannot skip the read without saying why.
+    throw new EngineError('voice_required');
+  }
   if (req.mode === 'voice') {
     // The under-13 microphone gate is enforced here, not in the browser (AGENTS.md rule 5).
-    if (!profile.micAllowed) throw new EngineError('mic_not_allowed');
+    if (!profile.micAllowed || s.voiceMode !== 'voice') throw new EngineError('mic_not_allowed');
     const analysis = await deps.analyses.take(learnerId, req.captureId);
     if (!analysis) throw new EngineError('analysis_not_found');
     completed = analysis.completed;
@@ -266,6 +272,7 @@ export async function submitTry(
     createdAt: deps.now(),
   });
 
+  let closed: Closed | null = null;
   if (triesLeftOf(s) === 0) {
     // Tries are used up: the best try counts. With no finished try, the story ends as stopped early.
     const best = bestTry(s.tries);
@@ -274,10 +281,10 @@ export async function submitTry(
       s.status = 'answering';
     } else {
       // No questions were answered, so no story is needed to close the session.
-      await finish(deps, s, profile, null);
+      closed = finish(deps, s, profile, null);
     }
   }
-  await deps.sessions.save(s);
+  await commit(deps, s, closed);
   return view(deps, s, profile);
 }
 
@@ -294,7 +301,7 @@ export async function continueToQuestions(
   if (!best) throw new EngineError('no_completed_try');
   s.countedTryId = best.id;
   s.status = 'answering';
-  await deps.sessions.save(s);
+  await commit(deps, s, null);
   return view(deps, s, profile);
 }
 
@@ -337,28 +344,43 @@ export async function submitAnswer(
   const offerLearn = !entry.correct && offer.inline;
   if (offerLearn) s.inlineOffersShown += 1;
 
-  let result: SessionResult | null = null;
-  if (s.answers.length >= story.questions.length) result = await finish(deps, s, profile, story);
-  await deps.sessions.save(s);
+  let closed: Closed | null = null;
+  if (s.answers.length >= story.questions.length) closed = finish(deps, s, profile, story);
+  await commit(deps, s, closed);
   return {
     correct: entry.correct,
     correctIndexes: keyIndexes(question.key),
     evidence: question.evidence,
     offerLearn,
-    result,
+    result: closed?.result ?? null,
   };
+}
+
+interface Closed {
+  result: SessionResult;
+  /** New progress to save, or null when the session ended without evidence. */
+  progress: LearnerProgress | null;
+}
+
+/**
+ * Save the session first. A stale copy is rejected there (`conflict`), so a second tab cannot
+ * apply the same result to the learner's progress twice. Progress is written only after that.
+ */
+async function commit(deps: EngineDeps, s: SessionRecord, closed: Closed | null): Promise<void> {
+  await deps.sessions.save(s);
+  if (closed?.progress) await deps.learners.saveProgress(s.learnerId, closed.progress);
 }
 
 /**
  * Close the session: pass rule from packages/levels, ability update and level movement from
- * packages/mastery. Mutates `s` (status, result) and saves the learner's progress.
+ * packages/mastery. Mutates `s` (status, result). The caller saves the session, then the progress.
  */
-async function finish(
-  deps: EngineDeps,
+function finish(
+  _deps: EngineDeps,
   s: SessionRecord,
   profile: LearnerProfile,
   story: StoredStory | null,
-): Promise<SessionResult> {
+): Closed {
   const progress = profile.progress;
   const before = progress.level;
   s.status = 'done';
@@ -379,7 +401,7 @@ async function finish(
       voiceEvidence: false,
     };
     s.result = result;
-    return result;
+    return { result, progress: null };
   }
 
   const total = story.questions.length;
@@ -415,15 +437,8 @@ async function finish(
     passedStories,
     recentWordsRight: recent,
   });
-  let level = before;
-  let moved: SessionResult['moved'] = 'none';
-  if (readiness.up) {
-    level = before + 1;
-    moved = 'up';
-  } else if (readiness.down) {
-    level = before - 1;
-    moved = 'down';
-  }
+  // The move itself (one level, inside the table) is decided in packages/mastery.
+  const { level, moved } = applyReadiness(before, readiness);
 
   const history = [
     ...progress.history,
@@ -442,7 +457,6 @@ async function finish(
     posterior,
     history,
   };
-  await deps.learners.saveProgress(profile.id, next);
   profile.progress = next;
 
   const result: SessionResult = {
@@ -465,5 +479,5 @@ async function finish(
     voiceEvidence,
   };
   s.result = result;
-  return result;
+  return { result, progress: next };
 }

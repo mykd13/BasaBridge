@@ -154,13 +154,17 @@ export interface SessionRecord {
   /** Small Learn links already shown in this quiz. */
   inlineOffersShown: number;
   result: SessionResult | null;
+  /** Row version for the concurrency guard. 0 when created. */
+  version: number;
   createdAt: Date;
 }
 
 /**
  * Repository interface for `reading_sessions`, `tries` and `answers`. A session is saved as one
- * unit. Implementations must make `save` atomic and reject a write based on a stale copy, so two
- * tabs cannot count a try twice.
+ * unit. `save` must be atomic and must compare `record.version` with the stored version: when they
+ * differ it throws `EngineError('conflict')` and writes nothing, otherwise it stores the record with
+ * `version + 1` (for example `UPDATE ... WHERE id = $1 AND version = $2`). That stops two tabs from
+ * counting a try or finishing a session twice.
  */
 export interface SessionRepository {
   get(sessionId: string): Promise<SessionRecord | null>;
@@ -192,11 +196,16 @@ export interface PlacementRecord {
   status: 'reading' | 'answering' | 'done';
   stories: PlacementStoryRecord[];
   result: PlacementResult | null;
+  /** Row version for the concurrency guard. Same rule as `SessionRecord.version`. */
+  version: number;
   createdAt: Date;
   finishedAt: Date | null;
 }
 
-/** Repository interface for `placement_sessions` (the table already exists in packages/db). */
+/**
+ * Repository interface for `placement_sessions` (the table already exists in packages/db).
+ * `save` has the same version check as the session repository and throws `conflict` on a stale copy.
+ */
 export interface PlacementRepository {
   get(id: string): Promise<PlacementRecord | null>;
   findInProgress(learnerId: string): Promise<PlacementRecord | null>;

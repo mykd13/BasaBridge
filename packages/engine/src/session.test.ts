@@ -37,7 +37,7 @@ async function playSilent(
 ) {
   const id = lid(w);
   const s = await startSession(w.deps, id);
-  await submitTry(w.deps, id, s.id, { mode: 'silent', listened: false });
+  await submitTry(w.deps, id, s.id, { mode: 'silent', listened: false, micState: 'blocked' });
   await continueToQuestions(w.deps, id, s.id);
   const story = (await w.bank.get(s.story.id))!;
   let last;
@@ -99,13 +99,21 @@ describe('start and resume', () => {
   it('hides another learner session', async () => {
     const w = makeWorld();
     const s = await startSession(w.deps, lid(w));
-    expect(await codeOf(submitTry(w.deps, uuid(), s.id, { mode: 'silent', listened: false }))).toBe(
-      'not_configured',
-    );
+    expect(
+      await codeOf(
+        submitTry(w.deps, uuid(), s.id, { mode: 'silent', listened: false, micState: 'blocked' }),
+      ),
+    ).toBe('not_configured');
     const other = makeWorld();
     other.sessions.rows.set(s.id, w.sessions.rows.get(s.id)!);
     expect(
-      await codeOf(submitTry(other.deps, lid(other), s.id, { mode: 'silent', listened: false })),
+      await codeOf(
+        submitTry(other.deps, lid(other), s.id, {
+          mode: 'silent',
+          listened: false,
+          micState: 'blocked',
+        }),
+      ),
     ).toBe('session_not_found');
   });
 
@@ -181,9 +189,11 @@ describe('read tries', () => {
     expect(last.status).toBe('answering');
     expect(last.triesLeft).toBe(0);
     expect(last.countedTryId).toBe(last.tries[0]?.id);
-    expect(await codeOf(submitTry(w.deps, id, s.id, { mode: 'silent', listened: false }))).toBe(
-      'session_wrong_state',
-    );
+    expect(
+      await codeOf(
+        submitTry(w.deps, id, s.id, { mode: 'silent', listened: false, micState: 'blocked' }),
+      ),
+    ).toBe('session_wrong_state');
   });
 
   it('ends as stopped early when tries run out with no finished try, then offers a new story', async () => {
@@ -197,9 +207,11 @@ describe('read tries', () => {
         listened: false,
       });
     }
-    const done = await submitTry(w.deps, id, s.id, { mode: 'silent', listened: false }).catch(
-      (e) => e,
-    );
+    const done = await submitTry(w.deps, id, s.id, {
+      mode: 'silent',
+      listened: false,
+      micState: 'blocked',
+    }).catch((e) => e);
     expect(done).toBeInstanceOf(EngineError);
     const state = await startSession(w.deps, id);
     expect(state.status).toBe('reading');
@@ -218,7 +230,7 @@ describe('read tries', () => {
     const id = lid(w);
     const s = await startSession(w.deps, id);
     for (let i = 0; i < 2; i++) {
-      await submitTry(w.deps, id, s.id, { mode: 'silent', listened: false });
+      await submitTry(w.deps, id, s.id, { mode: 'silent', listened: false, micState: 'blocked' });
       if (i === 0) continue;
     }
     expect(w.sessions.rows.get(s.id)?.tries).toHaveLength(2);
@@ -237,7 +249,11 @@ describe('microphone gate and speech seam', () => {
     ).toBe('mic_not_allowed');
     // The capture was not consumed and the learner can still read silently.
     expect(w.analyses.byCapture.has(c)).toBe(true);
-    const ok = await submitTry(w.deps, id, s.id, { mode: 'silent', listened: false });
+    const ok = await submitTry(w.deps, id, s.id, {
+      mode: 'silent',
+      listened: false,
+      micState: 'blocked',
+    });
     expect(ok.tries[0]?.wordsRightShare).toBeNull();
   });
 
@@ -292,7 +308,7 @@ describe('listen then read', () => {
     const id = lid(w);
     const s = await startSession(w.deps, id);
     expect(s.listenThenRead).toBe(true);
-    await submitTry(w.deps, id, s.id, { mode: 'silent', listened: true });
+    await submitTry(w.deps, id, s.id, { mode: 'silent', listened: true, micState: 'blocked' });
     await continueToQuestions(w.deps, id, s.id);
     const story = (await w.bank.get(s.story.id))!;
     const q = story.questions[0]!;
@@ -312,7 +328,11 @@ describe('listen then read', () => {
     const id = lid(w);
     const s = await startSession(w.deps, id);
     expect(s.listenThenRead).toBe(false);
-    const v = await submitTry(w.deps, id, s.id, { mode: 'silent', listened: true });
+    const v = await submitTry(w.deps, id, s.id, {
+      mode: 'silent',
+      listened: true,
+      micState: 'blocked',
+    });
     expect(v.tries[0]?.supported).toBe(false);
   });
 });
@@ -321,7 +341,7 @@ describe('answers are scored on the server', () => {
   async function answering(w: World) {
     const id = lid(w);
     const s = await startSession(w.deps, id);
-    await submitTry(w.deps, id, s.id, { mode: 'silent', listened: false });
+    await submitTry(w.deps, id, s.id, { mode: 'silent', listened: false, micState: 'blocked' });
     await continueToQuestions(w.deps, id, s.id);
     return { id, s, story: (await w.bank.get(s.story.id))! };
   }
@@ -553,7 +573,11 @@ describe('finishing and level movement', () => {
     for (let i = 0; i < 3; i++) {
       const s = await startSession(w.deps, lid(w));
       seen.add(s.story.id);
-      await submitTry(w.deps, lid(w), s.id, { mode: 'silent', listened: false });
+      await submitTry(w.deps, lid(w), s.id, {
+        mode: 'silent',
+        listened: false,
+        micState: 'blocked',
+      });
       await continueToQuestions(w.deps, lid(w), s.id);
       const story = (await w.bank.get(s.story.id))!;
       for (const q of story.questions) {

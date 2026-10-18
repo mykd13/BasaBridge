@@ -33,7 +33,7 @@ async function playStory(w: World, id: string, pick: typeof rightChoice, silent 
   if (!v) throw new Error('no placement in progress');
   if (v.status === 'reading') {
     v = silent
-      ? await submitPlacementRead(w.deps, lid(w), id, { mode: 'silent' })
+      ? await submitPlacementRead(w.deps, lid(w), id, { mode: 'silent', micState: 'blocked' })
       : await submitPlacementRead(w.deps, lid(w), id, {
           mode: 'voice',
           captureId: (() => {
@@ -104,7 +104,10 @@ describe('placement flow', () => {
   it('never reveals whether an answer was right', async () => {
     const w = fresh();
     const p = await startPlacement(w.deps, lid(w));
-    const v = await submitPlacementRead(w.deps, lid(w), p.id, { mode: 'silent' });
+    const v = await submitPlacementRead(w.deps, lid(w), p.id, {
+      mode: 'silent',
+      micState: 'blocked',
+    });
     const q = (await w.placementBank.get(v.story!.id))!.questions[0]!;
     const ack = await submitPlacementAnswer(w.deps, lid(w), p.id, {
       questionId: q.id,
@@ -267,7 +270,7 @@ describe('placement rules', () => {
     expect(await codeOf(submitPlacementAnswer(w.deps, lid(w), p.id, body))).toBe(
       'session_wrong_state',
     );
-    await submitPlacementRead(w.deps, lid(w), p.id, { mode: 'silent' });
+    await submitPlacementRead(w.deps, lid(w), p.id, { mode: 'silent', micState: 'blocked' });
     expect(
       await codeOf(submitPlacementAnswer(w.deps, lid(w), p.id, { ...body, chosen: [0, 1] })),
     ).toBe('bad_choice');
@@ -283,7 +286,9 @@ describe('placement rules', () => {
     const other = fresh();
     other.placements.rows.set(p.id, w.placements.rows.get(p.id)!);
     expect(
-      await codeOf(submitPlacementRead(other.deps, lid(other), p.id, { mode: 'silent' })),
+      await codeOf(
+        submitPlacementRead(other.deps, lid(other), p.id, { mode: 'silent', micState: 'blocked' }),
+      ),
     ).toBe('placement_not_found');
   });
 

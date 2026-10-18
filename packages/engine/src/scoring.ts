@@ -4,6 +4,7 @@
  */
 import type { Accommodation } from '@basabridge/contracts';
 import type { PublicQuestion } from '@basabridge/contracts/engine';
+import { EVIDENCE_RULE } from '@basabridge/levels';
 import { evidenceWeight, isRushed } from '@basabridge/mastery';
 import { EngineError } from './errors';
 import type { AnswerEntry, AnswerKey, StoredQuestion } from './types';
@@ -66,7 +67,9 @@ export interface ScoreInput {
 /** Score one answer. Rushed answers and answers after a supported try count for less (ADR 0003). */
 export function scoreAnswer(i: ScoreInput): AnswerEntry {
   validateChoice(i.question, i.chosen);
-  const rushed = isRushed(i.responseMs, wordsOnScreen(i.question));
+  // The browser reports the time, so it is capped before it feeds any evidence rule.
+  const responseMs = Math.min(Math.max(0, i.responseMs), EVIDENCE_RULE.maxResponseMs);
+  const rushed = isRushed(responseMs, wordsOnScreen(i.question));
   const accommodations: Accommodation[] = [...new Set(i.accommodations)];
   if (i.supportedTry && !accommodations.includes('supported_try')) {
     accommodations.push('supported_try');
@@ -75,7 +78,7 @@ export function scoreAnswer(i: ScoreInput): AnswerEntry {
     questionId: i.question.id,
     chosen: i.chosen,
     correct: isCorrect(i.question, i.chosen),
-    responseMs: i.responseMs,
+    responseMs,
     rushed,
     accommodations,
     weight: evidenceWeight({ rushed, supportedTry: i.supportedTry }),

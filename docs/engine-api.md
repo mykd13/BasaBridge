@@ -36,7 +36,7 @@ A session is one learner reading one story. Its `status` is `reading`, `answerin
 Rules:
 
 - **Start** is locked until placement is done or skipped (403 `placement_required`). If the learner has an unfinished session, start returns it, so a reload resumes. Use `GET /session` on page load.
-- **Try.** Voice: send `{ "mode": "voice", "captureId": "...", "listened": false }`. The capture id comes from the speech capture flow. The server loads the analysis from the speech pipeline itself, once. The browser never sends words right or any score. Silent: `{ "mode": "silent" }`. Silent is the only mode for a learner without microphone approval (voice then answers 403 `mic_not_allowed`), and it is always allowed when the microphone is blocked or missing.
+- **Try.** Voice: send `{ "mode": "voice", "captureId": "...", "listened": false }`. The capture id comes from the speech capture flow. The server loads the analysis from the speech pipeline itself, once. The browser never sends words right or any score. Silent: `{ "mode": "silent" }` is the only mode for a learner without microphone approval (voice then answers 403 `mic_not_allowed`). A learner who may use the microphone must say why they cannot read aloud: `{ "mode": "silent", "micState": "blocked" }` (or `unavailable`). Without it the server answers 403 `voice_required`. Silent reads never move a level up.
 - **Counted try.** Only a try that reaches the end can count. The learner picks "Continue" (the best finished try counts) or reads again while `triesLeft` is not 0. When tries run out the best finished try counts and the session goes to `answering` by itself. If no try finished, the session ends `done` with `result.outcome = "stopped_early"` and `next = "new_story"`. `triesLeft` is `null` for unlimited levels.
 - **Listen then read.** Send `listened: true` only when the learner heard the story first. The server marks the try `supported` only at the levels where it is allowed. Supported tries show the "after listening" label. Answers after a supported try carry the `supported_try` accommodation and count for less.
 - **Answer.** `chosen` is one index for multiple choice, any set of indexes for choose-all, and all indexes in story order for order-events. `responseMs` is the time from showing the question to the pick. Accommodations: send `question_read_aloud` when it was used. Do not send `supported_try` or `word_tap` (403 `accommodation_not_allowed`). `AnswerFeedback` has `correctIndexes`, `evidence`, `offerLearn` (small Learn link under this wrong answer, once per quiz) and, on the last answer, `result`.
@@ -60,7 +60,11 @@ Required before the main course. Two to four stories, one try each. No listen-th
 - **Flow.** `status` goes `reading` (send the read), `answering` (send each answer), and back to `reading` with the next story, until `done`. When `done`, `result` is the `PlacementResult` (level, confidence, flags, recommended reading help) and the learner's level is already set.
 - **Read.** `voice` with a capture id, `silent`, or `voice_failed` when the device or upload failed. A failed or unusable recording is offered again once (`retryRead: true`), then the story is skipped. A failed read is never scored as zero.
 - **Under-13 without approval.** `voiceMode` is `silent`. The result carries `voice_missing`, its confidence is capped at `early`, and `voiceRecheckDue` is true. Once voice is approved the gate says `due` and the learner can start a short re-check.
-- **Skip.** Starts the learner at the grade default with low confidence and asks again. Not allowed after a completed placement.
+- **Skip.** Starts the learner at the grade default with low confidence and asks again. Answers 409 `placement_done` once placement is completed or already skipped, so earned progress is never reset. Skipping during a retake just abandons the retake. The silent read rule above applies to placement reads too.
+
+## Concurrency
+
+Sessions and placements carry a `version`. Repositories must reject a save based on a stale copy with 409 `conflict` (the screen should reload the view). The engine saves the session or placement first and writes learner progress only after that succeeds. `responseMs` is capped at 10 minutes on the server.
 
 ## What is behind a seam
 

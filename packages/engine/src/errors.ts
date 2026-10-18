@@ -19,6 +19,7 @@ export function statusFor(code: EngineErrorCode): number {
       return 400;
     case 'placement_required':
     case 'mic_not_allowed':
+    case 'voice_required':
     case 'accommodation_not_allowed':
       return 403;
     case 'placement_not_found':

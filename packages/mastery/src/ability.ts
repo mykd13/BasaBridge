@@ -162,6 +162,16 @@ export interface Readiness {
   probBelow: number;
 }
 
+/** The level after a readiness decision. Moves one level and stays inside the level table. */
+export function applyReadiness(
+  level: number,
+  r: Pick<Readiness, 'up' | 'down'>,
+): { level: number; moved: 'up' | 'down' | 'none' } {
+  if (r.up && level < MAX_LEVEL) return { level: level + 1, moved: 'up' };
+  if (r.down && !r.up && level > MIN_LEVEL) return { level: level - 1, moved: 'down' };
+  return { level, moved: 'none' };
+}
+
 /**
  * Should the learner move up or down from `level`?
  * Up needs strong evidence of ability above the level, enough items, enough passes and solid decoding.
