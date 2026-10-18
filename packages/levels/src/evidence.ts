@@ -48,3 +48,30 @@ export const PLACEMENT_RULE = deepFreeze({
   gradeStart: { 1: 10, 2: 20, 3: 30, 4: 42, 5: 55, 6: 68 } as Record<number, number>,
   defaultStart: 25,
 } as const);
+
+/**
+ * Placement story bank (docs/PLAN.md section 6.2, BB-48). Reviewed stories sit at steps of five
+ * levels, and placement only ever picks a story at a step. Placeholders to tune.
+ */
+export const PLACEMENT_BANK = deepFreeze({
+  stepSize: 5,
+  firstStep: 5,
+  lastStep: 100,
+  /** Stories needed at each step so a retake can get a different one. */
+  minStoriesPerStep: 2,
+} as const);
+
+/** Every step in the placement bank, lowest first. */
+export function placementSteps(): number[] {
+  const { stepSize, firstStep, lastStep } = PLACEMENT_BANK;
+  const steps: number[] = [];
+  for (let s = firstStep; s <= lastStep; s += stepSize) steps.push(s);
+  return steps;
+}
+
+/** The bank step nearest to a level. Levels below the first step use the first step. */
+export function placementStepFor(level: number): number {
+  const { stepSize, firstStep, lastStep } = PLACEMENT_BANK;
+  const rounded = Math.round(level / stepSize) * stepSize;
+  return Math.min(lastStep, Math.max(firstStep, rounded));
+}

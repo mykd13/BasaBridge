@@ -1,16 +1,52 @@
 import { describe, expect, it } from 'vitest';
-import { PLACEMENT_RULE } from '@basabridge/levels';
+import { PLACEMENT_BANK, PLACEMENT_RULE, placementSteps } from '@basabridge/levels';
 import { guessFor, itemDifficulty, levelToTheta, pCorrect } from './ability';
 import {
+  chooseBankStory,
   finishPlacement,
   nextPlacement,
   PLACEMENT_SUPPORTS,
   placementPosterior,
   placementVoiceMode,
   startLevelForGrade,
+  type BankCandidate,
   type PlacementState,
   type PlacementStory,
 } from './placement';
+
+/** Test-only bank: `perStep` stories at every step, ids like `s45-a`. Never used by app code. */
+function testBank(perStep: number = PLACEMENT_BANK.minStoriesPerStep): BankCandidate[] {
+  return placementSteps().flatMap((level) =>
+    Array.from({ length: perStep }, (_, i) => ({
+      id: `s${level}-${String.fromCharCode(97 + i)}`,
+      level,
+    })),
+  );
+}
+
+/** One full placement that draws every story from the bank. Returns the ids it showed. */
+function runBankPlacement(
+  trueLevel: number,
+  grade: number,
+  bank: readonly BankCandidate[],
+  shownBefore: readonly string[] = [],
+): { state: PlacementState; shown: string[] } {
+  const state: PlacementState = { startLevel: startLevelForGrade(grade), stories: [] };
+  for (let i = 0; i < 10; i++) {
+    const next = nextPlacement(state);
+    if (next.done || next.level == null)
+      return { state, shown: state.stories.map((s) => s.storyId!) };
+    const pick = chooseBankStory({
+      targetLevel: next.level,
+      candidates: bank,
+      shownThisPlacement: state.stories.map((s) => s.storyId!),
+      shownBefore,
+    });
+    if (!pick) throw new Error(`no bank story near level ${next.level}`);
+    state.stories.push({ ...simulate(trueLevel, pick.level), storyId: pick.storyId });
+  }
+  throw new Error('placement did not stop');
+}
 
 /** Stand-in for a learner whose true ability matches `trueLevel`: expected correct answers, rounded. */
 function simulate(trueLevel: number, storyLevel: number, wordsRightShare = 0.95): PlacementStory {
@@ -105,6 +141,121 @@ describe('placement end to end', () => {
     const { state } = runPlacement(45, 4);
     const result = finishPlacement(state, { voice: true });
     expect(result.level).toBeLessThanOrEqual(Math.round(((result.theta + 3) / 6) * 99 + 1));
+  });
+});
+
+describe('chooseBankStory', () => {
+  const none = { shownThisPlacement: [], shownBefore: [] };
+
+  it('picks a story at the step nearest the target level', () => {
+    const pick = chooseBankStory({ targetLevel: 43, candidates: testBank(), ...none });
+    expect(pick).toEqual({ storyId: 's45-a', level: 45, reused: false });
+  });
+
+  it('gives a retake a different story at the same step', () => {
+    const pick = chooseBankStory({
+      targetLevel: 45,
+      candidates: testBank(),
+      shownThisPlacement: [],
+      shownBefore: ['s45-a'],
+    });
+    expect(pick).toEqual({ storyId: 's45-b', level: 45, reused: false });
+  });
+
+  it('reuses an earlier story only when the step has nothing new', () => {
+    const pick = chooseBankStory({
+      targetLevel: 45,
+      candidates: testBank(),
+      shownThisPlacement: [],
+      shownBefore: ['s45-a', 's45-b'],
+    });
+    expect(pick).toEqual({ storyId: 's45-a', level: 45, reused: true });
+  });
+
+  it('never shows the same story twice in one placement', () => {
+    const pick = chooseBankStory({
+      targetLevel: 45,
+      candidates: [
+        { id: 'only', level: 45 },
+        { id: 'next-door', level: 50 },
+      ],
+      shownThisPlacement: ['only'],
+      shownBefore: [],
+    });
+    expect(pick?.storyId).toBe('next-door');
+  });
+
+  it('falls back to the nearest step, the lower one on a tie', () => {
+    const candidates = [
+      { id: 'low', level: 40 },
+      { id: 'high', level: 50 },
+      { id: 'far', level: 60 },
+    ];
+    expect(chooseBankStory({ targetLevel: 45, candidates, ...none })?.storyId).toBe('low');
+    expect(chooseBankStory({ targetLevel: 55, candidates, ...none })?.storyId).toBe('high');
+  });
+
+  it('never strays further than the largest placement step', () => {
+    const far = PLACEMENT_RULE.maxStep + PLACEMENT_BANK.stepSize;
+    const pick = chooseBankStory({
+      targetLevel: 30,
+      candidates: [{ id: 'far', level: 30 + far }],
+      ...none,
+    });
+    expect(pick).toBeNull();
+  });
+
+  it('returns null for an empty bank', () => {
+    expect(chooseBankStory({ targetLevel: 30, candidates: [], ...none })).toBeNull();
+  });
+
+  it('does not depend on the order of the candidates', () => {
+    const bank = testBank();
+    const a = chooseBankStory({ targetLevel: 62, candidates: bank, ...none });
+    const b = chooseBankStory({ targetLevel: 62, candidates: [...bank].reverse(), ...none });
+    expect(a).toEqual(b);
+  });
+});
+
+describe('placement with the bank', () => {
+  const bank = testBank();
+  const steps = new Set(placementSteps());
+
+  it.each([
+    [15, 3],
+    [45, 4],
+    [80, 6],
+  ])('only reads stories at bank steps (level %i, grade %i)', (trueLevel, grade) => {
+    const { state } = runBankPlacement(trueLevel, grade, bank);
+    expect(state.stories.every((s) => steps.has(s.level))).toBe(true);
+    const ids = state.stories.map((s) => s.storyId);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it.each([
+    [15, 3],
+    [45, 4],
+    [80, 6],
+  ])(
+    'reuses a story on a retake only when its step has nothing new (level %i, grade %i)',
+    (trueLevel, grade) => {
+      const first = runBankPlacement(trueLevel, grade, bank);
+      const retake = runBankPlacement(trueLevel, grade, bank, first.shown);
+      retake.state.stories.forEach((story, i) => {
+        if (!first.shown.includes(story.storyId!)) return;
+        // Every other story at this step was seen before or already shown in this retake.
+        const shownSoFar = new Set([...first.shown, ...retake.shown.slice(0, i)]);
+        const unseenAtStep = bank.filter((c) => c.level === story.level && !shownSoFar.has(c.id));
+        expect(unseenAtStep).toEqual([]);
+      });
+    },
+  );
+
+  it('gives a retake a new story at every step when the bank is deep enough', () => {
+    const deep = testBank(PLACEMENT_RULE.maxStories * 2);
+    const first = runBankPlacement(45, 4, deep);
+    const retake = runBankPlacement(45, 4, deep, first.shown);
+    expect(retake.shown.some((id) => first.shown.includes(id))).toBe(false);
   });
 });
 

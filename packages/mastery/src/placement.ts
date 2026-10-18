@@ -7,7 +7,7 @@
  * stories feel doable.
  */
 import type { PlacementFlag, PlacementResult, SubSkill } from '@basabridge/contracts';
-import { PLACEMENT_RULE } from '@basabridge/levels';
+import { PLACEMENT_BANK, PLACEMENT_RULE, placementStepFor } from '@basabridge/levels';
 import {
   guessFor,
   itemDifficulty,
@@ -51,6 +51,8 @@ export interface PlacementAnswer {
 }
 
 export interface PlacementStory {
+  /** Bank story shown, so the same placement never shows it twice. Missing in older saved progress. */
+  storyId?: string;
   level: number;
   answers: PlacementAnswer[];
   /** Share of words read right, when voice was available. */
@@ -103,6 +105,64 @@ export function nextPlacement(state: PlacementState): NextPlacement {
     Math.min(last + PLACEMENT_RULE.maxStep, target),
   );
   return { done: false, level: Math.max(1, Math.min(100, stepped)), estimateLevel, sd: s.sd };
+}
+
+/** A reviewed placement story the bank can offer. */
+export interface BankCandidate {
+  id: string;
+  level: number;
+}
+
+export interface ChooseBankStoryInput {
+  /** Level from `nextPlacement`. */
+  targetLevel: number;
+  candidates: readonly BankCandidate[];
+  /** Stories already shown in this placement. Never shown again. */
+  shownThisPlacement: readonly string[];
+  /** Stories shown in the learner's earlier placements. Used only when a step has nothing new. */
+  shownBefore: readonly string[];
+}
+
+export interface BankChoice {
+  storyId: string;
+  level: number;
+  /** True when the learner saw this story in an earlier placement. */
+  reused: boolean;
+}
+
+/**
+ * Pick the bank story for the next placement step (docs/PLAN.md section 6.2, BB-48).
+ *
+ * Prefers the target's step, then the nearest step that has a story, never further than
+ * `PLACEMENT_RULE.maxStep` from the target. On a tie the lower step wins, so the story feels
+ * doable. Within a step, a story the learner has never seen comes before one from an earlier
+ * placement. A story shown in this placement is never chosen. Ties break by id, so the choice is
+ * the same every time. Returns null when nothing fits.
+ */
+export function chooseBankStory(input: ChooseBankStoryInput): BankChoice | null {
+  const shownNow = new Set(input.shownThisPlacement);
+  const shownBefore = new Set(input.shownBefore);
+  const target = placementStepFor(input.targetLevel);
+
+  const byStep = new Map<number, BankCandidate[]>();
+  for (const c of input.candidates) {
+    if (shownNow.has(c.id)) continue;
+    const step = placementStepFor(c.level);
+    byStep.set(step, [...(byStep.get(step) ?? []), c]);
+  }
+
+  const { stepSize } = PLACEMENT_BANK;
+  for (let distance = 0; distance <= PLACEMENT_RULE.maxStep; distance += stepSize) {
+    const steps = distance === 0 ? [target] : [target - distance, target + distance];
+    for (const step of steps) {
+      const pool = byStep.get(step);
+      if (!pool?.length) continue;
+      const sorted = [...pool].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      const pick = sorted.find((c) => !shownBefore.has(c.id)) ?? sorted[0];
+      if (pick) return { storyId: pick.id, level: pick.level, reused: shownBefore.has(pick.id) };
+    }
+  }
+  return null;
 }
 
 /**
