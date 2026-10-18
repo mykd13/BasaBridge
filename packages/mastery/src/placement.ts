@@ -6,7 +6,12 @@
  * we are sure enough. The learner starts the main course slightly below the estimate so the first
  * stories feel doable.
  */
-import type { PlacementFlag, PlacementResult, SubSkill } from '@basabridge/contracts';
+import type {
+  AbilityConfidence,
+  PlacementFlag,
+  PlacementResult,
+  SubSkill,
+} from '@basabridge/contracts';
 import { PLACEMENT_RULE } from '@basabridge/levels';
 import {
   guessFor,
@@ -19,6 +24,12 @@ import {
   type ItemEvidence,
   type Posterior,
 } from './ability';
+
+/** Typed against the contract here, since `packages/levels` does not depend on contracts. */
+const SKIP_CONFIDENCE: AbilityConfidence = PLACEMENT_RULE.skipConfidence;
+
+/** Spread of the starting belief, before any placement story. */
+const PRIOR_SD = 1.5;
 
 export function startLevelForGrade(grade: number | null | undefined): number {
   if (grade == null) return PLACEMENT_RULE.defaultStart;
@@ -64,7 +75,7 @@ export interface PlacementState {
 
 /** Belief about ability after the stories read so far. */
 export function placementPosterior(state: PlacementState): Posterior {
-  let p = prior(levelToTheta(state.startLevel), 1.5);
+  let p = prior(levelToTheta(state.startLevel), PRIOR_SD);
   for (const story of state.stories) {
     for (const a of story.answers) {
       const e: ItemEvidence = {
@@ -87,13 +98,20 @@ export interface NextPlacement {
   sd: number;
 }
 
-/** Which story comes next, or whether the placement is finished. */
-export function nextPlacement(state: PlacementState): NextPlacement {
+/**
+ * Which story comes next, or whether the placement is finished.
+ * `maxStories` shortens the run for the re-check; it defaults to the full placement.
+ */
+export function nextPlacement(
+  state: PlacementState,
+  opts: { maxStories?: number } = {},
+): NextPlacement {
+  const maxStories = opts.maxStories ?? PLACEMENT_RULE.maxStories;
   const s = summarise(placementPosterior(state));
   const estimateLevel = thetaToLevel(s.mean);
   const count = state.stories.length;
   const enough = count >= PLACEMENT_RULE.minStories && s.sd <= PLACEMENT_RULE.stopSd;
-  if (count >= PLACEMENT_RULE.maxStories || enough) {
+  if (count >= maxStories || enough) {
     return { done: true, level: null, estimateLevel, sd: s.sd };
   }
   const last = state.stories[count - 1]?.level ?? state.startLevel;
@@ -134,4 +152,49 @@ export function finishPlacement(state: PlacementState, opts: { voice: boolean })
     flags,
     recommendedHelp: level <= 20 || lowDecoding ? 'more' : 'standard',
   };
+}
+
+/**
+ * "Do this later": start at the grade default with no evidence. Placement is offered again at the
+ * next sign-in (see `placementGate`).
+ */
+export function skipPlacement(grade: number | null | undefined): PlacementResult {
+  const level = startLevelForGrade(grade);
+  return {
+    level,
+    theta: levelToTheta(level),
+    sd: PRIOR_SD,
+    confidence: SKIP_CONFIDENCE,
+    storiesRead: 0,
+    flags: [],
+    recommendedHelp: level <= 20 ? 'more' : 'standard',
+  };
+}
+
+/**
+ * A short re-check once voice is approved after a silent placement. It starts at the level the
+ * silent placement gave, and its result replaces it.
+ */
+export function startRecheck(previous: PlacementResult): PlacementState {
+  // `previous.level` already sits `conservative` deviations below the estimate, and finishing the
+  // re-check lowers it again. Start from the estimate itself so the offset is applied once.
+  return { startLevel: thetaToLevel(previous.theta), stories: [] };
+}
+
+export function nextRecheck(state: PlacementState): NextPlacement {
+  return nextPlacement(state, { maxStories: PLACEMENT_RULE.recheckStories });
+}
+
+/**
+ * The re-check is offered once. Its result never carries `voice_missing`, even when every read was
+ * skipped, so the gate does not offer the re-check again and lock the learner out of the course.
+ */
+export function finishRecheck(state: PlacementState): PlacementResult {
+  const r = finishPlacement(state, { voice: true });
+  return { ...r, flags: r.flags.filter((f) => f !== 'voice_missing') };
+}
+
+/** A skipped placement has no stories behind it. `skipPlacement` is the only source of such a result. */
+export function isSkippedPlacement(r: PlacementResult): boolean {
+  return r.storiesRead === 0 && r.confidence === SKIP_CONFIDENCE;
 }

@@ -132,6 +132,7 @@ Every number in the rules, in one place. A test checks that this table matches t
 | `PLACEMENT_RULE.conservative`                  | 0.5   | Deviations below the estimate to start the course           |
 | `PLACEMENT_RULE.lowDecoding`                   | 0.85  | Words right share below which placement flags low decoding  |
 | `PLACEMENT_RULE.retakeAfterDays`               | 30    | Days before placement can be retaken                        |
+| `PLACEMENT_RULE.recheckStories`                | 2     | Stories in the short re-check once voice is approved        |
 | `PLACEMENT_RULE.gradeStart.1`                  | 10    | First placement level for grade 1                           |
 | `PLACEMENT_RULE.gradeStart.2`                  | 20    | First placement level for grade 2                           |
 | `PLACEMENT_RULE.gradeStart.3`                  | 30    | First placement level for grade 3                           |

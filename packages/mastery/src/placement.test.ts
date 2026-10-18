@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'vitest';
+import { PlacementResult } from '@basabridge/contracts';
 import { PLACEMENT_RULE } from '@basabridge/levels';
-import { guessFor, itemDifficulty, levelToTheta, pCorrect } from './ability';
+import { guessFor, itemDifficulty, levelToTheta, pCorrect, thetaToLevel } from './ability';
 import {
   finishPlacement,
+  finishRecheck,
+  isSkippedPlacement,
   nextPlacement,
+  nextRecheck,
   PLACEMENT_SUPPORTS,
   placementPosterior,
   placementVoiceMode,
+  skipPlacement,
   startLevelForGrade,
+  startRecheck,
   type PlacementState,
   type PlacementStory,
 } from './placement';
@@ -201,5 +207,104 @@ describe('finishPlacement flags', () => {
     const p = placementPosterior(base);
     expect(p.weights.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 6);
     expect(p.items).toBe(9);
+  });
+});
+
+describe('skipPlacement', () => {
+  it('starts at the grade default with no confidence and a valid result', () => {
+    const r = skipPlacement(4);
+    expect(PlacementResult.parse(r)).toEqual(r);
+    expect(r.level).toBe(startLevelForGrade(4));
+    expect(r.confidence).toBe(PLACEMENT_RULE.skipConfidence);
+    expect(r.storiesRead).toBe(0);
+    expect(r.flags).toEqual([]);
+  });
+
+  it('uses the default start without a grade', () => {
+    expect(skipPlacement(null).level).toBe(PLACEMENT_RULE.defaultStart);
+  });
+
+  it('is recognised as a skip, and a real placement is not', () => {
+    expect(isSkippedPlacement(skipPlacement(3))).toBe(true);
+    const real = finishPlacement(
+      { startLevel: 30, stories: [{ level: 30, answers: [{ correct: true }] }] },
+      { voice: true },
+    );
+    expect(isSkippedPlacement(real)).toBe(false);
+  });
+
+  it('uses a confidence the contract accepts', () => {
+    expect(PlacementResult.shape.confidence.options).toContain(PLACEMENT_RULE.skipConfidence);
+  });
+});
+
+describe('short re-check after a silent placement', () => {
+  const silent = finishPlacement(
+    {
+      startLevel: 30,
+      stories: [
+        { level: 30, answers: [{ correct: true }, { correct: true }, { correct: false }] },
+        { level: 35, answers: [{ correct: true }, { correct: false }, { correct: true }] },
+      ],
+    },
+    { voice: false },
+  );
+
+  it('starts at the silent placement estimate, not its already lowered level', () => {
+    const state = startRecheck(silent);
+    expect(state.stories).toEqual([]);
+    expect(state.startLevel).toBe(thetaToLevel(silent.theta));
+    expect(state.startLevel).toBeGreaterThanOrEqual(silent.level);
+    expect(nextRecheck(state).level).toBe(state.startLevel);
+  });
+
+  it('never keeps voice_missing, so a learner whose recordings fail is not locked out', () => {
+    const state = startRecheck(silent);
+    for (let i = 0; i < PLACEMENT_RULE.recheckStories; i++) {
+      state.stories.push({ level: nextRecheck(state).level!, answers: [{ correct: true }] });
+    }
+    // Every read was skipped: no words-right share at all.
+    expect(state.stories.every((s) => s.wordsRightShare === undefined)).toBe(true);
+    expect(finishPlacement(state, { voice: true }).flags).toContain('voice_missing');
+    expect(finishRecheck(state).flags).not.toContain('voice_missing');
+  });
+
+  it('stops after the re-check length', () => {
+    const state = startRecheck(silent);
+    for (let i = 0; i < PLACEMENT_RULE.recheckStories; i++) {
+      const next = nextRecheck(state);
+      expect(next.done).toBe(false);
+      state.stories.push({ level: next.level!, answers: [{ correct: true }, { correct: false }] });
+    }
+    expect(nextRecheck(state).done).toBe(true);
+  });
+
+  it('can move the level, and clears voice_missing when the learner read aloud', () => {
+    const run = (trueLevel: number) => {
+      const state = startRecheck(silent);
+      for (;;) {
+        const next = nextRecheck(state);
+        if (next.done || next.level == null) break;
+        state.stories.push(simulate(trueLevel, next.level));
+      }
+      return finishRecheck(state);
+    };
+    const stronger = run(90);
+    const weaker = run(5);
+    expect(stronger.level).toBeGreaterThan(silent.level);
+    expect(weaker.level).toBeLessThan(silent.level);
+    expect(stronger.flags).not.toContain('voice_missing');
+  });
+
+  it('is shorter than a full placement on the same stories', () => {
+    const state: PlacementState = {
+      startLevel: 30,
+      stories: Array.from({ length: PLACEMENT_RULE.recheckStories }, () => ({
+        level: 30,
+        answers: [{ correct: true }, { correct: false }],
+      })),
+    };
+    expect(nextRecheck(state).done).toBe(true);
+    expect(nextPlacement(state).done).toBe(false);
   });
 });
