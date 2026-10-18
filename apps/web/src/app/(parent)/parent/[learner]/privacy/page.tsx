@@ -1,5 +1,6 @@
-import { ScreenPlaceholder } from '@/components/states/ScreenPlaceholder';
+import { PrivacyScreen } from '@/components/parent/PrivacyScreen';
+import { loadPrivacy, toScreenState } from '@/server/parent/loaders';
 
-export default function Page() {
-  return <ScreenPlaceholder screen="parentPrivacy" boards="F6" />;
+export default async function Page() {
+  return <PrivacyScreen state={await toScreenState(loadPrivacy)} />;
 }
