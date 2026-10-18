@@ -18,6 +18,8 @@ pnpm install
 pnpm dev          # http://localhost:3000
 ```
 
+`pnpm install` also turns on the pre-commit hook in `.githooks`. It runs Prettier and ESLint on staged files.
+
 Copy `example.env` to `.env.local` and fill in values when a task needs them. Never commit real values.
 
 ## Commands
@@ -39,8 +41,9 @@ CI runs format check, lint, typecheck, tests and build on every pull request.
 apps/web                Next.js app (student and parent screens)
 packages/contracts      zod schemas shared by everything
 packages/db             Drizzle schema and migrations
-packages/levels         level table, tries tiers, pass rule
-packages/mastery        skill estimates, focus skill, level movement
+packages/levels         level table, tries tiers, pass and evidence rules
+packages/mastery        ability model, placement logic, focus skill, level movement
+packages/learn          gap mapping, lesson recommendation, Learn rules
 packages/story-ai       story generation and deterministic checks
 packages/teacher-ai     teacher notes and standard fallbacks
 packages/speech         provider interface, alignment, pace
@@ -64,4 +67,4 @@ See `.github/CODEOWNERS` and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Status
 
-This is the scaffold. Working seeds with tests: level table, mastery maths, story checks, speech pace maths, database schema, design tokens. Stubs that throw `not implemented`: story generation, teacher notes, word alignment. Each stub names the backlog item that replaces it.
+This is the scaffold. Working seeds with tests: level table and evidence rules, ability model and placement logic, Learn gap mapping, story checks, speech pace maths, database schema, design tokens. Stubs that throw `not implemented`: story generation, teacher notes, word alignment. Each stub names the backlog item that replaces it.

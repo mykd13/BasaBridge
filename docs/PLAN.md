@@ -1,6 +1,6 @@
 # BasaBridge: system and implementation plan
 
-Status: draft for the four owners (Rhett, James, Jhade, Sean). Nothing here is built yet. The design reference is the canvas at https://claude.ai/artifact/KparoB241FAMSRqcN9sn9S (screens A1 to F6).
+Status: draft for the four owners (Rhett, James, Jhade, Sean). The scaffold is built and tested; the product is not. The design reference is the canvas at https://claude.ai/artifact/KparoB241FAMSRqcN9sn9S (screens A1 to I1). Decisions behind the measurement, placement, Learn and reading-support design are in docs/adr/0003 and 0004.
 
 ## 1. What we are building
 
@@ -12,6 +12,9 @@ Principles
 3. Reading aloud shows completion, accuracy and pace. It does not show understanding. Comprehension comes from the questions, and the story is hidden while answering.
 4. Children's data is minimal, private by default, and deletable. Audio is analysed and discarded unless the student turns retention on.
 5. No fake data. Every screen starts empty and fills from real activity.
+6. Measure ability, not lucky answers. We account for guessing, record how sure we are, and say so.
+7. Place first, then teach the gap. A new learner is placed before the main course, and a learner who misses questions can learn what they are missing.
+8. Reading is not a barrier to using the app. Instructions can be spoken, simple, and in Filipino, and every support is recorded.
 
 ## 2. User flows (match the canvas)
 
@@ -21,6 +24,9 @@ Principles
 - D Exceptions: stopped early, tries used up (new story at same difficulty), microphone blocked.
 - E Student: my progress, my account, share with a parent.
 - F Optional parent: link with a code, progress, readings and analysis, levels, AI decisions, privacy.
+- G Placement test: intro, between stories, starting level. Required before the main course.
+- H Learn: a Learn button after wrong answers and a result that did not pass, the Learn home, a lesson, guided practice, lesson done, and word practice ("Say it").
+- I Reading help: settings for spoken instructions, language, text size and spacing, and a reading ruler.
 
 ## 3. Architecture
 
@@ -31,6 +37,9 @@ Principles
 - Speech: a provider adapter behind an interface (`transcribe(stream) -> words with timestamps and confidence`). Provider chosen by the BB-22 bake-off. Audio goes from the browser to our server (WebSocket on a Vercel Function) or straight to the provider with a short-lived token, whichever the chosen provider supports.
 - Shared contracts: zod schemas in one package so speech, engine and UI agree on the shapes of attempts, analyses and plans.
 - Observability: structured logs, per-call AI cost and latency, error tracking.
+- Interface audio: fixed interface sentences have pre-generated audio in English and Filipino, stored as static files. Questions, options and notes use text-to-speech on demand, cached by a hash of the text (ADR 0004).
+- Interface language: all text goes through an i18n catalog with English and Filipino, and a simple and a standard wording. Stories stay English.
+- Learn content: lessons are reviewed content kept in the repo, with progress stored per learner. Practice items are generated and checked like stories.
 
 ## 4. Repository layout (applied when the repo arrives)
 
@@ -40,8 +49,9 @@ apps/
 packages/
   contracts/              zod schemas and TS types shared by everything
   db/                     Drizzle schema, migrations, query helpers
-  levels/                 level table, tries tiers, pass rules (pure, tested)
-  mastery/                skill estimates, focus skill, level movement (pure, tested)
+  levels/                 level table, tries tiers, pass and evidence rules (pure, tested)
+  mastery/                ability model, placement logic, focus skill, level movement (pure, tested)
+  learn/                  gap mapping, lesson recommendation, Learn rules (pure, tested)
   story-ai/               generation, deterministic checks, verifier, story bank
   teacher-ai/             analysis explanations, plan wording, fallbacks
   speech/                 capture helpers, provider adapters, alignment, WCPM
@@ -54,7 +64,7 @@ CODEOWNERS                maps packages to the four owners
 
 Tooling: pnpm workspaces, Turborepo, TypeScript strict (pinned to 6 until typescript-eslint supports 7), Vitest for unit tests, Playwright for end-to-end tests (added in BB-38), ESLint and Prettier. Shared configs live at the repo root (`tsconfig.base.json`, `eslint.config.mjs`, `.prettierrc`). Node 24.
 
-Scaffold status: the repo builds, lints, type-checks and tests clean. Seeds with tests exist for levels, mastery, story checks, speech pace maths, the database schema and the design tokens. Story generation, teacher notes and word alignment are stubs that throw until their backlog items land.
+Scaffold status: the repo builds, lints, type-checks and tests clean. Seeds with tests exist for levels and evidence rules, the ability model and placement logic, Learn gap mapping, story checks, speech pace maths, the database schema and the design tokens. Story generation, teacher notes and word alignment are stubs that throw until their backlog items land.
 
 ## 5. Data model (first cut)
 
@@ -65,11 +75,15 @@ Scaffold status: the repo builds, lints, type-checks and tests clean. Seeds with
 - `guardian_approvals` (id, learner_user_id, guardian_email, status, approved_at, scope mic)
 - `consents` (id, user_id, kind, version, given_at)
 - `stories` (id, level, title, text, words, reading_grade, source generated|bank, checks jsonb, created_at)
-- `questions` (id, story_id, skill vocabulary|literal|inferential, text, options jsonb, answer_index, evidence)
+- `questions` (id, story_id, skill vocabulary|literal|inferential, subskill, type multiple_choice|choose_all|order_events, distractors jsonb, difficulty nullable until calibrated, text, options jsonb, answer_index, evidence)
 - `sessions` (id, learner_id, story_id, tries_allowed, tries_used, counted_try_id, status)
 - `tries` (id, session_id, completed bool, words_total, words_right, wcpm, analysis jsonb, created_at)
-- `answers` (id, session_id, question_id, chosen, correct)
-- `skill_events` (learner_id, skill, correct, weight, session_id) for estimates
+- `answers` (id, session_id, question_id, chosen, correct, response_ms, rushed, accommodations jsonb, weight)
+- `ability_estimates` (learner_id, scope comprehension|vocabulary|literal|inferential, weights jsonb, mean, sd, items)
+- `item_stats` (question_id, attempts, correct, retired) for calibration
+- `placement_sessions` (id, learner_id, start_level, progress jsonb, result jsonb, voice, started_at, finished_at)
+- `lesson_progress` (learner_id, lesson_id, completed_at, recheck_correct, recheck_total)
+- `learner_settings` (user_id, reading_help jsonb)
 - `decisions` (id, learner_id, kind story|level|plan|analysis, summary, evidence jsonb, created_at)
 - `audio_objects` (id, try_id, storage key, expires_at) only when retention is on
 - `audit_log` (actor, action, target, at)
@@ -90,15 +104,55 @@ Levels 1 to 100 grouped in tiers.
 | 91 to 100 | 200 to 260 | advanced words, figurative language | 1 |
 
 - A try is one read-aloud. Only a try that reaches the end can count. When tries run out the best try counts, the learner answers the questions, then gets a new story at the same difficulty.
-- A story passes when words-right on the counted try is at least 85% and at least 3 of 5 questions are correct. Three passes at a level move up one. A very weak result moves down one.
-- Skill estimates (vocabulary, literal, inferential) use a recency-weighted Beta estimate with a confidence label from sample size. Decoding and fluency come from the counted tries.
+- A story passes when words-right on the counted try is at least 85% and at least 3 of 5 questions are correct. A pass decides the message the learner sees and whether Learn is offered. Level movement uses the evidence rules in 6.1, not the pass count alone.
+- Skill estimates use the ability model in 6.1. Decoding and fluency come from the counted tries.
 - Focus skill for the next story is the lowest measured comprehension estimate. Code chooses it. The AI only words the explanation.
 - All numbers live in `packages/levels` as data, with property tests, so they can be tuned without code changes elsewhere.
+
+### 6.1 Comprehension measurement (ADR 0003)
+
+Why it changed: five multiple-choice questions can be guessed one time in four, three skills get one or two questions each, and a wrong answer says nothing about why.
+
+- **Tagged questions.** Each question has a sub-skill (word in context, word parts, key detail, sequence, main idea, cause and effect, feelings, prediction, conclusion) that rolls up to vocabulary, literal or inferential. Each wrong option has a distractor type (wrong detail, opposite, not stated, partly right, unrelated, word sense), so a wrong answer points at a likely misunderstanding.
+- **Harder-to-guess types.** From Level 11 each story has at least one choose-all or order-the-events question.
+- **Ability model.** For each skill, and for comprehension overall, we keep a probability distribution over ability and update it after every answer. The update uses the chance of guessing right, so a lucky guess moves the estimate far less than a real answer. We report a best estimate and an uncertainty, and confidence labels come from the uncertainty, not from counting answers.
+- **Evidence quality.** An answer given too fast to have involved reading counts for less. An answer after a supported try counts for less. Whether question read-aloud was used is recorded on every answer. Every adjustment is visible in the decision log.
+- **Level movement.** Move up when the learner is very likely above this level (probability at least 85%, at least 10 questions, at least 2 stories passed) and the last two counted tries had at least 85% words right. Move down when very likely below (probability at least 85%, at least 8 questions). Otherwise stay.
+- **Calibration.** Item difficulty starts from the level and sub-skill, then is re-estimated from real answers. Items that are too easy, too hard or unrelated to ability are retired (BB-45).
+- **Outside check.** Compare our scores with a standard reading assessment on a sample of learners (BB-77).
+- **Outcome measurement.** Whether regular use improves independent reading comprehension is measured outside the app, with Phil-IRI tests, a comparison group and study consent. This is a separate small study from the outside check above. The plan is in [docs/research/outcome-measurement.md](research/outcome-measurement.md) (BB-75).
+- **Experiment.** A spoken retell scored against the story's key ideas. Not used for levels until a human-checked set shows it works (BB-46).
+
+### 6.2 Placement test (ADR 0003)
+
+- A new learner takes a placement test before the main course unlocks. It uses two to four calibrated, human-reviewed stories (a placement bank, not live generation), one try each, no Learn button and no extra help.
+- The first story starts from the learner's grade. After each story the ability estimate updates and the next story is chosen at that level, moving at most 25 levels at a time. It stops once the estimate is certain enough (or after four stories).
+- The learner starts a little below the estimate so the first stories feel doable. The result also recommends a reading-help preset.
+- Under-13 learners without guardian approval do a silent placement. It is flagged, its confidence is capped, and a short re-check runs once voice is approved.
+- A learner can pause and resume, and can retake placement after 30 days. A learner who skips it starts at the grade default with low confidence and is asked again.
+
+### 6.3 Learn (ADR 0003)
+
+- **Where it appears.** A small Learn link under a wrong answer (once per quiz), a prominent Learn button on a result that did not pass or had misses, and a Learn tab on the home screen with lessons recommended from the learner's gaps. Never during placement.
+- **What it teaches.** A lesson per sub-skill and per band of levels (1 to 30, 31 to 70, 71 to 100), word practice ("Say it") for words the reading analysis flagged, and decoding lessons. Gaps come from code: which sub-skills were missed, which kinds of mistake, which words were tricky.
+- **Lesson shape.** Goal in the learner's words, a short explanation with a tiny example, guided practice with hints and instant feedback, then a check with fresh questions.
+- **Content.** Explanations are written and reviewed by people. Practice and check items are generated and verified like stories. Only reviewed lessons are shown.
+- **Evidence.** Practice inside Learn never changes the level. A lesson counts as learned only after the learner does well on fresh questions on that skill in their next real story.
+- **Safety.** Learners never chat freely with a model.
+
+### 6.4 Interface reading support (ADR 0004)
+
+- **Spoken interface.** A speaker button on every instruction and question, automatic speech on the first screen of each flow for levels 1 to 30, pre-generated audio for fixed text in English and Filipino, text-to-speech for questions and notes.
+- **Icons with short words,** and at low levels instructions of eight words or fewer.
+- **Two wordings,** simple and standard, and **English or Filipino instructions.** Stories stay English.
+- **Readable type:** larger default size, three text sizes, two line spacings, a reading ruler, left-aligned text, no italics or all capitals in body text, a high-contrast option.
+- **Accommodations are recorded** on the answers they affect. Listen-then-read is only for levels 1 to 10 and never in placement. Tapping a word to hear it is allowed after a try, in Learn and in word practice, never during a try.
+- **Presets** "Standard" and "More help". Placement recommends one. The learner can change any setting and a parent cannot force one.
 
 ## 7. AI pipeline
 
 Story generation (`story-ai`)
-1. Gemini generates a passage and five questions as JSON for a level, a topic seed and a skill mix.
+1. Gemini generates a passage and five questions as JSON for a level, a topic seed and a skill mix. Every question carries its sub-skill, its type and a distractor type for each wrong option (6.1). Prompts ask for Philippine-relevant, non-stereotyped settings (BB-72).
 2. Deterministic checks: word range, reading grade (Flesch-Kincaid) under the level cap, four distinct options, evidence sentence present verbatim in the passage, vocabulary word present, no repeats of recent titles.
 3. Independent verifier call, on a different Gemini model from the generator, that answers the questions without seeing the key and flags child safety. Keep only questions where it agrees with the key. Require at least four questions.
 4. Retry up to three times with the failure reason, then fail visibly.
@@ -108,6 +162,8 @@ Teacher notes (`teacher-ai`)
 - Inputs are counts, missed questions and word-level differences. Names, usernames and audio are never sent.
 - Outputs: a kid-friendly note, a parent summary, a reading-pattern explanation with a confidence label, a home activity. Validate shape and length, fall back to standard wording when the call fails.
 - Every AI decision is written to `decisions` with the evidence used.
+- Notes point to a lesson in Learn when a gap has one (6.3).
+- AI text shown to a learner is validated and follows a fixed shape. Learners never chat freely with a model.
 
 Evaluation (BB-21): a gold set of passages and answer keys, a safety set, and a difficulty-drift check so level 24 stays level 24 over time.
 
@@ -130,6 +186,9 @@ Fairness: speech recognition performs unevenly on children and Philippine-accent
 - Under 13: a parent or guardian email receives an approval request. Until approved, the learner can read silently and answer questions. Voice recording and reading analysis wait for approval. This rule must be reviewed by someone qualified in Philippine Data Privacy Act and children's data before launch.
 - Parent link: student generates a one-time code (24 hours), parent redeems it, student chooses what is shared, student can revoke any time. Parents never receive audio.
 - No model provider (Gemini or any other) receives names, usernames or audio. Provider terms for children's data, retention and training use are checked in BB-41 before any pilot.
+- A learner with no email and no linked parent can recover their account with a recovery code shown once at sign-up (BB-62).
+- Sign-up is protected against bots, usernames are filtered for offensive words and personal details, and each learner has a daily cost cap (BB-63).
+- Operating duties under the Philippine Data Privacy Act (data protection officer, breach response, registration, cross-border transfers) are tracked as their own work, with counsel (BB-66).
 - Export and delete for students and for parents.
 - A threat model and privacy review are release gates (BB-41).
 
@@ -139,10 +198,10 @@ Proposed split, to be confirmed by the four of you.
 
 | Owner | Workstream | Owns |
 |---|---|---|
-| Rhett | Platform and accounts | repo, CI, deploy, database, auth, age gate, parent link, consent, authorization, export and delete, security, observability |
-| James | Speech and reading analysis | microphone, provider bake-off and adapter, alignment, completion, pace, error patterns, misheard correction, audio retention, fairness testing |
-| Jhade | AI teacher and learning engine | level and tries config, story generation and checks, verifier, story bank, mastery and level movement, session orchestration, teacher notes, evaluation |
-| Sean | Product experience | design system, all student and parent screens, integration of the other three, accessibility |
+| Rhett | Platform and accounts | repo, CI, deploy, staging and flags, database, auth, account recovery, abuse protection, email, age gate, parent link, consent, authorization, export and delete, security, observability, compliance operations, backups, cost model |
+| James | Speech and audio | microphone, provider bake-off and adapter, alignment, completion, pace, error patterns, misheard correction, audio retention, fairness testing, interface audio (text-to-speech), word practice, listen-then-read audio, speaker and noise checks, placement voice |
+| Jhade | AI teacher and learning engine | level and tries config, question taxonomy and types, story generation and checks, verifier, story bank, ability model and level movement, placement engine and bank, Learn framework and lessons, session orchestration, teacher notes, evaluation, calibration |
+| Sean | Product experience | design system, all student and parent screens including placement, Learn and reading help, i18n, device support, integration of the other three, accessibility, legal pages, outcome plan, learner testing, pilot logistics |
 
 Interfaces between owners are the `contracts` package. Any change to it needs a review from the two owners on either side.
 
@@ -150,10 +209,11 @@ Interfaces between owners are the `contracts` package. Any change to it needs a 
 
 - M0 Foundations: scaffold, CI, deploy, schema, contracts, design tokens. Done when an empty app deploys from main and every package builds and tests.
 - M1 Accounts: sign-up and sign-in, age gate, parent link, sharing, account pages. Done when a student can sign up alone and a parent can link and see only shared data.
-- M2 Reading loop without voice: story generation, questions, mastery, levels, result screens. Done when a learner can complete stories silently and levels move by rule.
+- M2 Reading loop without voice: story generation, tagged questions, ability model, placement engine, levels. Done when a learner can be placed and complete stories silently, and levels move by evidence.
 - M3 Voice: microphone, transcription, alignment, analysis, retries. Done when a learner reads aloud, sees analysis, retries within tiers, and completion gates the questions.
-- M4 Full product: parent views, my progress, decisions log, exceptions, accessibility. Done when every canvas screen works against real data.
-- M5 Pilot readiness: fairness testing, privacy review, end-to-end tests, cost and rate limits, content review. Done when a small pilot can run safely.
+- M4 Full product: placement and Learn screens, reading help, parent views, my progress, decisions log, exceptions, accessibility. Done when every canvas screen works against real data.
+- M5 Pilot readiness: fairness testing, privacy review and compliance operations, end-to-end tests, cost and rate limits, content review, operations. Done when a small pilot can run safely.
+- M6 Test with learners: after the build, test with children under observation, calibrate the question bank, check scores against an outside measure, and prepare the pilot. Done when the findings are fixed or tracked and a pilot has consent and support in place.
 
 ## 12. Backlog
 
@@ -213,6 +273,63 @@ M5 Pilot readiness
 - BB-41 Threat model and privacy review including the under-13 rule. [BB-08] (Rhett)
 - BB-42 Content review process and feedback loop for stories. [BB-18] (Jhade)
 
+### Added items (BB-43 to BB-79)
+
+Each is also a Linear issue with the same number.
+
+M0 Foundations
+- BB-65 Staging environment and feature flags. [BB-02] (Rhett)
+- BB-74 Recruit a reading specialist and set up the review workflow. (Sean)
+
+M1 Accounts
+- BB-57 Interface audio: text-to-speech service, cache, fixed audio in English and Filipino. [BB-02] (James)
+- BB-58 i18n foundation: English and Filipino catalogs, simple and standard wording. [BB-06] (Sean)
+- BB-62 Account recovery for learners without email. [BB-07] (Rhett)
+- BB-63 Sign-up abuse protection, per-learner cost caps, username filter. [BB-07] (Rhett)
+- BB-64 Email infrastructure: provider, domain, templates. [BB-02] (Rhett)
+
+M2 Reading loop without voice
+- BB-43 Comprehension taxonomy and question tags in contracts and prompts. [BB-04] (Jhade)
+- BB-44 Question types that are hard to guess: choose-all and order-events. [BB-43] (Jhade)
+- BB-47 Placement test engine. [BB-19, BB-43] (Jhade)
+- BB-48 Placement story bank: calibrated, educator-reviewed stories at steps of five levels. [BB-17, BB-74] (Jhade)
+- BB-72 Local content and vocabulary tiering. [BB-15] (Jhade)
+
+M3 Voice
+- BB-49 Placement gating and rules in session orchestration. [BB-36, BB-47] (Jhade)
+- BB-50 Placement voice integration. [BB-26, BB-47] (James)
+- BB-70 Speaker and environment checks: noise, several voices, playback. [BB-25] (James)
+
+M4 Full product
+- BB-51 Placement screens G1 to G3. [BB-49, BB-6] (Sean)
+- BB-52 Learn framework: lesson schema, gap mapping, recommendations, evidence rules. [BB-43, BB-19] (Jhade)
+- BB-53 Author core lessons with educator review. [BB-52, BB-74] (Jhade)
+- BB-54 Generated practice items for Learn. [BB-52, BB-17] (Jhade)
+- BB-55 Word practice "Say it". [BB-26] (James)
+- BB-56 Learn screens and the Learn button (H1 to H6). [BB-52] (Sean)
+- BB-59 Reading help: settings, presets, typography controls, reading ruler, icons. [BB-5, BB-58] (Sean)
+- BB-60 Question read-aloud with an evidence flag. [BB-57, BB-33] (Sean)
+- BB-61 Listen-then-read for levels 1 to 10 with a supported-try flag. [BB-57] (James)
+- BB-71 Device and connection support: phone-width layouts, low bandwidth, browser matrix, shared devices. (Sean)
+
+M5 Pilot readiness
+- BB-66 Data protection operations with counsel. [BB-41] (Rhett)
+- BB-67 Operations: backups, domain, alerting to a person, provider outage runbook. [BB-39] (Rhett)
+- BB-68 Cost model per learner and funding plan. [BB-39] (Rhett)
+- BB-69 Privacy notice, terms and child-friendly privacy summary. [BB-41] (Sean)
+- BB-73 Model fallback and change safety. [BB-18, BB-21] (Jhade)
+- BB-75 Outcome measurement plan. (Sean)
+- BB-76 Weekly parent summary email and learner reminders (optional). [BB-64, BB-35] (Rhett)
+
+M6 Test with learners
+- BB-45 Item calibration and retirement from response data. [BB-19] (Jhade)
+- BB-46 Spoken retell scoring experiment. [BB-26, BB-45] (Jhade)
+- BB-77 Validity study against a standard reading assessment. [BB-75] (Jhade)
+- BB-78 Test with children: observed sessions, protocol, consent, fixes. [BB-37, BB-38] (Sean)
+- BB-79 Pilot logistics: recruiting, consent, support, feedback. [BB-41, BB-78] (Sean)
+
+Changes to existing items: BB-5 and BB-6 cover reading-support components and Learn navigation. BB-14 holds the placement start levels. BB-15 and BB-16 produce and check tagged questions. BB-19 becomes the ability model. BB-20 links notes to lessons. BB-31, BB-33 and BB-34 gain the Learn and placement pieces. BB-36 hands placement gating to BB-49. BB-37 includes the reading-support checks.
+
 ## 13. Risks and open questions
 
 - Speech recognition quality on children and accents is the largest technical risk. Mitigation: bake-off first, confidence flags, correction flow.
@@ -220,4 +337,9 @@ M5 Pilot readiness
 - Legal basis for children's data and the under-13 rule. Needs qualified review before pilot.
 - Latency and cost of AI calls. Mitigation: pre-generation, small model for notes, budgets.
 - Level numbers, tries and pass rules are guesses until real learners use them.
-- Open: Filipino or mother-tongue reading is out of scope for now (English only). Decide whether to plan for it in the contracts.
+- Comprehension is only as valid as the questions. Mitigation: tagged items, guess-adjusted ability, calibration, an outside check (BB-77). Until then treat levels and scores as estimates.
+- Placement mistakes cost learners time or confidence. Mitigation: start slightly below the estimate, quick re-check after voice approval, retake after 30 days.
+- Learn content needs a reading specialist. Without one, lessons stay draft and Learn offers nothing (reviewed lessons only).
+- Spoken and simplified interface adds cost and content to maintain in two languages. Mitigation: fixed strings generated once, dynamic text cached.
+- Testing with children happens after the build (M6), so interface problems are found late. Mitigation: keep the design in the canvas editable, and fix findings in a dedicated pass.
+- Open: stories stay English. Decide whether stories in Filipino or a mother tongue come later. Instructions already support Filipino.

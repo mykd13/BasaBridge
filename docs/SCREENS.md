@@ -58,3 +58,30 @@ The flow order is in `design/canvas/project/canvas.json`.
 | F4  | Levels and tries            | `P6-Levels.dc.html`     | `/parent/[learner]/levels`    | `packages/levels`                     |
 | F5  | AI decisions                | `P4-Decisions.dc.html`  | `/parent/[learner]/decisions` | decisions log                         |
 | F6  | Linked children and privacy | `P5-Data.dc.html`       | `/parent/[learner]/privacy`   | links, export and delete (BB-13)      |
+
+## G. Placement test (before the main course)
+
+| ID  | Screen                    | File                          | Route               | Needs                                                |
+| --- | ------------------------- | ----------------------------- | ------------------- | ---------------------------------------------------- |
+| G1  | Find my starting level    | `G1-PlacementIntro.dc.html`   | `/placement`        | placement engine, gating (BB-47, BB-49)              |
+| G2  | Between placement stories | `G2-PlacementBetween.dc.html` | `/placement/next`   | resume state (BB-47, BB-49). No scores shown.        |
+| G3  | Your starting level       | `G3-PlacementResult.dc.html`  | `/placement/result` | placement result, reading help preset (BB-47, BB-59) |
+
+## H. Learn
+
+| ID  | Screen                    | File                         | Route                       | Needs                                                |
+| --- | ------------------------- | ---------------------------- | --------------------------- | ---------------------------------------------------- |
+| H1  | Result: not passed, Learn | `H1-ResultNotPassed.dc.html` | `/read/result` (not passed) | gap mapping, Learn offers (BB-52)                    |
+| H2  | Learn home                | `H2-LearnHome.dc.html`       | `/learn`                    | recommendations, lesson progress (BB-52, BB-53)      |
+| H3  | Lesson: explain           | `H3-Lesson.dc.html`          | `/learn/[lesson]`           | reviewed lesson content (BB-53)                      |
+| H4  | Lesson: practice          | `H4-Practice.dc.html`        | `/learn/[lesson]/practice`  | generated practice items (BB-54)                     |
+| H5  | Lesson done               | `H5-LessonDone.dc.html`      | `/learn/[lesson]/done`      | recheck items added to next story (BB-52)            |
+| H6  | Word practice: Say it     | `H6-SayIt.dc.html`           | `/learn/words`              | speech, flagged words, text-to-speech (BB-55, BB-57) |
+
+The small "Learn about this" link on answer feedback (C2) and the Learn item in the main menu also lead here.
+
+## I. Reading help
+
+| ID  | Screen       | File                     | Route           | Needs                                                             |
+| --- | ------------ | ------------------------ | --------------- | ----------------------------------------------------------------- |
+| I1  | Reading help | `I1-ReadingHelp.dc.html` | `/account/help` | reading help settings, text-to-speech, i18n (BB-57, BB-58, BB-59) |

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Your starting level</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;600;700&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div style="background:#F4F6F2;color:#14212B;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:17px;line-height:1.55;min-height:780px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #D9DED6">
+    <div style="display:flex;align-items:center;gap:10px;font-family:'Lexend',sans-serif;font-weight:700;font-size:19px"><svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#0C6B63"/><path d="M5 27h30M8 27c0-8 5-12 12-12s12 4 12 12M14 27v-6M20 27v-12M26 27v-6" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>BasaBridge</div>
+    <span style="font-weight:700;color:#56646E">Finding your starting level</span>
+  </header>
+  <main style="max-width:1060px;margin:0 auto;padding:48px 40px;display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start">
+    <section style="flex:1 1 400px;min-width:0;display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:14px;font-weight:700;color:#0C6B63;text-transform:uppercase;letter-spacing:.06em">Your starting level</div>
+      <div style="font-family:'Lexend',sans-serif;font-weight:700;font-size:112px;line-height:1;color:#0C6B63">34 <span style="font-size:22px;color:#56646E;font-weight:500">of 100</span></div>
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <p style="margin:0;font-size:22px;line-height:1.5;max-width:30ch">This is a good place to start. You move up as you read.</p>
+        <button aria-label="Listen to this page" style="flex:none;width:48px;height:48px;border-radius:50%;border:2px solid #0C6B63;background:#DCEEEA;display:grid;place-items:center"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="#0C6B63"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" fill="none" stroke="#0C6B63" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+        <a href="S3-Loading.dc.html" style="display:inline-flex;align-items:center;justify-content:center;min-height:62px;padding:14px 40px;border-radius:16px;background:#0C6B63;color:#FFFFFF;font-size:21px;font-weight:700;text-decoration:none">Start reading</a>
+      </div>
+      <p style="margin:0;color:#56646E;font-size:16px">You can take this test again after 30 days.</p>
+    </section>
+    <aside style="flex:1 1 400px;min-width:0;display:flex;flex-direction:column;gap:16px">
+      <div style="background:#FFFFFF;border:1px solid #D9DED6;border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:12px">
+        <h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:20px">What we noticed</h2>
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><span style="background:#DDF0E4;color:#23724A;padding:7px 16px;border-radius:999px;font-weight:700">Good at finding facts</span><span style="background:#FBEFCF;color:#9A5A07;padding:7px 16px;border-radius:999px;font-weight:700">Practice: word meanings</span></div>
+        <p style="margin:0;color:#56646E;font-size:16px">The Learn section can help with word meanings whenever you want.</p>
+        <a href="H2-LearnHome.dc.html" style="align-self:flex-start;min-height:46px;display:inline-flex;align-items:center;padding:8px 20px;border-radius:12px;border:1.5px solid #D9DED6;background:#FFFFFF;color:#14212B;font-weight:700;text-decoration:none">See Learn</a>
+      </div>
+      <div style="background:#DCEEEA;border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:10px">
+        <h2 style="margin:0;font-family:'Lexend',sans-serif;font-weight:600;font-size:20px">More help is turned on</h2>
+        <p style="margin:0">Spoken instructions, bigger text and a reading ruler. You can change any of these.</p>
+        <a href="I1-ReadingHelp.dc.html" style="align-self:flex-start;min-height:46px;display:inline-flex;align-items:center;padding:8px 20px;border-radius:12px;border:1.5px solid #0C6B63;background:#FFFFFF;color:#0C6B63;font-weight:700;text-decoration:none">Change reading help</a>
+      </div>
+    </aside>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
