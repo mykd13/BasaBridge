@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GOLD_SET } from './gold/gold-set';
 import { SAFETY_SET } from './gold/safety-set';
 import { checkStory } from '../index';
-import { checkWithCurrentRules, failureCode, goldReplayAdapters } from './gold-replay';
+import { checkWithCurrentRules, goldReplayAdapters } from './gold-replay';
 import { gate } from './gate';
 import { summarize } from './metrics';
 import { ErrorCode, EvalRun, UNPRICED, VerifierResult } from './run';
@@ -254,7 +254,7 @@ describe('gold replay', () => {
   });
 });
 
-describe('failureCode', () => {
+describe('checkWithCurrentRules', () => {
   const goodQuestions = GOLD_SET[0]!.story.questions;
   // Level 5 allows 5-15 words and grade 2. Level 24 allows 25-50 words.
   const words = (n: number) => Array.from({ length: n }, () => 'cat').join(' ') + '.';
@@ -270,13 +270,14 @@ describe('failureCode', () => {
     ];
     for (const [code, result] of cases) {
       expect(result.ok).toBe(false);
-      if (!result.ok) expect(failureCode(result.reason)).toBe(code);
+      if (!result.ok) expect(result.failures.map((f) => f.code)).toContain(code);
     }
   });
 
-  it('puts anything it does not know in other, and checkWithCurrentRules uses the real checks', () => {
-    expect(failureCode('Something new.')).toBe('other');
+  it('uses the real checks and their codes', () => {
     const story = { ...GOLD_SET[0]!.story, text: words(2) };
-    expect(checkWithCurrentRules(story)).toEqual({ passed: false, failures: ['too_short'] });
+    const out = checkWithCurrentRules(story);
+    expect(out.passed).toBe(false);
+    expect(out.failures).toContain('too_short');
   });
 });

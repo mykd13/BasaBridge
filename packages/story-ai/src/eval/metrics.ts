@@ -3,13 +3,8 @@
  * again after the metrics change. Counts and numbers only.
  */
 import { TIERS, tierFor } from '@basabridge/levels';
+import { MIN_QUESTIONS } from '../checks';
 import type { EvalRun, GeneratedSample, LabelledSample } from './run';
-
-/**
- * The fewest questions a story must keep after the verifier drops the ones it disagreed on.
- * Mirrors checkStory on main. Part 2 imports MIN_QUESTIONS from the checks (BB-16) instead.
- */
-const MIN_QUESTIONS = 4;
 
 /** Distinct question numbers from 1 to `questions`. A repeated or out-of-range number counts once or not at all. */
 export function distinctDisagreed(disagreed: number[], questions: number): Set<number> {

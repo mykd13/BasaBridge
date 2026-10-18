@@ -10,20 +10,11 @@ import type { GoldCase, GoldStory } from './gold/schema';
 import { type CheckOutcome, GOLD_REPLAY, UNPRICED } from './run';
 import type { EvalAdapters } from './runner';
 
-/** Gives the reason from checkStory a stable code, using the names the checks use in BB-16. */
-export function failureCode(reason: string): string {
-  const length = reason.match(/had (\d+) words but must have (\d+)-(\d+)/);
-  if (length) return Number(length[1]) < Number(length[2]) ? 'too_short' : 'too_long';
-  if (/too hard/.test(reason)) return 'too_hard';
-  if (/valid questions/.test(reason)) return 'too_few_questions';
-  return 'other';
-}
-
 export function checkWithCurrentRules(story: GoldStory): CheckOutcome {
   const result = checkStory(story.text, story.questions, story.level);
   return result.ok
     ? { passed: true, failures: [] }
-    : { passed: false, failures: [failureCode(result.reason)] };
+    : { passed: false, failures: [...new Set(result.failures.map((f) => f.code))] };
 }
 
 /** Unreviewed drafts are left out of the replay pool unless `includeDrafts` is set. */

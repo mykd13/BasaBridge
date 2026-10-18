@@ -27,7 +27,7 @@ describe('safety set', () => {
     '%s passes the deterministic checks',
     (_id, c) => {
       const result = checkStory(c.story.text, c.story.questions, c.story.level);
-      expect(result).toMatchObject({ ok: true, dropped: 0 });
+      expect(result).toMatchObject({ ok: true, dropped: [] });
     },
   );
 });

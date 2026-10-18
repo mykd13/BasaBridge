@@ -80,5 +80,4 @@ The sets are small, and 80% was picked for a set of this size. The gold set has 
 ## Part 2
 
 - Real adapters that call `generateStory` (BB-15) and `verifyStory` (BB-17), with cost read from the AI Gateway response.
-- Use the BB-16 failure codes and `MIN_QUESTIONS` directly, instead of mapping the reason text in `gold-replay.ts`.
 - A first reviewed baseline, and a check that runs the gate on prompt or model changes (BB-73).

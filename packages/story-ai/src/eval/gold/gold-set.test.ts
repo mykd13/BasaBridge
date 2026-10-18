@@ -32,7 +32,7 @@ describe('gold set', () => {
       expect(grade, 'reading grade').toBeLessThanOrEqual(tier.maxReadingGrade);
 
       const result = checkStory(c.story.text, c.story.questions, c.story.level);
-      expect(result).toMatchObject({ ok: true, dropped: 0 });
+      expect(result).toMatchObject({ ok: true, dropped: [] });
     },
   );
 });
