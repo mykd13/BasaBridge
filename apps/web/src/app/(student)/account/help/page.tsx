@@ -1,5 +1,7 @@
-import { ScreenPlaceholder } from '@/components/states/ScreenPlaceholder';
+import { READING_HELP_PRESETS } from '@basabridge/contracts';
+import { ReadingHelpScreen } from '@/components/reading-help/ReadingHelpScreen';
 
 export default function Page() {
-  return <ScreenPlaceholder screen="help" boards="I1" />;
+  // The contract (and zod) stays on the server. The screen gets plain preset values.
+  return <ReadingHelpScreen presets={READING_HELP_PRESETS} />;
 }

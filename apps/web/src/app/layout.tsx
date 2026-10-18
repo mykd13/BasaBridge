@@ -16,7 +16,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
   return (
-    <html lang={locale} className={`${lexend.variable} ${atkinson.variable}`}>
+    <html
+      lang={locale}
+      // ReadingHelpBoot sets data attributes on <html> before React hydrates.
+      suppressHydrationWarning
+      className={`${lexend.variable} ${atkinson.variable}`}
+    >
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <UnsupportedBrowser />
