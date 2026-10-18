@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { countsForLevelMovement } from './evidence';
+import { countsAsLevelEvidence, countsForLevelMovement } from './evidence';
+
+describe('countsAsLevelEvidence', () => {
+  it('lets only real story answers move the level', () => {
+    expect(countsAsLevelEvidence('story')).toBe(true);
+    expect(countsAsLevelEvidence('learn')).toBe(false);
+    expect(countsAsLevelEvidence('placement')).toBe(false);
+  });
+});
 
 describe('countsForLevelMovement', () => {
   it('holds a try that needs review out of level movement', () => {
