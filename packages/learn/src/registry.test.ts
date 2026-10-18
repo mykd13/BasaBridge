@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { localizeLesson } from './lesson';
 import { LESSON_FILES } from './lessons';
 import { LessonFileError, createRegistry, lessonRegistry } from './registry';
 
@@ -7,16 +8,21 @@ const reviewed = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
   subject: 'cause_effect',
   band: 'early',
-  title: 'Why did it happen?',
-  goal: 'I can tell why something happened in a story.',
+  title: { en: 'Why did it happen?', fil: 'Bakit ito nangyari?' },
+  goal: { en: 'I can tell why something happened.', fil: 'Masasabi ko kung bakit ito nangyari.' },
   steps: [
-    { kind: 'explain', text: 'Look for the reason.' },
-    { kind: 'example', passage: 'It rained, so the road got wet.', point: 'Rain made it wet.' },
+    { kind: 'explain', text: { en: 'Look for the reason.', fil: 'Hanapin ang dahilan.' } },
+    {
+      kind: 'example',
+      passage: 'It rained, so the road got wet.',
+      point: { en: 'Rain made it wet.', fil: 'Basa ito dahil sa ulan.' },
+    },
     { kind: 'practice', items: 3 },
     { kind: 'check', items: 2 },
   ],
   status: 'reviewed',
   reviewedBy: 'reading specialist',
+  reviewedAt: '2026-10-18',
   ...extra,
 });
 
@@ -35,9 +41,38 @@ describe('createRegistry', () => {
     const draft = {
       ...reviewed('draft-one'),
       status: 'draft',
-      steps: [{ kind: 'explain', text: 'x' }],
+      steps: [{ kind: 'explain', text: { en: 'x', fil: '' } }],
+      reviewedBy: undefined,
+      reviewedAt: undefined,
     };
     expect(createRegistry([draft]).lessons).toEqual([]);
+  });
+
+  it('rejects a reviewed lesson without a review date or with a bad one', () => {
+    expect(() => createRegistry([reviewed('a', { reviewedAt: undefined })])).toThrow(/review date/);
+    expect(() => createRegistry([reviewed('a', { reviewedAt: '18/10/2026' })])).toThrow(
+      LessonFileError,
+    );
+  });
+
+  it('rejects a reviewed lesson with any instruction missing its Filipino', () => {
+    expect(() =>
+      createRegistry([reviewed('a', { goal: { en: 'I can tell why.', fil: ' ' } })]),
+    ).toThrow(/goal\.fil: A reviewed lesson has Filipino instructions/);
+
+    const noPoint = reviewed('b');
+    noPoint.steps[1] = {
+      kind: 'example',
+      passage: 'It rained, so the road got wet.',
+      point: { en: 'Rain made it wet.', fil: '' },
+    };
+    expect(() => createRegistry([noPoint])).toThrow(/steps\.1\.point\.fil/);
+  });
+
+  it('rejects instructions given as a plain string instead of English and Filipino', () => {
+    expect(() => createRegistry([reviewed('a', { title: 'Why did it happen?' })])).toThrow(
+      LessonFileError,
+    );
   });
 
   it('rejects a reviewed lesson without a reviewer', () => {
@@ -60,6 +95,31 @@ describe('createRegistry', () => {
     expect(() => createRegistry([reviewed('a', { subject: 'spelling' })])).toThrow(LessonFileError);
     expect(() => createRegistry([reviewed('Not An Id')])).toThrow(LessonFileError);
     expect(() => createRegistry([reviewed('twice'), reviewed('twice')])).toThrow(/used twice/);
+  });
+});
+
+describe('localizeLesson', () => {
+  const lesson = createRegistry([reviewed('cause-early')]).get('cause-early')!;
+
+  it('gives the instructions in English or Filipino and keeps the passage English', () => {
+    const en = localizeLesson(lesson, 'en');
+    expect(en.title).toBe('Why did it happen?');
+    expect(en.steps[0]).toEqual({ kind: 'explain', text: 'Look for the reason.' });
+
+    const fil = localizeLesson(lesson, 'fil');
+    expect(fil.goal).toBe('Masasabi ko kung bakit ito nangyari.');
+    expect(fil.steps[1]).toEqual({
+      kind: 'example',
+      passage: 'It rained, so the road got wet.',
+      point: 'Basa ito dahil sa ulan.',
+    });
+    expect(fil.steps.slice(2)).toEqual(lesson.steps.slice(2));
+    expect(fil.reviewedAt).toBe('2026-10-18');
+  });
+
+  it('falls back to English where a draft has no Filipino yet', () => {
+    const draft = { ...lesson, title: { en: 'Draft title', fil: '' } };
+    expect(localizeLesson(draft, 'fil').title).toBe('Draft title');
   });
 });
 
