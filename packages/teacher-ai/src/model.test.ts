@@ -58,3 +58,16 @@ describe('notesModelFromEnv', () => {
     expect(notesModelFromEnv({ NOTES_MODEL: 'provider/small-model' })).toBeTypeOf('function');
   });
 });
+
+describe('timeout', () => {
+  it('falls back with the timeout reason when the model never replies', async () => {
+    const hanging = new MockLanguageModelV4({
+      doGenerate: ({ abortSignal }) =>
+        new Promise((_resolve, reject) => {
+          abortSignal?.addEventListener('abort', () => reject(abortSignal.reason));
+        }),
+    });
+    const notes = await writeNotes(input, { model: gatewayNotesModel(hanging, 50) });
+    expect(notes).toMatchObject({ source: 'standard', fallbackReason: 'timeout' });
+  });
+});

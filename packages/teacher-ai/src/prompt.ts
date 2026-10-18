@@ -3,6 +3,7 @@
  * the caller adds by mistake (a name, a username, audio) never reaches the model.
  * It carries levels, counts, missed questions by skill and story words only.
  */
+import { HomeActivity } from '@basabridge/contracts';
 import { NotesInput } from './schema';
 import { SKILL_WORDS } from './standard';
 
@@ -19,7 +20,7 @@ Write four things as JSON:
 - childMessage: one or two warm sentences to the child. Simple words. No numbers, no scores, no levels as numbers, no percentages.
 - whatHappened: two or three plain sentences for a parent about this story. You may use the counts given.
 - whyFocus: one or two sentences for a parent on why the next stories practise the focus skill.
-- homeActivity: a 3 to 15 minute activity a parent can do at home, with a title, minutes, two to four steps and a tip.
+- homeActivity: a ${HomeActivity.shape.minutes.minValue} to ${HomeActivity.shape.minutes.maxValue} minute activity a parent can do at home, with a title, minutes, two to four steps and a tip.
 
 Rules:
 - Be kind and specific. Never shame, blame or compare the child with others.

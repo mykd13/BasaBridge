@@ -11,7 +11,6 @@ import { buildNotesPrompt, notesFacts } from './prompt';
 import {
   type FallbackReason,
   type LessonLink,
-  ModelNotes,
   type NotesFacts,
   NotesInput,
   type NotesSource,
@@ -30,9 +29,9 @@ export * from './prompt';
 export * from './schema';
 export * from './standard';
 
-/** Shape and length check for model output. Anything that fails falls back to standard wording. */
-export function isValidNotes(p: unknown): boolean {
-  return ModelNotes.safeParse(p).success;
+function isTimeout(error: unknown): boolean {
+  const name = (error as { name?: unknown } | null)?.name;
+  return name === 'TimeoutError' || name === 'AbortError';
 }
 
 export interface WriteNotesOptions {
@@ -87,7 +86,11 @@ export function notesDecision(notes: TeacherNotes, input: NotesInput): Decision 
   return Decision.parse({
     kind: 'plan',
     title: NOTE_SOURCE_LABEL[notes.source],
-    summary: `${NOTE_SOURCE_LABEL[notes.source]}. The focus skill was chosen by rule, not by the AI.`,
+    summary: `${NOTE_SOURCE_LABEL[notes.source]}. ${
+      input.focus == null
+        ? 'There was not enough evidence to pick a focus skill.'
+        : 'The focus skill was chosen by rule, not by the AI.'
+    }`,
     evidence: {
       source: notes.source,
       fallbackReason: notes.fallbackReason,
@@ -116,12 +119,14 @@ export async function writeNotes(
   const model = options.model === undefined ? notesModelFromEnv() : options.model;
   if (!model) return standardNotes(facts, lesson, 'not_configured');
 
+  // Built outside the try so a bug in the prompt is not mistaken for a model failure.
+  const prompt = buildNotesPrompt(facts);
   let raw: unknown;
   try {
-    raw = await model(buildNotesPrompt(facts));
-  } catch {
+    raw = await model(prompt);
+  } catch (error) {
     // Nothing is logged here: the error can echo the prompt back.
-    return standardNotes(facts, lesson, 'call_failed');
+    return standardNotes(facts, lesson, isTimeout(error) ? 'timeout' : 'call_failed');
   }
 
   const checked = checkNotes(raw, facts);

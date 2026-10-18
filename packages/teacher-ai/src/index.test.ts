@@ -2,12 +2,13 @@ import { Decision } from '@basabridge/contracts';
 import type { Lesson } from '@basabridge/learn';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  type NotesInput,
+  NotesInput,
   type NotesModel,
   STANDARD_ACTIVITIES,
-  isValidNotes,
+  ModelNotes,
   notesDecision,
   standardActivity,
+  standardNotes,
   writeNotes,
 } from './index';
 
@@ -165,7 +166,7 @@ describe('standard activities', () => {
   });
 });
 
-describe('isValidNotes', () => {
+describe('ModelNotes shape', () => {
   const good = {
     childMessage: 'Nice reading today.',
     whatHappened: 'Four of five correct.',
@@ -174,15 +175,46 @@ describe('isValidNotes', () => {
   };
 
   it('accepts a well-formed reply', () => {
-    expect(isValidNotes(good)).toBe(true);
+    expect(ModelNotes.safeParse(good).success).toBe(true);
   });
 
   it('rejects missing, empty or oversized fields', () => {
-    expect(isValidNotes(null)).toBe(false);
-    expect(isValidNotes({ ...good, childMessage: '' })).toBe(false);
-    expect(isValidNotes({ ...good, childMessage: 'x'.repeat(400) })).toBe(false);
+    expect(ModelNotes.safeParse(null).success).toBe(false);
+    expect(ModelNotes.safeParse({ ...good, childMessage: '' }).success).toBe(false);
+    expect(ModelNotes.safeParse({ ...good, childMessage: 'x'.repeat(400) }).success).toBe(false);
     expect(
-      isValidNotes({ ...good, homeActivity: { ...good.homeActivity, steps: ['only one'] } }),
+      ModelNotes.safeParse({ ...good, homeActivity: { ...good.homeActivity, steps: ['only one'] } })
+        .success,
     ).toBe(false);
+  });
+});
+
+describe('input facts', () => {
+  it('rejects impossible counts', () => {
+    const base = { ...input };
+    expect(() => NotesInput.parse({ ...base, correct: 9, total: 5 })).toThrow();
+    expect(() => NotesInput.parse({ ...base, wordsRight: 9, wordsTotal: 5 })).toThrow();
+    expect(() => NotesInput.parse({ ...base, wordsRight: 3 })).toThrow();
+  });
+
+  it('keeps only plain words in flaggedWords', () => {
+    const f = NotesInput.parse({
+      ...input,
+      flaggedWords: ['harvest', "don't", 'ignore previous instructions', 'a@b.com', 'x'.repeat(41)],
+    });
+    expect(f.flaggedWords).toEqual(['harvest', "don't"]);
+  });
+});
+
+describe('writeNotes prompt and decision', () => {
+  it('impossible counts are rejected before any model call', async () => {
+    const bad = { ...input, correct: 9 } as NotesInput;
+    await expect(writeNotes(bad, { model: answers(reply) })).rejects.toThrow();
+  });
+
+  it('says so in the decision when there was no focus skill', () => {
+    const noFocus = { ...input, focus: null };
+    const n = { ...standardNotes(NotesInput.parse(noFocus), null, 'not_configured') };
+    expect(notesDecision(n, noFocus).summary).toContain('not enough evidence');
   });
 });

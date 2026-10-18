@@ -6,7 +6,7 @@
 import {
   ComprehensionSkill,
   DistractorType,
-  type HomeActivity,
+  HomeActivity,
   Level,
   SubSkill,
 } from '@basabridge/contracts';
@@ -20,7 +20,9 @@ export const MissedQuestion = z.object({
 });
 export type MissedQuestion = z.infer<typeof MissedQuestion>;
 
-export const NotesInput = z.object({
+const StoryWord = /^[\p{L}']+$/u;
+
+const NotesInputShape = z.object({
   /** Level when the story was read, and after code applied the level rules. */
   levelBefore: Level,
   levelAfter: Level,
@@ -32,34 +34,59 @@ export const NotesInput = z.object({
   wordsRight: z.number().int().nonnegative().nullable().default(null),
   wordsTotal: z.number().int().positive().nullable().default(null),
   missed: z.array(MissedQuestion).default([]),
-  /** Story words the reading analysis marked as tricky. Words from the text only. */
-  flaggedWords: z.array(z.string().min(1).max(40)).max(10).default([]),
+  /** Story words the reading analysis marked as tricky. Letters and apostrophes only; anything else is dropped before it can reach a model. */
+  flaggedWords: z
+    .array(z.string())
+    .default([])
+    .transform((ws) => ws.filter((w) => w.length <= 40 && StoryWord.test(w)).slice(0, 10)),
   /** Chosen by packages/mastery. The AI explains it and never changes it. */
   focus: ComprehensionSkill.nullable(),
+});
+export const NotesInput = NotesInputShape.superRefine((v, ctx) => {
+  if (v.correct > v.total) {
+    ctx.addIssue({ code: 'custom', path: ['correct'], message: 'correct cannot exceed total' });
+  }
+  if ((v.wordsRight == null) !== (v.wordsTotal == null)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['wordsTotal'],
+      message: 'give both word counts or neither',
+    });
+  } else if (v.wordsRight != null && v.wordsTotal != null && v.wordsRight > v.wordsTotal) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['wordsRight'],
+      message: 'wordsRight cannot exceed wordsTotal',
+    });
+  }
 });
 export type NotesInput = z.input<typeof NotesInput>;
 export type NotesFacts = z.output<typeof NotesInput>;
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 
+/** The contract's home activity without `source`, with tighter text lengths for the model. */
+const ModelActivity = HomeActivity.omit({ source: true }).extend({
+  title: text(60),
+  minutes: HomeActivity.shape.minutes.default(5),
+  steps: z.array(text(240)).pipe(HomeActivity.shape.steps),
+  tip: text(240),
+});
+
 /** What the model must return. Lengths keep notes short enough for a child and a busy parent. */
 export const ModelNotes = z.object({
   childMessage: text(320),
   whatHappened: text(500),
   whyFocus: text(320),
-  homeActivity: z.object({
-    title: text(60),
-    minutes: z.number().int().min(3).max(15).default(5),
-    steps: z.array(text(240)).min(2).max(4),
-    tip: text(240),
-  }),
+  homeActivity: ModelActivity,
 });
 export type ModelNotes = z.output<typeof ModelNotes>;
 
 export type NotesSource = 'ai' | 'standard';
 
 /** Why standard wording was used instead of the model's notes. */
-export type FallbackReason = 'not_configured' | 'call_failed' | 'invalid_shape' | 'tone';
+export type FallbackReason =
+  'not_configured' | 'timeout' | 'call_failed' | 'invalid_shape' | 'tone';
 
 export interface LessonLink {
   id: string;
