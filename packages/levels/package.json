@@ -9,5 +9,9 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@basabridge/contracts": "workspace:*",
+    "@types/node": "^26.6.5"
   }
 }
