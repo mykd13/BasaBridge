@@ -171,9 +171,10 @@ export function levelReadiness(p: Posterior, level: number, ctx: ReadinessContex
   const here = levelToTheta(level);
   const pa = probAbove(p, here + EVIDENCE_RULE.up.margin);
   const pb = probBelow(p, here - EVIDENCE_RULE.down.margin);
-  const lastTwo = ctx.recentWordsRight.slice(-2);
+  const recent = ctx.recentWordsRight.slice(-EVIDENCE_RULE.up.recentTries);
   const decodingOk =
-    lastTwo.length >= 2 && lastTwo.every((x) => x >= EVIDENCE_RULE.up.minWordsRight);
+    recent.length >= EVIDENCE_RULE.up.recentTries &&
+    recent.every((x) => x >= EVIDENCE_RULE.up.minWordsRight);
   const up =
     level < MAX_LEVEL &&
     pa >= EVIDENCE_RULE.up.probability &&

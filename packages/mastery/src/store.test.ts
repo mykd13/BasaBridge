@@ -110,6 +110,119 @@ describe('applyStoryResult', () => {
     });
   });
 
+  const upReady = () =>
+    store({
+      learners: { [L]: { level: 40, passes: EVIDENCE_RULE.up.minPasses - 1 } },
+      ability: {
+        [L]: {
+          comprehension: { posterior: strongAbove(40), summary: summarise(strongAbove(40)) },
+        },
+      },
+      countedTries: [{ learnerId: L, sessionId: 'earlier', wordsRightShare: 0.95 }],
+    });
+
+  it('leaves the level and passes alone for a story with no answers', async () => {
+    const s = upReady();
+    const out = await applyStoryResult(s, {
+      learnerId: L,
+      sessionId: S,
+      storyLevel: 40,
+      countedTry: countedTry(19),
+      answers: [],
+    });
+    expect(out.level.moved).toBe('none');
+    expect(s.state().learners[L]).toEqual({ level: 40, passes: EVIDENCE_RULE.up.minPasses - 1 });
+    expect(s.state().decisions.map((d) => d.decision.kind)).not.toContain('level');
+  });
+
+  it('does not demote a learner whose story was passed', async () => {
+    const low = prior(levelToTheta(40) - 2, 0.2);
+    const s = store({
+      ability: {
+        [L]: {
+          comprehension: {
+            posterior: { ...low, items: EVIDENCE_RULE.down.minItems },
+            summary: summarise(low),
+          },
+        },
+      },
+    });
+    const out = await applyStoryResult(s, {
+      learnerId: L,
+      sessionId: S,
+      storyLevel: 40,
+      countedTry: countedTry(19),
+      answers: passingAnswers,
+    });
+    expect(out.level).toMatchObject({ passed: true, moved: 'none' });
+    expect(s.state().learners[L]?.level).toBe(40);
+  });
+
+  it('counts no pass and moves nothing when the story is at another level', async () => {
+    const s = upReady();
+    await applyStoryResult(s, {
+      learnerId: L,
+      sessionId: S,
+      storyLevel: 10,
+      countedTry: countedTry(19),
+      answers: passingAnswers,
+    });
+    expect(s.state().learners[L]).toEqual({ level: 40, passes: EVIDENCE_RULE.up.minPasses - 1 });
+  });
+
+  it('reads as many earlier tries as the evidence rule needs, less this story', async () => {
+    const seen: number[] = [];
+    const s = upReady();
+    const real = s.transaction.bind(s);
+    s.transaction = (fn) =>
+      real((tx) =>
+        fn({
+          ...tx,
+          getRecentWordsRight: (id, o) => {
+            seen.push(o.limit);
+            return tx.getRecentWordsRight(id, o);
+          },
+        }),
+      );
+    await applyStoryResult(s, {
+      learnerId: L,
+      sessionId: S,
+      storyLevel: 40,
+      countedTry: countedTry(19),
+      answers: passingAnswers,
+    });
+    expect(seen).toEqual([EVIDENCE_RULE.up.recentTries - 1]);
+  });
+
+  it('ignores plan rows from other writers when reading the last focus', async () => {
+    const s = store();
+    for (const a of passingAnswers) {
+      await applyAnswer(s, { learnerId: L, storyLevel: 40, answer: a });
+    }
+    const input = {
+      learnerId: L,
+      sessionId: S,
+      storyLevel: 40,
+      countedTry: countedTry(18),
+      answers: passingAnswers,
+    };
+    await applyStoryResult(s, input);
+    // A foreign plan row (for example a lesson plan) lands after the focus row.
+    await s.transaction((tx) =>
+      tx.addDecision(L, {
+        kind: 'plan',
+        title: 'Lesson plan',
+        summary: 'Next lesson chosen.',
+        evidence: { to: 'lesson-7' },
+      }),
+    );
+    await applyStoryResult(s, { ...input, sessionId: 'session-2' });
+    const focusRows = s
+      .state()
+      .decisions.filter((d) => d.decision.kind === 'plan' && d.decision.evidence.messageKey);
+    expect(focusRows).toHaveLength(1);
+  });
+
   it('commits nothing when a write fails partway', async () => {
     const s = store({}, 'addDecision');
     await expect(

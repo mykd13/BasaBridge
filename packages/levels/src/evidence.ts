@@ -10,7 +10,15 @@ export const EVIDENCE_RULE = {
   /** Evidence weights. 1 means a normal answer. */
   weight: { rushed: 0.3, supportedTry: 0.7 },
   /** Move up when very likely above this level's difficulty. */
-  up: { probability: 0.85, margin: 0.25, minItems: 10, minPasses: 2, minWordsRight: 0.85 },
+  up: {
+    probability: 0.85,
+    margin: 0.25,
+    minItems: 10,
+    minPasses: 2,
+    minWordsRight: 0.85,
+    /** Counted tries that must all read at least minWordsRight, this story's included. */
+    recentTries: 2,
+  },
   /** Move down when very likely below it. */
   down: { probability: 0.85, margin: 0.5, minItems: 8 },
   /** Answers faster than this many ms, plus the per-word allowance, count as rushed. */

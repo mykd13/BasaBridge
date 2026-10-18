@@ -5,7 +5,7 @@
  * Owner: Jhade (BB-19).
  */
 import type { ComprehensionSkill, Decision, TryAnalysis } from '@basabridge/contracts';
-import type { StoryResult } from '@basabridge/levels';
+import { EVIDENCE_RULE, type StoryResult } from '@basabridge/levels';
 import type { AbilitySummary, Posterior } from './ability';
 import {
   scoreAnswer,
@@ -31,8 +31,16 @@ import {
 } from './engine';
 import { estimateSkills, focusSkill, type StoryAnswers } from './simple';
 
+/**
+ * One transaction's view of the data. A Drizzle adapter is built per request around the acting
+ * user, so every read and write goes through the authorization layer (BB-10, golden rule 4).
+ */
 export interface MasteryTx {
-  /** learners.level and learners.level_passes. */
+  /**
+   * learners.level and learners.level_passes. The adapter locks the learner row (FOR UPDATE) until
+   * the transaction ends, so two answers or a story finish at once cannot lose an update to
+   * ability_estimates.
+   */
   getLearner(learnerId: string): Promise<{ level: number; passes: number }>;
   /** ability_estimates rows by scope. */
   getAbility(learnerId: string): Promise<Partial<AbilityState>>;
@@ -42,8 +50,12 @@ export interface MasteryTx {
     posterior: Posterior,
     summary: AbilitySummary,
   ): Promise<void>;
-  /** answers.rushed and answers.weight. */
-  saveAnswerWeight(answerId: string, w: { rushed: boolean; weight: number }): Promise<void>;
+  /** answers.rushed and answers.weight. The adapter scopes the update to this learner's own sessions. */
+  saveAnswerWeight(
+    learnerId: string,
+    answerId: string,
+    w: { rushed: boolean; weight: number },
+  ): Promise<void>;
   /** Words-right shares of earlier counted tries, newest last, excluding this session. */
   getRecentWordsRight(
     learnerId: string,
@@ -51,7 +63,10 @@ export interface MasteryTx {
   ): Promise<number[]>;
   /** Earlier finished stories' answers, oldest first, excluding this session. Simple model only. */
   getAnswerHistory(learnerId: string, opts: { excludeSessionId: string }): Promise<StoryAnswers[]>;
-  /** Focus from the newest 'plan' decision, or null. */
+  /**
+   * Focus from the newest 'plan' decision whose evidence.to is a ComprehensionSkill, or null.
+   * Plan rows with any other shape (other writers) are skipped.
+   */
   getLastFocus(learnerId: string): Promise<ComprehensionSkill | null>;
   setLearnerLevel(learnerId: string, s: { level: number; passes: number }): Promise<void>;
   addDecision(learnerId: string, d: Decision): Promise<void>;
@@ -68,7 +83,10 @@ export interface ApplyAnswerInput {
   answer: AnswerInput;
 }
 
-/** Call once per stored answer. Not idempotent: a second call counts the answer twice. */
+/**
+ * Call once per stored answer of a real story. Never call it for Learn practice: practice never
+ * changes a level (golden rule 10). Not idempotent: a second call counts the answer twice.
+ */
 export function applyAnswer(
   store: MasteryStore,
   i: ApplyAnswerInput,
@@ -83,7 +101,10 @@ export function applyAnswer(
     for (const scope of scopes) {
       await tx.saveAbility(i.learnerId, scope, next[scope], summaries[scope]);
     }
-    await tx.saveAnswerWeight(scored.answerId, { rushed: scored.rushed, weight: scored.weight });
+    await tx.saveAnswerWeight(i.learnerId, scored.answerId, {
+      rushed: scored.rushed,
+      weight: scored.weight,
+    });
     return { scored, summaries };
   });
 }
@@ -107,8 +128,8 @@ export interface StoryOutcome {
   decisions: Decision[];
 }
 
-/** levelReadiness reads the last two counted tries; this story's is one of them. */
-const EARLIER_TRIES = 2;
+/** levelReadiness reads the last `recentTries` counted tries; this story's is one of them. */
+const EARLIER_TRIES = EVIDENCE_RULE.up.recentTries - 1;
 
 /** Call once per finished session, after `applyAnswer` for each of its answers. */
 export function applyStoryResult(store: MasteryStore, i: ApplyStoryInput): Promise<StoryOutcome> {
@@ -128,6 +149,7 @@ export function applyStoryResult(store: MasteryStore, i: ApplyStoryInput): Promi
 
     const level = decideLevel({
       level: learner.level,
+      storyLevel: i.storyLevel,
       passes: learner.passes,
       result,
       comprehension: state.comprehension,

@@ -36,9 +36,38 @@ describe('decision rows', () => {
     expect(d.summary).toContain('1 counted for less');
   });
 
+  it('analysis records every accommodation, word tap included', () => {
+    const tapped = scoreAnswer(
+      {
+        answerId: 'a2',
+        questionId: 'q2',
+        skill: 'vocabulary',
+        correct: false,
+        responseMs: 60_000,
+        wordsOnScreen: 10,
+        accommodations: ['word_tap', 'question_read_aloud'],
+      },
+      40,
+    );
+    const d = analysisDecision([tapped], summaries, measures);
+    const answers = d.evidence.answers as { accommodations: string[] }[];
+    expect(answers[0]?.accommodations).toEqual(['word_tap', 'question_read_aloud']);
+  });
+
+  it('carries a message key so the interface can render from the catalog', () => {
+    expect(analysisDecision(scored, summaries, measures).evidence.messageKey).toBe(
+      'decision.analysis',
+    );
+    expect(focusDecision(null, 'literal', {}, 'ability').evidence).toMatchObject({
+      messageKey: 'decision.focus',
+      params: { skill: 'literal', from: null },
+    });
+  });
+
   it('level change records the evidence used', () => {
     const outcome = decideLevel({
       level: 40,
+      storyLevel: 40,
       passes: 0,
       result,
       comprehension: prior(0),

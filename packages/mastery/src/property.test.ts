@@ -90,6 +90,7 @@ describe('properties', () => {
           recent.push(good ? 0.95 : 0.6);
           const o = decideLevel({
             level,
+            storyLevel: level,
             passes,
             result: {
               wordsRightShare: recent.at(-1) ?? 0,

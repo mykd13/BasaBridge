@@ -35,6 +35,7 @@ export function analysisDecision(
     title: 'Story answers counted',
     summary: `${answers.length} answers counted, ${reduced} counted for less.`,
     evidence: {
+      messageKey: 'decision.analysis',
       answers: answers.map((a) => ({
         questionId: a.questionId,
         skill: a.skill,
@@ -43,6 +44,7 @@ export function analysisDecision(
         rushed: a.rushed,
         supportedTry: a.supportedTry,
         questionReadAloud: a.questionReadAloud,
+        accommodations: a.accommodations,
         difficulty: a.difficulty,
         guess: a.guess,
       })),
@@ -78,6 +80,8 @@ export function levelDecision(e: LevelEvidence): Decision {
     title: `Moved ${up ? 'up' : 'down'} to Level ${e.outcome.level}`,
     summary: why,
     evidence: {
+      messageKey: up ? 'decision.level.up' : 'decision.level.down',
+      params: { level: e.outcome.level },
       model: e.outcome.model,
       fromLevel: e.fromLevel,
       toLevel: e.outcome.level,
@@ -108,6 +112,13 @@ export function focusDecision(
     summary: from
       ? `Changed from ${from} because ${to} has the lowest estimate.`
       : `${to} has the lowest estimate.`,
-    evidence: { from, to, model, estimates },
+    evidence: {
+      messageKey: 'decision.focus',
+      params: { skill: to, from },
+      from,
+      to,
+      model,
+      estimates,
+    },
   };
 }

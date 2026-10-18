@@ -151,6 +151,7 @@ const solid = [EVIDENCE_RULE.up.minWordsRight, EVIDENCE_RULE.up.minWordsRight];
 
 const input = (over: Partial<LevelInput>): LevelInput => ({
   level: 40,
+  storyLevel: 40,
   passes: EVIDENCE_RULE.up.minPasses - 1,
   result: passResult,
   comprehension: strongAbove(40),
@@ -176,8 +177,39 @@ describe('decideLevel, ability model', () => {
     expect(o).toMatchObject({ level: 39, passes: 0, moved: 'down', passed: false });
   });
 
+  it('does not move or count a pass for a story with no answers', () => {
+    const empty = { wordsRightShare: 1, questionsCorrect: 0, questionsTotal: 0 };
+    const down = decideLevel(input({ comprehension: strongBelow(40), result: empty, passes: 1 }));
+    expect(down).toMatchObject({ level: 40, passes: 1, moved: 'none', passed: false });
+    const up = decideLevel(input({ result: empty }));
+    expect(up).toMatchObject({ level: 40, passes: EVIDENCE_RULE.up.minPasses - 1, moved: 'none' });
+    expect(decideLevel(input({ result: empty, model: 'simple' }))).toMatchObject({
+      level: 40,
+      moved: 'none',
+    });
+  });
+
+  it('never demotes a passed story, however low the stored estimate is', () => {
+    const o = decideLevel(input({ comprehension: strongBelow(40), result: passResult, passes: 0 }));
+    expect(o).toMatchObject({ level: 40, passes: 1, moved: 'none', passed: true });
+  });
+
+  it('never promotes a story that was not passed', () => {
+    const o = decideLevel(input({ result: failResult }));
+    expect(o).toMatchObject({ level: 40, moved: 'none', passed: false });
+  });
+
+  it('adds no evidence for a story at another level than the learner', () => {
+    const o = decideLevel(input({ storyLevel: 10 }));
+    expect(o).toMatchObject({ level: 40, passes: EVIDENCE_RULE.up.minPasses - 1, moved: 'none' });
+    const simple = decideLevel(input({ storyLevel: 10, model: 'simple', result: failResult }));
+    expect(simple).toMatchObject({ level: 40, moved: 'none' });
+  });
+
   it('never moves above the top level', () => {
-    const o = decideLevel(input({ level: MAX_LEVEL, comprehension: strongAbove(MAX_LEVEL) }));
+    const o = decideLevel(
+      input({ level: MAX_LEVEL, storyLevel: MAX_LEVEL, comprehension: strongAbove(MAX_LEVEL) }),
+    );
     expect(o.level).toBe(MAX_LEVEL);
     expect(o.moved).toBe('none');
   });

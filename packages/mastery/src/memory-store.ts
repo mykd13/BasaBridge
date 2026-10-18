@@ -6,7 +6,7 @@
 import type { ComprehensionSkill, Decision } from '@basabridge/contracts';
 import type { AbilitySummary, Posterior } from './ability';
 import type { AbilityScope, AbilityState } from './engine';
-import type { StoryAnswers } from './simple';
+import { COMPREHENSION_SKILLS, type StoryAnswers } from './simple';
 import type { MasteryStore, MasteryTx } from './store';
 
 export interface MemoryState {
@@ -62,7 +62,7 @@ export function createMemoryStore(
         guard('saveAbility');
         draft.ability[id] = { ...draft.ability[id], [scope]: { posterior, summary } };
       },
-      async saveAnswerWeight(answerId, w) {
+      async saveAnswerWeight(_learnerId, answerId, w) {
         guard('saveAnswerWeight');
         draft.answerWeights[answerId] = w;
       },
@@ -81,10 +81,14 @@ export function createMemoryStore(
       },
       async getLastFocus(id) {
         guard('getLastFocus');
-        const last = draft.decisions
+        const to = draft.decisions
           .filter((d) => d.learnerId === id && d.decision.kind === 'plan')
+          .map((d) => d.decision.evidence.to)
+          .filter((t): t is ComprehensionSkill =>
+            COMPREHENSION_SKILLS.includes(t as ComprehensionSkill),
+          )
           .at(-1);
-        return (last?.decision.evidence.to as ComprehensionSkill | undefined) ?? null;
+        return to ?? null;
       },
       async setLearnerLevel(id, s) {
         guard('setLearnerLevel');

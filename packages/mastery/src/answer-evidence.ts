@@ -11,7 +11,10 @@ import type {
 } from '@basabridge/contracts';
 import { evidenceWeight, guessFor, isRushed, itemDifficulty, type ItemEvidence } from './ability';
 
-/** One answer as stored in `answers`, joined with its question. */
+/**
+ * One answer as stored in `answers`, joined with its question. Only answers to the questions of a
+ * real story belong here. Learn practice answers must never be scored into level movement.
+ */
 export interface AnswerInput {
   answerId: string;
   questionId: string;
@@ -40,6 +43,8 @@ export interface ScoredAnswer {
   rushed: boolean;
   supportedTry: boolean;
   questionReadAloud: boolean;
+  /** Every accommodation on the answer, as stored (golden rule 12). */
+  accommodations: readonly Accommodation[];
 }
 
 export function scoreAnswer(a: AnswerInput, storyLevel: number): ScoredAnswer {
@@ -56,6 +61,7 @@ export function scoreAnswer(a: AnswerInput, storyLevel: number): ScoredAnswer {
     rushed,
     supportedTry,
     questionReadAloud: a.accommodations.includes('question_read_aloud'),
+    accommodations: [...a.accommodations],
   };
 }
 

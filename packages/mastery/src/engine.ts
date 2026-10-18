@@ -90,7 +90,10 @@ export function storyResult(t: TryAnalysis, answers: readonly { correct: boolean
 export type MasteryModel = 'ability' | 'simple';
 
 export interface LevelInput {
+  /** The learner's current level. */
   level: number;
+  /** The level of the story just finished. A story at another level never moves the level. */
+  storyLevel: number;
   /** learners.level_passes: stories passed at the current level. */
   passes: number;
   result: StoryResult;
@@ -106,12 +109,28 @@ export interface LevelOutcome {
   moved: 'up' | 'down' | 'none';
   passed: boolean;
   model: MasteryModel;
-  /** Null under the simple model. */
+  /** Null under the simple model, and when the story gave no evidence. */
   readiness: Readiness | null;
 }
 
+/**
+ * Level movement rests on evidence from this story (golden rule 10). A story with no answers, or
+ * one written for another level than the learner's, adds no evidence: no pass counts and the
+ * level stays. Up also needs a pass, and down needs a story that was not passed, so a passed
+ * story never costs a level.
+ */
 export function decideLevel(i: LevelInput): LevelOutcome {
   const passed = isPass(i.result);
+  if (i.result.questionsTotal === 0 || i.storyLevel !== i.level) {
+    return {
+      level: i.level,
+      passes: i.passes,
+      moved: 'none',
+      passed: i.result.questionsTotal === 0 ? false : passed,
+      model: i.model,
+      readiness: null,
+    };
+  }
   if (i.model === 'simple') {
     const m = moveLevel({ level: i.level, passes: i.passes }, passed, isVeryWeak(i.result));
     return { ...m, passed, model: 'simple', readiness: null };
@@ -124,7 +143,7 @@ export function decideLevel(i: LevelInput): LevelOutcome {
     recentWordsRight: [...i.recentWordsRight],
   });
   const base = { passed, model: 'ability' as const, readiness };
-  if (readiness.up) return { ...base, level: i.level + 1, passes: 0, moved: 'up' };
-  if (readiness.down) return { ...base, level: i.level - 1, passes: 0, moved: 'down' };
+  if (readiness.up && passed) return { ...base, level: i.level + 1, passes: 0, moved: 'up' };
+  if (readiness.down && !passed) return { ...base, level: i.level - 1, passes: 0, moved: 'down' };
   return { ...base, level: i.level, passes, moved: 'none' };
 }
