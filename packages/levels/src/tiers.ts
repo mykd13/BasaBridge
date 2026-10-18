@@ -74,10 +74,13 @@ export const MAX_LEVEL = 100;
 /** First level for a new learner. Everyone starts at the bottom. */
 export const STARTING_LEVEL = 1;
 
+/** Questions asked after each story. The story generator and the pass rule both read this. */
+export const QUESTIONS_PER_STORY = 5;
+
 export const PASS_RULE = deepFreeze({
   /** Share of words read right on the counted try. */
   minWordsRight: 0.85,
-  /** Questions correct out of five. */
+  /** Questions correct out of QUESTIONS_PER_STORY. */
   minQuestionsCorrect: 3,
   /** Passed stories at one level needed to move up. */
   passesToLevelUp: 3,
