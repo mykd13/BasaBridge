@@ -1,7 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as db from '@basabridge/db';
 import { LEGAL_VERSIONS } from '@/legal/versions';
 import {
+  audit,
   CONSENT_AUDIT_ACTION,
+  dbStore,
   CONSENT_UPDATE_PATH,
   hasCurrentConsent,
   latestConsent,
@@ -14,6 +17,13 @@ import {
 import { NotWiredError } from './errors';
 
 vi.mock('next/navigation', () => ({ redirect: vi.fn() }));
+vi.mock('@basabridge/db', async (importOriginal) => ({
+  ...(await importOriginal<typeof db>()),
+  createDbFromEnv: vi.fn(),
+  listConsents: vi.fn(),
+  insertConsent: vi.fn(),
+  insertAudit: vi.fn(),
+}));
 
 const userId = '00000000-0000-4000-8000-000000000001';
 
@@ -24,7 +34,7 @@ function fakeStore(initial: Partial<Record<ConsentKind, number>> = {}) {
       { version: version!, givenAt: new Date(0) },
     ]),
   );
-  const audit: { actorUserId: string; action: string; target: string }[] = [];
+  const audit: { actorUserId: string | null; action: string; target: string }[] = [];
   const store: ConsentStore = {
     latest: async (_id, kind) => rows.get(kind) ?? null,
     insert: async ({ kind, version }) => void rows.set(kind, { version, givenAt: new Date() }),
@@ -50,10 +60,71 @@ const both = (privacy: number, terms: number) => async (_id: string, kind: Conse
       ? { version: terms, givenAt: new Date(0) }
       : null;
 
-describe('consent interface before BB-11', () => {
-  it('throws NotWiredError from recordConsent and latestConsent', async () => {
-    await expect(recordConsent(userId, 'privacy', 1)).rejects.toBeInstanceOf(NotWiredError);
-    await expect(latestConsent(userId, 'privacy')).rejects.toBeInstanceOf(NotWiredError);
+describe('the database store', () => {
+  const fakeDb = {} as db.Db;
+  beforeEach(() => vi.clearAllMocks());
+
+  it('returns the highest version given for the kind', async () => {
+    vi.mocked(db.listConsents).mockResolvedValue([
+      { id: 'a', userId, kind: 'privacy', version: 1, givenAt: new Date(1) },
+      { id: 'b', userId, kind: 'terms', version: 5, givenAt: new Date(2) },
+      { id: 'c', userId, kind: 'privacy', version: 2, givenAt: new Date(3) },
+    ] as never);
+    expect((await latestConsent(userId, 'privacy', dbStore(fakeDb)))?.version).toBe(2);
+    expect(await latestConsent(userId, 'mic', dbStore(fakeDb))).toBeNull();
+  });
+
+  it('writes the consent and then an id only audit entry', async () => {
+    await recordConsent(userId, 'mic', 1, dbStore(fakeDb));
+    expect(db.insertConsent).toHaveBeenCalledWith(fakeDb, { userId, kind: 'mic', version: 1 });
+    expect(db.insertAudit).toHaveBeenCalledWith(fakeDb, {
+      actorUserId: userId,
+      action: 'consent_given',
+      target: userId,
+    });
+  });
+
+  it('refuses unknown kinds, prototype keys and a user that is not an id', async () => {
+    const store = dbStore(fakeDb);
+    for (const kind of ['cookies', 'constructor', 'toString', '__proto__']) {
+      await expect(recordConsent(userId, kind as never, 1, store)).rejects.toThrow('Unknown');
+    }
+    await expect(recordConsent('maria', 'mic', 1, store)).rejects.toThrow('must be an id');
+    expect(db.insertConsent).not.toHaveBeenCalled();
+  });
+});
+
+describe('the database store without a database', () => {
+  it('throws NotWiredError when DATABASE_URL is not set', async () => {
+    vi.stubEnv('DATABASE_URL', '');
+    await expect(latestConsent(userId, 'privacy', dbStore())).rejects.toBeInstanceOf(NotWiredError);
+    vi.unstubAllEnvs();
+  });
+});
+
+describe('audit', () => {
+  const other = '22222222-2222-4222-8222-222222222222';
+
+  it('writes ids and a known action only', async () => {
+    const { store, audit: rows } = fakeStore();
+    await audit(userId, 'link_revoked', other, store);
+    await audit(null, 'guardian_expired', userId, store);
+    expect(rows).toEqual([
+      { actorUserId: userId, action: 'link_revoked', target: other },
+      { actorUserId: null, action: 'guardian_expired', target: userId },
+    ]);
+  });
+
+  it('refuses free text, names and unknown actions', async () => {
+    const { store, audit: rows } = fakeStore();
+    await expect(audit(userId, 'renamed to Maria' as never, other, store)).rejects.toThrow(
+      'Unknown audit action',
+    );
+    await expect(audit(userId, 'link_created', 'Maria Santos', store)).rejects.toThrow(
+      'must be an id',
+    );
+    await expect(audit('maria12', 'link_created', other, store)).rejects.toThrow('must be an id');
+    expect(rows).toEqual([]);
   });
 });
 
@@ -159,7 +230,7 @@ describe('requireCurrentConsent (the layout gate)', () => {
     });
   });
 
-  it('stays closed while BB-11 is not wired, except with the dev override', async () => {
+  it('stays closed while a part is not wired, except with the dev override', async () => {
     const notWired = async () => {
       throw new NotWiredError('latestConsent');
     };
