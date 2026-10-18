@@ -1,7 +1,13 @@
 import { EVIDENCE_RULE } from '@basabridge/levels';
 import { describe, expect, it } from 'vitest';
-import { THETA_MAX, THETA_MIN, pCorrect } from './ability';
-import { estimateDifficulty, retirementCheck, type CalibrationResponse } from './calibration';
+import { THETA_MAX, THETA_MIN, levelToTheta, pCorrect } from './ability';
+import {
+  estimateDifficulty,
+  retirementCheck,
+  suggestSubskillOffsets,
+  type CalibratedItem,
+  type CalibrationResponse,
+} from './calibration';
 
 /** Small seeded random source so simulated answers are the same on every run. */
 function rng(seed: number): () => number {
@@ -151,5 +157,47 @@ describe('retirementCheck', () => {
     const check = retirementCheck(answers, { guess: 0.25 });
     expect(check.correlation).toBeNull();
     expect(check.reasons).toEqual(['too_easy']);
+  });
+});
+
+describe('suggestSubskillOffsets', () => {
+  const item = (o: Partial<CalibratedItem> & { offset: number }): CalibratedItem => {
+    const storyLevel = o.storyLevel ?? 40;
+    return {
+      storyLevel,
+      subskill: o.subskill ?? 'prediction',
+      difficulty: levelToTheta(storyLevel) + o.offset,
+      answers: o.answers ?? 30,
+    };
+  };
+
+  it('returns one suggestion per sub-skill in the rule', () => {
+    const out = suggestSubskillOffsets([]);
+    expect(out.map((s) => s.subskill)).toEqual(Object.keys(EVIDENCE_RULE.subskillOffset));
+  });
+
+  it('keeps the current offset when there are too few calibrated questions', () => {
+    const few = Array.from({ length: EVIDENCE_RULE.calibration.minItemsPerSubskill - 1 }, () =>
+      item({ offset: 1.2 }),
+    );
+    const prediction = suggestSubskillOffsets(few).find((s) => s.subskill === 'prediction')!;
+    expect(prediction.suggested).toBe(EVIDENCE_RULE.subskillOffset.prediction);
+    expect(prediction.items).toBe(few.length);
+  });
+
+  it('averages calibrated difficulty above the story level, across levels', () => {
+    const items = [10, 30, 50, 70, 90].map((storyLevel) => item({ storyLevel, offset: 0.9 }));
+    const prediction = suggestSubskillOffsets(items).find((s) => s.subskill === 'prediction')!;
+    expect(prediction.suggested).toBeCloseTo(0.9, 2);
+    expect(prediction.current).toBe(EVIDENCE_RULE.subskillOffset.prediction);
+  });
+
+  it('gives questions with more answers more say', () => {
+    const items = [
+      ...Array.from({ length: 4 }, () => item({ subskill: 'key_detail', offset: 0, answers: 30 })),
+      item({ subskill: 'key_detail', offset: -1, answers: 360 }),
+    ];
+    const keyDetail = suggestSubskillOffsets(items).find((s) => s.subskill === 'key_detail')!;
+    expect(keyDetail.suggested).toBeCloseTo(-0.75, 2);
   });
 });

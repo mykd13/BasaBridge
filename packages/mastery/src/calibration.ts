@@ -7,8 +7,9 @@
  *
  * Pure functions only. No AI, no I/O. Thresholds live in `EVIDENCE_RULE.calibration`. Owner: Jhade.
  */
+import type { SubSkill } from '@basabridge/contracts';
 import { EVIDENCE_RULE } from '@basabridge/levels';
-import { THETA_MAX, THETA_MIN, pCorrect } from './ability';
+import { THETA_MAX, THETA_MIN, levelToTheta, pCorrect } from './ability';
 
 const RULE = EVIDENCE_RULE.calibration;
 const STEP = 0.01;
@@ -170,4 +171,47 @@ export function retirementCheck(
     retire: reasons.length > 0,
     reasons,
   };
+}
+
+/** A question whose difficulty has been re-estimated, with where it sits in the level table. */
+export interface CalibratedItem {
+  storyLevel: number;
+  subskill: SubSkill;
+  difficulty: number;
+  answers: number;
+}
+
+export interface OffsetSuggestion {
+  subskill: SubSkill;
+  current: number;
+  suggested: number;
+  /** Calibrated questions the suggestion is based on. */
+  items: number;
+}
+
+/**
+ * Suggest new sub-skill offsets for `EVIDENCE_RULE.subskillOffset`: for each sub-skill, the average
+ * of calibrated difficulty minus the story level's difficulty, weighted by answers. A sub-skill with
+ * too few calibrated questions keeps its current offset. A person copies the numbers into the rule.
+ */
+export function suggestSubskillOffsets(items: readonly CalibratedItem[]): OffsetSuggestion[] {
+  const offsets = EVIDENCE_RULE.subskillOffset;
+  return (Object.keys(offsets) as SubSkill[]).map((subskill) => {
+    const current = offsets[subskill];
+    const mine = items.filter((i) => i.subskill === subskill && i.answers > 0);
+    const weight = mine.reduce((a, i) => a + i.answers, 0);
+    if (mine.length < RULE.minItemsPerSubskill || weight <= 0) {
+      return { subskill, current, suggested: current, items: mine.length };
+    }
+    const sum = mine.reduce(
+      (a, i) => a + i.answers * (i.difficulty - levelToTheta(i.storyLevel)),
+      0,
+    );
+    return {
+      subskill,
+      current,
+      suggested: Math.round((sum / weight) * 100) / 100,
+      items: mine.length,
+    };
+  });
 }
