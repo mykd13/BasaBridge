@@ -6,7 +6,7 @@
  * so the caller can pass rows read through the authorization layer without reshaping them.
  */
 import { DistractorType, SubSkill, type TryAnalysis, type WordResult } from '@basabridge/contracts';
-import type { GapInput, MissedItem } from './index';
+import type { GapInput, MissedItem } from './core';
 
 /** One answer and the question it answered, as stored in `answers` and `questions`. */
 export interface AnsweredQuestion {
