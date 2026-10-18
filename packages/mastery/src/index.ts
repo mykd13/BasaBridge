@@ -9,6 +9,7 @@ import { MAX_LEVEL, MIN_LEVEL, PASS_RULE } from '@basabridge/levels';
 export * from './ability';
 export * from './placement';
 export * from './evidence';
+export * from './score';
 
 /**
  * The simple estimate and level rule below are the first seed. The ability model in `ability.ts`
