@@ -1,9 +1,10 @@
 import { LogOut } from '@basabridge/ui/icons';
 import { signOut } from '@/server/actions/sign-out';
-import { t } from '@/i18n';
+import { useTranslations } from 'next-intl';
 
 /** Sign out is a form, so it works without script and a link cannot trigger it by accident. */
 export function SignOutForm() {
+  const t = useTranslations();
   return (
     <form action={signOut}>
       <button type="submit" className="bb-nav__item bb-nav__item--quiet">

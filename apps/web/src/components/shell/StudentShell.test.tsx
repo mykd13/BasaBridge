@@ -1,16 +1,22 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import { withIntl } from '@/i18n/test-intl';
+import type { Lang, Wording } from '@/i18n/types';
 
 let pathname = '/learn';
 vi.mock('next/navigation', () => ({ usePathname: () => pathname, redirect: vi.fn() }));
 
 const { StudentShell } = await import('./StudentShell');
 
-const render = () =>
+const render = (lang: Lang = 'en', wording: Wording = 'standard') =>
   renderToStaticMarkup(
-    <StudentShell>
-      <p>Page body</p>
-    </StudentShell>,
+    withIntl(
+      <StudentShell>
+        <p>Page body</p>
+      </StudentShell>,
+      lang,
+      wording,
+    ),
   );
 
 describe('StudentShell', () => {
@@ -47,6 +53,13 @@ describe('StudentShell', () => {
     const out = render();
     expect(out).toMatch(/<form[^>]*><button type="submit"[^>]*>[\s\S]*Sign out<\/button><\/form>/);
     expect(out).not.toMatch(/<a[^>]*>[^<]*Sign out/);
+  });
+
+  it('uses the Filipino and simple wording when asked', () => {
+    pathname = '/learn';
+    expect(render('fil')).toContain('Matuto');
+    expect(render('en', 'simple')).toContain('Log out');
+    expect(render('en', 'simple')).not.toContain('Sign out');
   });
 
   it('has a skip link to the main landmark', () => {

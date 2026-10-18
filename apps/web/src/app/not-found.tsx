@@ -2,9 +2,10 @@ import { ButtonLink } from '@basabridge/ui';
 import '@/components/shell/shell.css';
 import { TriangleAlert } from '@basabridge/ui/icons';
 import { EmptyState } from '@/components/states/EmptyState';
-import { t } from '@/i18n';
+import { useTranslations } from 'next-intl';
 
 export default function NotFound() {
+  const t = useTranslations();
   return (
     <main className="bb-shell__main">
       <EmptyState

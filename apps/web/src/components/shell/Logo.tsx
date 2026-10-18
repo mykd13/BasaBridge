@@ -1,7 +1,8 @@
-import { t } from '@/i18n';
+import { useTranslations } from 'next-intl';
 
 /** The BasaBridge mark and name, drawn as on the canvas headers. */
 export function Logo() {
+  const t = useTranslations('app');
   return (
     <span className="bb-logo">
       <svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true">
@@ -14,7 +15,7 @@ export function Logo() {
           strokeLinecap="round"
         />
       </svg>
-      {t('brand.name')}
+      {t('name')}
     </span>
   );
 }

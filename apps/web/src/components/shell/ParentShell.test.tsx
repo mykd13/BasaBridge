@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import { withIntl } from '@/i18n/test-intl';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/parent/link', redirect: vi.fn() }));
 
@@ -7,9 +8,11 @@ const { ParentShell } = await import('./ParentShell');
 
 describe('ParentShell', () => {
   const out = renderToStaticMarkup(
-    <ParentShell>
-      <p>Page body</p>
-    </ParentShell>,
+    withIntl(
+      <ParentShell>
+        <p>Page body</p>
+      </ParentShell>,
+    ),
   );
 
   it('has no student items', () => {

@@ -22,6 +22,136 @@ export const fil = {
       reviewed: false,
     },
   },
+  skip: {
+    toContent: {
+      standard: 'Lumaktaw sa pangunahing nilalaman',
+      simple: 'Lumaktaw sa pahina',
+      reviewed: false,
+    },
+  },
+  nav: {
+    main: { standard: 'Pangunahin', simple: 'Menu', reviewed: false },
+    home: { standard: 'Home', lowLevel: true, reviewed: false },
+    learn: { standard: 'Matuto', lowLevel: true, reviewed: false },
+    progress: {
+      standard: 'Aking progreso',
+      simple: 'Aking hakbang',
+      lowLevel: true,
+      reviewed: false,
+    },
+    account: { standard: 'Aking account', simple: 'Ako', lowLevel: true, reviewed: false },
+    signOut: { standard: 'Mag-sign out', simple: 'Mag-log out', lowLevel: true, reviewed: false },
+    parentAccount: { standard: 'Account ng magulang', reviewed: false },
+  },
+  header: {
+    newHere: {
+      standard: 'Bago ka ba? Gumawa ng account',
+      simple: 'Bago? Gumawa ng account',
+      reviewed: false,
+    },
+    haveAccount: {
+      standard: 'May account ka na ba? Mag-sign in',
+      simple: 'May account? Mag-sign in',
+      reviewed: false,
+    },
+  },
+  placeholder: {
+    body: {
+      standard:
+        'Hindi pa tapos ang screen na ito. Magpapakita ito ng totoong gawain kapag handa na.',
+      simple: 'Hindi pa handa ang pahinang ito.',
+      reviewed: false,
+    },
+    board: { standard: 'Design canvas {boards}', reviewed: false },
+  },
+  errors: {
+    generic: {
+      title: { standard: 'May nangyaring mali', simple: 'Naku. May nasira.', reviewed: false },
+      body: {
+        standard: 'Hindi namin maipakita ang pahinang ito. Pakisubukang muli.',
+        simple: 'Hindi namin maipakita ito. Subukan ulit.',
+        reviewed: false,
+      },
+    },
+    notWired: {
+      title: {
+        standard: 'Hindi pa handa ang bahaging ito',
+        simple: 'Hindi pa handa',
+        reviewed: false,
+      },
+      body: {
+        standard: 'Ginagawa pa namin ito. Pakibalik muli mamaya.',
+        simple: 'Ginagawa pa namin ito. Bumalik ka mamaya.',
+        reviewed: false,
+      },
+    },
+    retry: { standard: 'Subukang muli', lowLevel: true, reviewed: false },
+    notFound: {
+      title: {
+        standard: 'Hindi namin mahanap ang pahinang iyon',
+        simple: 'Hindi namin mahanap iyon',
+        reviewed: false,
+      },
+      body: {
+        standard: 'Maaaring luma na ang link, o inilipat ang pahina.',
+        simple: 'Maaaring luma na ang link.',
+        reviewed: false,
+      },
+      action: { standard: 'Pumunta sa sign in', reviewed: false },
+    },
+  },
+  screens: {
+    signIn: { standard: 'Mag-sign in', reviewed: false },
+    signUp: { standard: 'Gumawa ng account', simple: 'Mag-sign up', reviewed: false },
+    home: { standard: 'Home ng mag-aaral at antas', simple: 'Home at antas', reviewed: false },
+    read: { standard: 'Sesyon ng pagbasa', simple: 'Magbasa nang malakas', reviewed: false },
+    analysis: {
+      standard: 'AI na pagsusuri ng pagbasa',
+      simple: 'Paano ka nagbasa',
+      reviewed: false,
+    },
+    questions: { standard: 'Mga tanong', reviewed: false },
+    result: { standard: 'Resulta at progreso ng antas', simple: 'Resulta mo', reviewed: false },
+    levelUp: { standard: 'Pag-angat ng antas', reviewed: false },
+    progress: { standard: 'Aking progreso', simple: 'Aking hakbang', reviewed: false },
+    account: { standard: 'Aking account', simple: 'Ako', reviewed: false },
+    share: { standard: 'Ibahagi sa magulang', reviewed: false },
+    help: { standard: 'Tulong sa pagbasa', reviewed: false },
+    placement: {
+      standard: 'Hanapin ang aking panimulang antas',
+      simple: 'Hanapin ang antas ko',
+      reviewed: false,
+    },
+    placementNext: {
+      standard: 'Sa pagitan ng mga kuwento sa placement',
+      simple: 'Susunod na kuwento',
+      reviewed: false,
+    },
+    placementResult: {
+      standard: 'Ang iyong panimulang antas',
+      simple: 'Ang antas mo',
+      reviewed: false,
+    },
+    learn: { standard: 'Home ng Matuto', simple: 'Matuto', reviewed: false },
+    lesson: { standard: 'Aralin', reviewed: false },
+    practice: { standard: 'Pagsasanay sa aralin', simple: 'Magsanay', reviewed: false },
+    lessonDone: { standard: 'Tapos na ang aralin', simple: 'Tapos na', reviewed: false },
+    words: {
+      standard: 'Pagsasanay sa salita: Sabihin ito',
+      simple: 'Sabihin ang salita',
+      reviewed: false,
+    },
+    parentLink: {
+      standard: 'I-link ang account ng iyong anak',
+      simple: 'I-link ang anak mo',
+      reviewed: false,
+    },
+    parentProgress: { standard: 'Progreso para sa magulang', reviewed: false },
+    parentReadings: { standard: 'Mga pagbasa at AI na pagsusuri', reviewed: false },
+    parentLevels: { standard: 'Mga antas at pagsubok', reviewed: false },
+    parentDecisions: { standard: 'Mga desisyon ng AI', reviewed: false },
+    parentPrivacy: { standard: 'Mga naka-link na anak at privacy', reviewed: false },
+  },
   language: {
     label: { standard: 'Wika', simple: 'Wika', reviewed: false },
     en: { standard: 'English', reviewed: false },

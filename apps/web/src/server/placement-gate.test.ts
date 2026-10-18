@@ -1,5 +1,5 @@
 import { readdirSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -43,7 +43,7 @@ describe('where the gate applies', () => {
       e.isDirectory()
         ? walk(join(dir, e.name))
         : e.name === 'page.tsx'
-          ? [relative(appDir, join(dir, e.name))]
+          ? [relative(appDir, join(dir, e.name)).split(sep).join('/')]
           : [],
     );
   })(appDir);
