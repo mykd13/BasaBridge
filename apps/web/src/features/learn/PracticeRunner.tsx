@@ -63,7 +63,12 @@ export function PracticeRunner(props: PracticeRunnerProps) {
 
   function next() {
     if (last) {
-      router.push(lessonHref(lessonId, returnTo, '/done'));
+      // The server only finishes a lesson its own record shows was walked, so it hears about the
+      // last item before the done page asks.
+      startTransition(async () => {
+        await props.savePosition(lessonId, { step: practiceStep, item: items.length });
+        router.push(lessonHref(lessonId, returnTo, '/done'));
+      });
       return;
     }
     dispatch({ type: 'next' });
@@ -73,7 +78,7 @@ export function PracticeRunner(props: PracticeRunnerProps) {
   }
 
   return (
-    <main className="bb-learn bb-practice">
+    <div className="bb-learn bb-practice">
       <StepDots
         current={state.index + 1}
         total={items.length}
@@ -147,6 +152,6 @@ export function PracticeRunner(props: PracticeRunnerProps) {
           </Link>
         </div>
       </Card>
-    </main>
+    </div>
   );
 }

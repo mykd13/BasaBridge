@@ -24,7 +24,7 @@ export function LearnHomeView({ home }: { home: LearnHomeData }) {
   const t = useTranslations();
   const empty = home.bySkill.length === 0;
   return (
-    <main className="bb-learn">
+    <div className="bb-learn">
       <div className="bb-learn__head">
         <h1>{t('learn.title')}</h1>
         <SpeakText text={t('learn.title')} label={t('learn.listenPage')} />
@@ -61,6 +61,6 @@ export function LearnHomeView({ home }: { home: LearnHomeData }) {
           ))}
         </>
       )}
-    </main>
+    </div>
   );
 }

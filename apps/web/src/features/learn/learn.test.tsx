@@ -14,6 +14,8 @@ const { LearnHomeView } = await import('./LearnHomeView');
 const { LearnResultPanelView } = await import('./LearnResultPanel');
 const { LessonWalkthrough } = await import('./LessonWalkthrough');
 const { LessonDoneView } = await import('./LessonDoneView');
+const { LessonNotFound } = await import('./LessonNotFound');
+const { PracticeRunner } = await import('./PracticeRunner');
 const { practiceStepIndex, resumeAt, teachSteps } = await import('./steps');
 
 const en = messagesFor('en', 'standard');
@@ -136,5 +138,39 @@ describe('Lesson done', () => {
     expect(out).toContain('read a new story');
     expect(out).toContain('2 questions');
     expect(out).toContain('Practice here does not change your level.');
+  });
+});
+
+describe('landmarks', () => {
+  it('has no main element, because the shell already renders one', () => {
+    const data: LearnHomeData = { recommended: [], bySkill: [] };
+    const views = [
+      <LearnHomeView key="home" home={data} />,
+      <LessonWalkthrough
+        key="walk"
+        lessonId={lesson.id}
+        title={lesson.title}
+        goal={lesson.goal}
+        group={en.learn.group.inferential}
+        steps={teachSteps(lesson)}
+        practiceStep={2}
+        returnTo={null}
+        initialIndex={0}
+        savePosition={async () => {}}
+      />,
+      <PracticeRunner
+        key="practice"
+        lessonId={lesson.id}
+        items={[{ id: 'item-1', prompt: 'Why?', options: ['A', 'B'], hint: 'Look again' }]}
+        initialItem={0}
+        practiceStep={2}
+        returnTo={null}
+        check={async () => ({ correct: true, correctText: 'A' })}
+        savePosition={async () => {}}
+      />,
+      <LessonDoneView key="done" title={lesson.title} recheckItems={2} returnTo={null} />,
+      <LessonNotFound key="missing" />,
+    ];
+    for (const view of views) expect(html(view)).not.toMatch(/<main[\s>]/);
   });
 });

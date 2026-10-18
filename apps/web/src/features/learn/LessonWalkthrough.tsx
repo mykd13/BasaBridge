@@ -57,7 +57,7 @@ export function LessonWalkthrough(props: WalkthroughProps) {
   if (!step) return null;
   const spoken = step.kind === 'explain' ? step.text : `${step.passage} ${step.point}`;
   return (
-    <main className="bb-learn bb-lesson">
+    <div className="bb-learn bb-lesson">
       <Eyebrow>{t('learn.lesson.kicker', { group: props.group })}</Eyebrow>
       <div className="bb-learn__head">
         <h1>{props.title}</h1>
@@ -102,6 +102,6 @@ export function LessonWalkthrough(props: WalkthroughProps) {
           {returnTo ? t('learn.leave') : t('learn.backToLearn')}
         </Link>
       </div>
-    </main>
+    </div>
   );
 }

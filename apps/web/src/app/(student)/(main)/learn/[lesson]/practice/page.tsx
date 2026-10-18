@@ -38,11 +38,11 @@ export default async function PracticePage({
     // Practice items come from BB-54. Until they do, say so instead of showing made-up questions.
     if (!(error instanceof NotWiredError)) throw error;
     return (
-      <main className="bb-learn">
+      <div className="bb-learn">
         <Notice tone="warn" title={t('learn.practice.notReady.title')}>
           <p>{t('learn.practice.notReady.body')}</p>
         </Notice>
-      </main>
+      </div>
     );
   }
   if (items.length === 0) redirect(lessonHref(lessonId, returnTo, '/done'));

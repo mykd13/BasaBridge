@@ -23,6 +23,8 @@ export async function checkPracticeAction(itemId: string, index: number): Promis
 }
 
 /** The learner reached the end of a lesson. Queues the recheck questions for the next story. */
-export async function completeLessonAction(lessonId: string): Promise<{ recheckItems: number }> {
+export async function completeLessonAction(
+  lessonId: string,
+): Promise<{ completed: boolean; recheckItems: number }> {
   return learnPort().complete(await currentLearnerId(), String(lessonId));
 }

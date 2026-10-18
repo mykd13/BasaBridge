@@ -50,10 +50,24 @@ export interface QuizFacts {
   level: number;
 }
 
+/** The furthest the server has seen a learner get in one lesson. Only moves forward, one step at a time. */
+export interface Reach {
+  step: number;
+  /** Practice items finished. Counts only while `step` is the practice step. */
+  item: number;
+}
+
+export interface ReachStore {
+  get(learnerId: string, lessonId: string): Promise<Reach | undefined>;
+  set(learnerId: string, lessonId: string, reach: Reach): Promise<void>;
+  clear(learnerId: string, lessonId: string): Promise<void>;
+}
+
 export interface LearnDeps {
   registry: LessonRegistry;
   progress: LessonProgressStore;
   positions: PositionStore;
+  reach: ReachStore;
   practice: PracticeItemSource;
   /** The learner's gaps and level. Without it the recommendations stay empty. */
   gaps?: (learnerId: string) => Promise<{ gaps: Gap[]; level: number }>;
@@ -84,11 +98,29 @@ export function displayStatus(card: LessonProgressStatus): LessonStatus {
 export function clampPosition(lesson: Lesson, p: LessonPosition): LessonPosition | null {
   if (!Number.isInteger(p.step) || !Number.isInteger(p.item)) return null;
   if (p.step < 0 || p.step >= lesson.steps.length || p.item < 0) return null;
+  const step = lesson.steps[p.step];
+  if (step?.kind === 'practice' ? p.item > step.items : p.item !== 0) return null;
   return { step: p.step, item: p.item };
 }
 
+/** Whether the reach record shows the learner went through every teaching step and every practice item. */
+export function finishedWalk(lesson: Lesson, reached: Reach | undefined): boolean {
+  const practiceAt = lesson.steps.findIndex((s) => s.kind === 'practice');
+  const practice = lesson.steps[practiceAt];
+  if (!reached || practice?.kind !== 'practice') return false;
+  return reached.step === practiceAt && reached.item >= practice.items;
+}
+
+/** The next position the learner may save: stay, go back, or move one step or one item on. */
+function allowedMove(reached: Reach | undefined, to: LessonPosition): boolean {
+  const at = reached ?? { step: 0, item: 0 };
+  if (to.step < at.step) return true;
+  if (to.step === at.step) return to.item <= at.item + 1;
+  return to.step === at.step + 1 && to.item === 0;
+}
+
 export function createLearnPort(deps: LearnDeps): LearnPort {
-  const { registry, progress, positions, practice } = deps;
+  const { registry, progress, positions, reach, practice } = deps;
   const now = deps.now ?? (() => new Date());
 
   const toCard = (c: { lesson: Lesson; status: LessonProgressStatus }) =>
@@ -122,8 +154,13 @@ export function createLearnPort(deps: LearnDeps): LearnPort {
       if (!lesson) return;
       const valid = clampPosition(lesson, position);
       if (!valid) return;
+      const reached = await reach.get(learnerId, lessonId);
+      if (!allowedMove(reached, valid)) return;
       await openLesson(progress, registry, learnerId, lessonId);
       await positions.set(learnerId, lessonId, valid);
+      const at = reached ?? { step: 0, item: 0 };
+      if (valid.step > at.step || (valid.step === at.step && valid.item > at.item))
+        await reach.set(learnerId, lessonId, { step: valid.step, item: valid.item });
     },
 
     async practiceItems(lessonId) {
@@ -138,14 +175,28 @@ export function createLearnPort(deps: LearnDeps): LearnPort {
       return { correct: index === item.answerIndex, correctText };
     },
 
-    async complete(learnerId, lessonId) {
-      // The place is cleared when a lesson is finished, so a repeat call (a refresh of the done
-      // page) with no new walk through the lesson must not reset a recheck already counted.
+    async canFinish(learnerId, lessonId) {
+      const lesson = registry.get(lessonId);
+      if (!lesson) return false;
       const row = (await progress.list(learnerId)).find((r) => r.lessonId === lessonId);
-      const repeat = row?.completedAt && !(await positions.get(learnerId, lessonId));
-      if (!repeat) await finishLesson(progress, registry, learnerId, lessonId, now());
+      return (
+        Boolean(row?.completedAt) || finishedWalk(lesson, await reach.get(learnerId, lessonId))
+      );
+    },
+
+    async complete(learnerId, lessonId) {
+      const lesson = registry.get(lessonId);
+      const recheckItems = LEARN_RULES.recheckItemsInNextStory;
+      if (!lesson) return { completed: false, recheckItems: 0 };
+      const row = (await progress.list(learnerId)).find((r) => r.lessonId === lessonId);
+      const walked = finishedWalk(lesson, await reach.get(learnerId, lessonId));
+      // Only the server's own record counts. A lesson that was never walked is not finished, and a
+      // repeat call (a refresh of the done page) must not reset a recheck already counted.
+      if (!walked) return { completed: Boolean(row?.completedAt), recheckItems };
+      await finishLesson(progress, registry, learnerId, lessonId, now());
       await positions.clear(learnerId, lessonId);
-      return { recheckItems: LEARN_RULES.recheckItemsInNextStory };
+      await reach.clear(learnerId, lessonId);
+      return { completed: true, recheckItems };
     },
 
     async resultOffer(learnerId, sessionId) {
@@ -202,6 +253,22 @@ export function memoryPositionStore(): PositionStore {
     },
     async set(l, id, p) {
       rows.set(key(l, id), p);
+    },
+    async clear(l, id) {
+      rows.delete(key(l, id));
+    },
+  };
+}
+
+export function memoryReachStore(): ReachStore {
+  const rows = new Map<string, Reach>();
+  const key = (learnerId: string, lessonId: string) => `${learnerId}\u0000${lessonId}`;
+  return {
+    async get(l, id) {
+      return rows.get(key(l, id));
+    },
+    async set(l, id, r) {
+      rows.set(key(l, id), r);
     },
     async clear(l, id) {
       rows.delete(key(l, id));

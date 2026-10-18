@@ -16,7 +16,7 @@ export function LessonDoneView({
 }) {
   const t = useTranslations();
   return (
-    <main className="bb-learn bb-done">
+    <div className="bb-learn bb-done">
       <span className="bb-done__tick" role="img" aria-label={t('learn.done.icon')}>
         <Check size={44} strokeWidth={4.5} aria-hidden="true" />
       </span>
@@ -45,6 +45,6 @@ export function LessonDoneView({
           </Link>
         ) : null}
       </div>
-    </main>
+    </div>
   );
 }

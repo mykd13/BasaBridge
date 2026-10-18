@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LEARN_RULES } from '@basabridge/learn';
-import { testPort } from './fixtures';
+import { testPort, walkWholeLesson } from './fixtures';
 
 const L = 'learner-1';
 
@@ -59,9 +59,38 @@ describe('position', () => {
     await port.savePosition(L, 'why-did-it-happen', { step: 1.5, item: 0 });
     await port.savePosition(L, 'no-such-lesson', { step: 0, item: 0 });
     expect((await port.lesson(L, 'why-did-it-happen'))?.position.step).toBe(0);
-    await port.savePosition('other', 'why-did-it-happen', { step: 2, item: 1 });
+    await port.savePosition('other', 'why-did-it-happen', { step: 1, item: 0 });
     expect((await port.lesson(L, 'why-did-it-happen'))?.position.step).toBe(0);
+    expect((await port.lesson('other', 'why-did-it-happen'))?.position.step).toBe(1);
     expect(await port.lesson(L, 'no-such-lesson')).toBeNull();
+  });
+});
+
+describe('position order', () => {
+  it('rejects a step that skips ahead and a practice item that skips ahead', async () => {
+    const { port } = testPort();
+    await port.savePosition(L, 'why-did-it-happen', { step: 2, item: 0 });
+    expect((await port.lesson(L, 'why-did-it-happen'))?.position.step).toBe(0);
+    await port.savePosition(L, 'why-did-it-happen', { step: 1, item: 0 });
+    await port.savePosition(L, 'why-did-it-happen', { step: 2, item: 0 });
+    await port.savePosition(L, 'why-did-it-happen', { step: 2, item: 2 });
+    expect((await port.lesson(L, 'why-did-it-happen'))?.position).toEqual({ step: 2, item: 0 });
+  });
+
+  it('rejects an item on a teaching step and an item past the last one', async () => {
+    const { port } = testPort();
+    await port.savePosition(L, 'why-did-it-happen', { step: 1, item: 1 });
+    expect((await port.lesson(L, 'why-did-it-happen'))?.position.step).toBe(0);
+    await walkWholeLesson(port, L, 'why-did-it-happen');
+    await port.savePosition(L, 'why-did-it-happen', { step: 2, item: 3 });
+    expect((await port.lesson(L, 'why-did-it-happen'))?.position).toEqual({ step: 2, item: 2 });
+  });
+
+  it('lets the learner go back', async () => {
+    const { port } = testPort();
+    await port.savePosition(L, 'why-did-it-happen', { step: 1, item: 0 });
+    await port.savePosition(L, 'why-did-it-happen', { step: 0, item: 0 });
+    expect((await port.lesson(L, 'why-did-it-happen'))?.position.step).toBe(0);
   });
 });
 
@@ -84,22 +113,51 @@ describe('practice', () => {
 });
 
 describe('complete', () => {
-  it('queues the recheck questions and clears the place', async () => {
-    const { port, progress, positions } = testPort({ now: () => new Date('2026-02-01') });
-    await port.savePosition(L, 'why-did-it-happen', { step: 2, item: 0 });
+  it('queues the recheck questions and clears the place after the whole walk', async () => {
+    const { port, progress, positions, reach } = testPort({ now: () => new Date('2026-02-01') });
+    await walkWholeLesson(port, L, 'why-did-it-happen');
+    expect(await port.canFinish(L, 'why-did-it-happen')).toBe(true);
     const done = await port.complete(L, 'why-did-it-happen');
-    expect(done.recheckItems).toBe(LEARN_RULES.recheckItemsInNextStory);
+    expect(done).toEqual({ completed: true, recheckItems: LEARN_RULES.recheckItemsInNextStory });
     expect((await progress.list(L))[0]?.completedAt).toEqual(new Date('2026-02-01'));
     expect(await positions.get(L, 'why-did-it-happen')).toBeUndefined();
+    expect(await reach.get(L, 'why-did-it-happen')).toBeUndefined();
+  });
+
+  it('does not finish a lesson that was never walked', async () => {
+    const { port, progress } = testPort();
+    expect(await port.canFinish(L, 'why-did-it-happen')).toBe(false);
+    expect(await port.complete(L, 'why-did-it-happen')).toMatchObject({ completed: false });
+    expect(await progress.list(L)).toEqual([]);
+  });
+
+  it('does not finish on a partial walk or one that skips ahead', async () => {
+    const { port, progress } = testPort();
+    await port.savePosition(L, 'why-did-it-happen', { step: 2, item: 0 });
+    await port.savePosition(L, 'why-did-it-happen', { step: 2, item: 2 });
+    expect(await port.complete(L, 'why-did-it-happen')).toMatchObject({ completed: false });
+    await port.savePosition(L, 'why-did-it-happen', { step: 1, item: 0 });
+    await port.savePosition(L, 'why-did-it-happen', { step: 2, item: 0 });
+    await port.savePosition(L, 'why-did-it-happen', { step: 2, item: 1 });
+    expect(await port.canFinish(L, 'why-did-it-happen')).toBe(false);
+    expect(await port.complete(L, 'why-did-it-happen')).toMatchObject({ completed: false });
+    expect((await progress.list(L)).every((r) => !r.completedAt)).toBe(true);
+  });
+
+  it("keeps one learner from finishing on another learner's walk", async () => {
+    const { port } = testPort();
+    await walkWholeLesson(port, L, 'why-did-it-happen');
+    expect((await port.complete('other', 'why-did-it-happen')).completed).toBe(false);
   });
 
   it('ignores a repeat call so a refresh cannot reset a counted recheck', async () => {
     const { port, progress } = testPort();
-    await port.savePosition(L, 'why-did-it-happen', { step: 2, item: 0 });
+    await walkWholeLesson(port, L, 'why-did-it-happen');
     await port.complete(L, 'why-did-it-happen');
     const [row] = await progress.list(L);
     await progress.save(L, { ...row!, recheckCorrect: 1, recheckTotal: 1 });
-    await port.complete(L, 'why-did-it-happen');
+    expect(await port.canFinish(L, 'why-did-it-happen')).toBe(true);
+    expect(await port.complete(L, 'why-did-it-happen')).toMatchObject({ completed: true });
     expect((await progress.list(L))[0]).toMatchObject({ recheckCorrect: 1, recheckTotal: 1 });
   });
 });

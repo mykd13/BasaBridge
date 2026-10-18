@@ -15,6 +15,7 @@ import {
   createLearnPort,
   memoryOfferCounter,
   memoryPositionStore,
+  memoryReachStore,
   type PracticeItemSource,
 } from './service';
 import type { LearnPort } from './port';
@@ -35,6 +36,7 @@ export function learnPort(): LearnPort {
     registry: lessonRegistry(),
     progress: memoryLessonProgressStore(),
     positions: memoryPositionStore(),
+    reach: memoryReachStore(),
     practice,
     quiz: async () => {
       throw new NotWiredError('Quiz results for Learn offers (BB-10)');

@@ -61,8 +61,16 @@ export interface LearnPort {
   practiceItems(lessonId: string): Promise<PracticeItemView[]>;
   /** Checks one choice on the server. Never touches a level. */
   checkPractice(input: { itemId: string; index: number }): Promise<PracticeCheck>;
-  /** The learner reached the end. Queues `LEARN_RULES.recheckItemsInNextStory` for the next story. */
-  complete(learnerId: string, lessonId: string): Promise<{ recheckItems: number }>;
+  /** True when the server's own record shows the learner walked the whole lesson, or finished it before. */
+  canFinish(learnerId: string, lessonId: string): Promise<boolean>;
+  /**
+   * Finishes a lesson and queues `LEARN_RULES.recheckItemsInNextStory` for the next story. Does
+   * nothing (`completed: false`) unless the server's record shows every step and practice item.
+   */
+  complete(
+    learnerId: string,
+    lessonId: string,
+  ): Promise<{ completed: boolean; recheckItems: number }>;
   /** What the not-passed result screen offers for one session of this learner. */
   resultOffer(learnerId: string, sessionId: string): Promise<ResultOffer>;
   /**

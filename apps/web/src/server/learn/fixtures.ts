@@ -1,11 +1,13 @@
 import { createRegistry, memoryLessonProgressStore, type Gap } from '@basabridge/learn';
 import {
   createLearnPort,
+  memoryReachStore,
   memoryOfferCounter,
   memoryPositionStore,
   type PracticeItemKey,
   type QuizFacts,
 } from './service';
+import type { LearnPort } from './port';
 
 /** Lessons for tests only. App code never imports this file. */
 export const LESSON_FILES = [
@@ -60,6 +62,7 @@ export function testPort(
 ) {
   const progress = memoryLessonProgressStore();
   const positions = memoryPositionStore();
+  const reach = memoryReachStore();
   const offers = memoryOfferCounter();
   const quiz: QuizFacts = over.quiz ?? {
     wrongAnswers: 2,
@@ -72,6 +75,7 @@ export function testPort(
     registry: createRegistry(LESSON_FILES),
     progress,
     positions,
+    reach,
     practice: {
       forLesson: async () => ITEMS,
       find: async (id) => ITEMS.find((i) => i.id === id),
@@ -81,5 +85,16 @@ export function testPort(
     offers,
     now: over.now,
   });
-  return { port, progress, positions, offers };
+  return { port, progress, positions, reach, offers };
+}
+
+/** The saves the screens make when a learner goes through why-did-it-happen to the end. */
+export async function walkWholeLesson(port: LearnPort, learnerId: string, lessonId: string) {
+  for (const position of [
+    { step: 1, item: 0 },
+    { step: 2, item: 0 },
+    { step: 2, item: 1 },
+    { step: 2, item: 2 },
+  ])
+    await port.savePosition(learnerId, lessonId, position);
 }

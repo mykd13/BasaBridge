@@ -39,11 +39,22 @@ describe('Learn actions never touch a level', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('completeLessonAction does not call mastery or level code', async () => {
-    await savePositionAction('why-did-it-happen', { step: 2, item: 0 });
+    for (const position of [
+      { step: 1, item: 0 },
+      { step: 2, item: 0 },
+      { step: 2, item: 1 },
+      { step: 2, item: 2 },
+    ])
+      await savePositionAction('why-did-it-happen', position);
     const result = await completeLessonAction('why-did-it-happen');
-    expect(result.recheckItems).toBe(2);
+    expect(result).toEqual({ completed: true, recheckItems: 2 });
     expect(calls(mastery)).toEqual([]);
     expect(calls(levels)).toEqual([]);
+  });
+
+  it('completeLessonAction does nothing for a lesson that was not walked', async () => {
+    expect(await completeLessonAction('say-it-slowly')).toMatchObject({ completed: false });
+    expect(await completeLessonAction('no-such-lesson')).toMatchObject({ completed: false });
   });
 
   it('practice checks and position saves do not either', async () => {
