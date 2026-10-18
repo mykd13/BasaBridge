@@ -19,7 +19,7 @@ We use this data to run the account, to check the reading, to choose the next st
 
 ## Who helps us {#providers}
 
-These services handle data for us. The table says what each one sees and never sees.
+These services handle data for us. The list says what each one sees and never sees.
 
 {{providers}}
 

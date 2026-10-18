@@ -19,7 +19,7 @@ Ginagamit namin ang datos para patakbuhin ang account, suriin ang pagbasa, pilii
 
 ## Sino ang tumutulong sa amin {#providers}
 
-Hinahawakan ng mga serbisyong ito ang datos para sa amin. Sinasabi ng talahanayan kung ano ang nakikita at hindi kailanman nakikita ng bawat isa.
+Hinahawakan ng mga serbisyong ito ang datos para sa amin. Sinasabi ng listahan kung ano ang nakikita at hindi kailanman nakikita ng bawat isa.
 
 {{providers}}
 
