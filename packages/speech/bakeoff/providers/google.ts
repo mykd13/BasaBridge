@@ -81,6 +81,7 @@ export function createGoogle(env: NodeJS.ProcessEnv): BakeoffProvider {
 
   return {
     name: 'google',
+    supportsBiasing: true,
     biasing: 'adaptation inline phrase set (passage phrases, boost 10)',
     streaming: false,
     modes: ['plain', 'biased'],

@@ -29,6 +29,8 @@ export function createOracle(): BakeoffProvider {
   };
   return {
     name: 'oracle',
+    // It never reads referenceText to recognise anything; the assessment is synthetic.
+    supportsBiasing: false,
     biasing: 'none (offline test double)',
     streaming: false,
     modes: ['plain', 'biased'],

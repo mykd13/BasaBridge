@@ -75,6 +75,7 @@ export function createAzure(env: NodeJS.ProcessEnv): BakeoffProvider {
 
   return {
     name: 'azure',
+    supportsBiasing: true,
     biasing: 'phraseList (passage sentences)',
     streaming: false,
     modes: ['plain', 'biased'],
@@ -161,6 +162,7 @@ export function createAzurePronunciation(env: NodeJS.ProcessEnv): BakeoffProvide
 
   return {
     name: 'azure-pa',
+    supportsBiasing: true,
     biasing: 'ReferenceText (whole passage, built-in miscue detection)',
     streaming: false,
     modes: ['biased'],

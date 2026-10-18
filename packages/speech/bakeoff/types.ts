@@ -83,6 +83,8 @@ export interface ProviderResult {
 
 /** A throwaway adapter. It implements SpeechProvider so the production shape is exercised. */
 export interface BakeoffProvider extends SpeechProvider {
+  /** Required here, so every candidate states it the way the production adapter must. */
+  readonly supportsBiasing: boolean;
   /** How the provider biases toward expected text, for the report. */
   readonly biasing: string;
   /** Whether the provider streams with word timings. */

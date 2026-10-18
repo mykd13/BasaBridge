@@ -171,6 +171,7 @@ export function createAssemblyAI(env: NodeJS.ProcessEnv): BakeoffProvider {
 
   return {
     name: 'assemblyai',
+    supportsBiasing: true,
     biasing: 'keyterms_prompt (passage in phrases of 6 words or fewer)',
     streaming: true,
     modes: ['plain', 'biased'],

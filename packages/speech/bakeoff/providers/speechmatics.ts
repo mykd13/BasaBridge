@@ -143,6 +143,7 @@ export function createSpeechmatics(env: NodeJS.ProcessEnv): BakeoffProvider {
 
   return {
     name: 'speechmatics',
+    supportsBiasing: true,
     biasing: 'additional_vocab (passage in phrases of 6 words or fewer)',
     streaming: true,
     modes: ['plain', 'biased'],

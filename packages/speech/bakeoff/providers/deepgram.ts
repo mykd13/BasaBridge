@@ -94,6 +94,7 @@ export function createDeepgram(env: NodeJS.ProcessEnv): BakeoffProvider {
 
   return {
     name: 'deepgram',
+    supportsBiasing: true,
     biasing: 'keyterm (unique passage words)',
     streaming: true,
     modes: ['plain', 'biased'],

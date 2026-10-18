@@ -23,7 +23,7 @@ import { formatLog } from './log.ts';
 import { scoreRecording } from './metrics.ts';
 import { passagePhrases } from './providers/assemblyai.ts';
 import { parseAssessment } from './providers/azure.ts';
-import { COMPANIES, PROVIDER_NAMES, companyOf } from './providers/index.ts';
+import { COMPANIES, PROVIDER_NAMES, companyOf, createProvider } from './providers/index.ts';
 import { buildReport } from './report.ts';
 import { auroc, clusterBootstrapRatio, cohenKappa, percentile } from './stats.ts';
 import { normaliseWords } from './text.ts';
@@ -422,5 +422,21 @@ describe('adapter helpers', () => {
     expect(companyOf('azure-pa')).toBe('azure');
     expect(companyOf('deepgram')).toBe('deepgram');
     expect(PROVIDER_NAMES.map(companyOf).every((c) => COMPANIES.includes(c))).toBe(true);
+  });
+
+  it('every real adapter says it biases toward the passage, as SpeechProvider expects', () => {
+    // Placeholder keys: building an adapter makes no network call.
+    const env = {
+      AZURE_SPEECH_KEY: 'k',
+      DEEPGRAM_API_KEY: 'k',
+      ASSEMBLYAI_API_KEY: 'k',
+      GOOGLE_ACCESS_TOKEN: 'k',
+      GOOGLE_PROJECT: 'p',
+      SPEECHMATICS_API_KEY: 'k',
+    };
+    for (const name of PROVIDER_NAMES) {
+      expect(createProvider(name, env).supportsBiasing, name).toBe(true);
+    }
+    expect(createProvider('oracle', {}).supportsBiasing).toBe(false);
   });
 });
