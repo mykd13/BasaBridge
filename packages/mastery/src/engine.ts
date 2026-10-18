@@ -4,8 +4,9 @@
  * focus skill and decides level movement. Pure functions. Owner: Jhade (BB-19).
  */
 import type { ComprehensionSkill, TryAnalysis } from '@basabridge/contracts';
-import { isPass, isVeryWeak, type StoryResult } from '@basabridge/levels';
+import { EVIDENCE_RULE, isPass, isVeryWeak, type StoryResult } from '@basabridge/levels';
 import {
+  checkStoredPosterior,
   levelReadiness,
   levelToTheta,
   prior,
@@ -25,10 +26,16 @@ export const ABILITY_SCOPES: readonly AbilityScope[] = ['comprehension', ...COMP
 export type AbilityState = Record<AbilityScope, Posterior>;
 export type AbilitySummaries = Record<AbilityScope, AbilitySummary>;
 
-/** Stored posteriors, with a prior at the learner's level for any scope not stored yet. */
+/**
+ * Stored posteriors, with a prior at the learner's level for any scope not stored yet.
+ * A stored row that fails checkStoredPosterior throws.
+ */
 export function startingState(level: number, stored: Partial<AbilityState>): AbilityState {
   return Object.fromEntries(
-    ABILITY_SCOPES.map((s) => [s, stored[s] ?? prior(levelToTheta(level))]),
+    ABILITY_SCOPES.map((s) => {
+      const row = stored[s];
+      return [s, row ? checkStoredPosterior(s, row) : prior(levelToTheta(level))];
+    }),
   ) as AbilityState;
 }
 
@@ -53,16 +60,23 @@ export function summariseAll(state: AbilityState): AbilitySummaries {
 
 /**
  * Focus skill: the measured skill with the lowest estimate. Ties go to the less certain one.
+ * The last focus stays unless another skill is lower by more than EVIDENCE_RULE.focus.switchMargin,
+ * so near-equal skills do not swap every story.
  * Chosen by code only. The AI words the explanation and never picks or changes it.
  */
-export function focusFromAbility(s: AbilitySummaries): ComprehensionSkill | null {
+export function focusFromAbility(
+  s: AbilitySummaries,
+  lastFocus: ComprehensionSkill | null = null,
+): ComprehensionSkill | null {
   const measured = COMPREHENSION_SKILLS.filter((k) => s[k].items > 0);
   measured.sort((a, b) => {
     const d = s[a].mean - s[b].mean;
     // Treat floating-point noise as a tie, so equal estimates fall through to the spread.
     return Math.abs(d) > 1e-9 ? d : s[b].sd - s[a].sd;
   });
-  return measured[0] ?? null;
+  const lowest = measured[0] ?? null;
+  if (lowest === null || lastFocus === null || !measured.includes(lastFocus)) return lowest;
+  return s[lastFocus].mean - s[lowest].mean > EVIDENCE_RULE.focus.switchMargin ? lowest : lastFocus;
 }
 
 /** Decoding and fluency come from the counted try. */
@@ -98,6 +112,11 @@ export interface LevelInput {
   passes: number;
   result: StoryResult;
   comprehension: Posterior;
+  /**
+   * Summed answer weights from stories at or above the learner's level, this story's included.
+   * Feeds the minItems gates. Ability model only.
+   */
+  levelItems: number;
   /** Words-right shares of counted tries, newest last, including this story's. */
   recentWordsRight: readonly number[];
   model: MasteryModel;
@@ -137,8 +156,7 @@ export function decideLevel(i: LevelInput): LevelOutcome {
   }
   const passes = passed ? i.passes + 1 : i.passes;
   const readiness = levelReadiness(i.comprehension, i.level, {
-    // Simplification: every comprehension item counts, not only those at or above this level.
-    items: i.comprehension.items,
+    items: i.levelItems,
     passedStories: passes,
     recentWordsRight: [...i.recentWordsRight],
   });

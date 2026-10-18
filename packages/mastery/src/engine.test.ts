@@ -1,7 +1,15 @@
 import type { TryAnalysis } from '@basabridge/contracts';
 import { EVIDENCE_RULE, MAX_LEVEL, PASS_RULE } from '@basabridge/levels';
 import { describe, expect, it } from 'vitest';
-import { levelToTheta, prior, summarise, updatePosterior, type Posterior } from './ability';
+import {
+  GRID,
+  levelToTheta,
+  prior,
+  summarise,
+  temper,
+  updatePosterior,
+  type Posterior,
+} from './ability';
 import {
   decideLevel,
   focusFromAbility,
@@ -32,6 +40,58 @@ describe('startingState', () => {
     expect(s.literal).toBe(stored);
     expect(summarise(s.vocabulary).mean).toBeCloseTo(levelToTheta(40), 1);
     expect(s.comprehension.items).toBe(0);
+  });
+});
+
+describe('stored estimates', () => {
+  it('throws on a stored row with the wrong number of weights', () => {
+    const bad = { weights: [1, 2, 3], items: 2 };
+    expect(() => startingState(40, { literal: bad })).toThrow('literal is invalid');
+  });
+
+  it('throws on NaN, negative or all-zero weights and on a bad item count', () => {
+    const ok = prior(0);
+    const rows: Posterior[] = [
+      { ...ok, weights: ok.weights.map((w, i) => (i === 3 ? Number.NaN : w)) },
+      { ...ok, weights: ok.weights.map((w, i) => (i === 3 ? -1 : w)) },
+      { ...ok, weights: GRID.map(() => 0) },
+      { ...ok, items: 1.5 },
+    ];
+    for (const row of rows) {
+      expect(() => startingState(40, { comprehension: row })).toThrow('invalid');
+    }
+  });
+
+  it('keeps a valid stored row', () => {
+    const row = withItems(prior(1), 4);
+    expect(startingState(40, { vocabulary: row }).vocabulary.items).toBe(4);
+  });
+});
+
+describe('fading old evidence', () => {
+  it('widens the estimate and keeps its centre and item count', () => {
+    const p = withItems(prior(1, 0.3), 12);
+    const faded = temper(p, EVIDENCE_RULE.storyDecay);
+    expect(summarise(faded).mean).toBeCloseTo(summarise(p).mean, 6);
+    expect(summarise(faded).sd).toBeGreaterThan(summarise(p).sd);
+    expect(faded.items).toBe(12);
+  });
+
+  it('lets an improving learner recover faster than without fading', () => {
+    const hard = { difficulty: 0, guess: 0.25 };
+    const run = (decay: number) => {
+      let p = prior(0);
+      for (let story = 0; story < 30; story++) {
+        for (let q = 0; q < 5; q++) p = updatePosterior(p, { ...hard, correct: false });
+        p = temper(p, decay);
+      }
+      for (let story = 0; story < 6; story++) {
+        for (let q = 0; q < 5; q++) p = updatePosterior(p, { ...hard, correct: true });
+        p = temper(p, decay);
+      }
+      return summarise(p).mean;
+    };
+    expect(run(EVIDENCE_RULE.storyDecay)).toBeGreaterThan(run(1) + 0.5);
   });
 });
 
@@ -96,6 +156,20 @@ describe('focusFromAbility', () => {
     ).toBe('literal');
   });
 
+  it('keeps the last focus unless another skill is lower by more than the margin', () => {
+    const m = EVIDENCE_RULE.focus.switchMargin;
+    const close = {
+      comprehension: at(0, 1, 6),
+      vocabulary: at(0, 0.3, 2),
+      literal: at(-m / 2, 0.3, 2),
+      inferential: at(1, 0.3, 2),
+    };
+    expect(focusFromAbility(close)).toBe('literal');
+    expect(focusFromAbility(close, 'vocabulary')).toBe('vocabulary');
+    const far = { ...close, literal: at(-2 * m, 0.3, 2) };
+    expect(focusFromAbility(far, 'vocabulary')).toBe('literal');
+  });
+
   it('breaks a tie towards the less certain skill', () => {
     expect(
       focusFromAbility({
@@ -155,6 +229,7 @@ const input = (over: Partial<LevelInput>): LevelInput => ({
   passes: EVIDENCE_RULE.up.minPasses - 1,
   result: passResult,
   comprehension: strongAbove(40),
+  levelItems: EVIDENCE_RULE.up.minItems,
   recentWordsRight: solid,
   model: 'ability',
   ...over,
@@ -204,6 +279,22 @@ describe('decideLevel, ability model', () => {
     expect(o).toMatchObject({ level: 40, passes: EVIDENCE_RULE.up.minPasses - 1, moved: 'none' });
     const simple = decideLevel(input({ storyLevel: 10, model: 'simple', result: failResult }));
     expect(simple).toMatchObject({ level: 40, moved: 'none' });
+  });
+
+  it('does not move up until the weighted answers at or above the level reach the gate', () => {
+    const short = decideLevel(input({ levelItems: EVIDENCE_RULE.up.minItems - 0.1 }));
+    expect(short).toMatchObject({ level: 40, moved: 'none', passed: true });
+  });
+
+  it('does not move down until the weighted answers at or above the level reach the gate', () => {
+    const o = decideLevel(
+      input({
+        comprehension: strongBelow(40),
+        result: failResult,
+        levelItems: EVIDENCE_RULE.down.minItems - 0.1,
+      }),
+    );
+    expect(o).toMatchObject({ level: 40, moved: 'none' });
   });
 
   it('never moves above the top level', () => {

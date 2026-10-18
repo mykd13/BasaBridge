@@ -1,18 +1,13 @@
 /**
  * The only I/O in mastery, through an interface. A Drizzle adapter lives with the database
- * client and reads learner data through the authorization layer (BB-10). Each entry point runs
- * in one transaction, so a level, its passes and its decision rows are saved together.
- * Owner: Jhade (BB-19).
+ * client and reads learner data through the authorization layer (BB-10). A finished story is
+ * applied in one transaction: its answers, the estimates, the level, its passes and the decision
+ * rows are saved together, and a session already applied is skipped. Owner: Jhade (BB-19).
  */
 import type { ComprehensionSkill, Decision, TryAnalysis } from '@basabridge/contracts';
 import { EVIDENCE_RULE, type StoryResult } from '@basabridge/levels';
-import type { AbilitySummary, Posterior } from './ability';
-import {
-  scoreAnswer,
-  toItemEvidence,
-  type AnswerInput,
-  type ScoredAnswer,
-} from './answer-evidence';
+import { summarise, temper, type AbilitySummary, type Posterior } from './ability';
+import { scoreAnswer, toItemEvidence, type AnswerInput } from './answer-evidence';
 import { analysisDecision, compactEstimates, focusDecision, levelDecision } from './decisions';
 import {
   decideLevel,
@@ -38,11 +33,16 @@ import { estimateSkills, focusSkill, type StoryAnswers } from './simple';
 export interface MasteryTx {
   /**
    * learners.level and learners.level_passes. The adapter locks the learner row (FOR UPDATE) until
-   * the transaction ends, so two answers or a story finish at once cannot lose an update to
-   * ability_estimates.
+   * the transaction ends, so two story finishes at once cannot lose an update to ability_estimates
+   * or count the same session twice.
    */
   getLearner(learnerId: string): Promise<{ level: number; passes: number }>;
-  /** ability_estimates rows by scope. */
+  /**
+   * True when an 'analysis' decision for this session exists (evidence.sessionId). Read after
+   * getLearner, under its lock.
+   */
+  hasStoryResult(learnerId: string, sessionId: string): Promise<boolean>;
+  /** ability_estimates rows by scope. startingState checks each row and throws on a bad one. */
   getAbility(learnerId: string): Promise<Partial<AbilityState>>;
   saveAbility(
     learnerId: string,
@@ -50,13 +50,28 @@ export interface MasteryTx {
     posterior: Posterior,
     summary: AbilitySummary,
   ): Promise<void>;
-  /** answers.rushed and answers.weight. The adapter scopes the update to this learner's own sessions. */
+  /**
+   * answers.rushed and answers.weight. The adapter updates only an answer in this session of this
+   * learner, and fails if there is none.
+   */
   saveAnswerWeight(
     learnerId: string,
+    sessionId: string,
     answerId: string,
     w: { rushed: boolean; weight: number },
   ): Promise<void>;
-  /** Words-right shares of earlier counted tries, newest last, excluding this session. */
+  /**
+   * Summed answers.weight of this learner's answers in earlier finished sessions whose story level
+   * is at least `minStoryLevel` (answers to reading_sessions to stories.level).
+   */
+  getLevelEvidence(
+    learnerId: string,
+    opts: { minStoryLevel: number; excludeSessionId: string },
+  ): Promise<number>;
+  /**
+   * Words-right shares (words_right / words_total) of the counted tries of earlier finished
+   * sessions, newest last. Tries with words_total = 0 are skipped.
+   */
   getRecentWordsRight(
     learnerId: string,
     opts: { excludeSessionId: string; limit: number },
@@ -77,75 +92,88 @@ export interface MasteryStore {
   transaction<T>(fn: (tx: MasteryTx) => Promise<T>): Promise<T>;
 }
 
-export interface ApplyAnswerInput {
-  learnerId: string;
-  storyLevel: number;
-  answer: AnswerInput;
-}
-
-/**
- * Call once per stored answer of a real story. Never call it for Learn practice: practice never
- * changes a level (golden rule 10). Not idempotent: a second call counts the answer twice.
- */
-export function applyAnswer(
-  store: MasteryStore,
-  i: ApplyAnswerInput,
-): Promise<{ scored: ScoredAnswer; summaries: AbilitySummaries }> {
-  return store.transaction(async (tx) => {
-    const learner = await tx.getLearner(i.learnerId);
-    const state = startingState(learner.level, await tx.getAbility(i.learnerId));
-    const scored = scoreAnswer(i.answer, i.storyLevel);
-    const next = updateAbility(state, scored.skill, toItemEvidence(scored));
-    const summaries = summariseAll(next);
-    const scopes: AbilityScope[] = ['comprehension', scored.skill];
-    for (const scope of scopes) {
-      await tx.saveAbility(i.learnerId, scope, next[scope], summaries[scope]);
-    }
-    await tx.saveAnswerWeight(i.learnerId, scored.answerId, {
-      rushed: scored.rushed,
-      weight: scored.weight,
-    });
-    return { scored, summaries };
-  });
-}
-
 export interface ApplyStoryInput {
   learnerId: string;
   sessionId: string;
   storyLevel: number;
   countedTry: TryAnalysis;
-  /** Every answer of this session, already passed to `applyAnswer`. */
+  /**
+   * Every stored answer of this session. Only answers to a real story's questions: Learn practice
+   * never goes through mastery, so it never changes a level (golden rule 10).
+   */
   answers: readonly AnswerInput[];
   model?: MasteryModel;
 }
 
 export interface StoryOutcome {
+  applied: true;
   level: LevelOutcome;
   focus: ComprehensionSkill | null;
+  /** Estimates after this story's answers, before fading. These drove the decisions. */
   summaries: AbilitySummaries;
   measures: ReadingMeasures;
   result: StoryResult;
   decisions: Decision[];
 }
 
+/** The session was applied before. Nothing was written. */
+export interface AlreadyApplied {
+  applied: false;
+}
+
 /** levelReadiness reads the last `recentTries` counted tries; this story's is one of them. */
 const EARLIER_TRIES = EVIDENCE_RULE.up.recentTries - 1;
 
-/** Call once per finished session, after `applyAnswer` for each of its answers. */
-export function applyStoryResult(store: MasteryStore, i: ApplyStoryInput): Promise<StoryOutcome> {
+const isShare = (x: number) => Number.isFinite(x) && x >= 0 && x <= 1;
+
+/**
+ * Call once per finished session of a real story. Applies every answer to the estimates, saves
+ * each answer's weight, decides the level and the focus skill, writes the decision rows and then
+ * fades the stored estimates (EVIDENCE_RULE.storyDecay). All in one transaction.
+ * Safe to retry: a session that was already applied returns { applied: false } and writes nothing.
+ */
+export function applyStoryResult(
+  store: MasteryStore,
+  i: ApplyStoryInput,
+): Promise<StoryOutcome | AlreadyApplied> {
   const model = i.model ?? 'ability';
-  return store.transaction(async (tx) => {
+  return store.transaction(async (tx): Promise<StoryOutcome | AlreadyApplied> => {
     const learner = await tx.getLearner(i.learnerId);
-    const state = startingState(learner.level, await tx.getAbility(i.learnerId));
-    const summaries = summariseAll(state);
+    if (await tx.hasStoryResult(i.learnerId, i.sessionId)) return { applied: false };
+
+    const stored = await tx.getAbility(i.learnerId);
+    let state = startingState(learner.level, stored);
     const scored = i.answers.map((a) => scoreAnswer(a, i.storyLevel));
+    const touched = new Set<AbilityScope>(Object.keys(stored) as AbilityScope[]);
+    for (const a of scored) {
+      state = updateAbility(state, a.skill, toItemEvidence(a));
+      touched.add(a.skill).add('comprehension');
+      await tx.saveAnswerWeight(i.learnerId, i.sessionId, a.answerId, {
+        rushed: a.rushed,
+        weight: a.weight,
+      });
+    }
+    const summaries = summariseAll(state);
+
     const measures = readingMeasures(i.countedTry);
     const result = storyResult(i.countedTry, scored);
-    const earlier = await tx.getRecentWordsRight(i.learnerId, {
-      excludeSessionId: i.sessionId,
-      limit: EARLIER_TRIES,
-    });
+    const earlier = (
+      await tx.getRecentWordsRight(i.learnerId, {
+        excludeSessionId: i.sessionId,
+        limit: EARLIER_TRIES,
+      })
+    ).filter(isShare);
     const recentWordsRight = [...earlier, measures.wordsRightShare];
+    let levelItems = 0;
+    if (model === 'ability') {
+      const thisStory =
+        i.storyLevel >= learner.level ? scored.reduce((sum, a) => sum + a.weight, 0) : 0;
+      const before = await tx.getLevelEvidence(i.learnerId, {
+        minStoryLevel: learner.level,
+        excludeSessionId: i.sessionId,
+      });
+      levelItems = thisStory + before;
+    }
 
     const level = decideLevel({
       level: learner.level,
@@ -153,11 +181,13 @@ export function applyStoryResult(store: MasteryStore, i: ApplyStoryInput): Promi
       passes: learner.passes,
       result,
       comprehension: state.comprehension,
+      levelItems,
       recentWordsRight,
       model,
     });
     await tx.setLearnerLevel(i.learnerId, { level: level.level, passes: level.passes });
 
+    const lastFocus = await tx.getLastFocus(i.learnerId);
     let focus: ComprehensionSkill | null;
     let estimates: Record<string, unknown>;
     if (model === 'simple') {
@@ -169,29 +199,35 @@ export function applyStoryResult(store: MasteryStore, i: ApplyStoryInput): Promi
       focus = focusSkill(simple);
       estimates = simple;
     } else {
-      focus = focusFromAbility(summaries);
+      focus = focusFromAbility(summaries, lastFocus);
       estimates = compactEstimates(summaries);
     }
 
-    const decisions: Decision[] = [analysisDecision(scored, summaries, measures)];
+    const decisions: Decision[] = [analysisDecision(i.sessionId, scored, summaries, measures)];
     if (level.moved !== 'none') {
       decisions.push(
         levelDecision({
           fromLevel: learner.level,
           outcome: level,
           comprehension: summaries.comprehension,
+          levelItems,
           measures,
           result,
           recentWordsRight,
         }),
       );
     }
-    const lastFocus = await tx.getLastFocus(i.learnerId);
     if (focus !== null && focus !== lastFocus) {
       decisions.push(focusDecision(lastFocus, focus, estimates, model));
     }
     for (const d of decisions) await tx.addDecision(i.learnerId, d);
 
-    return { level, focus, summaries, measures, result, decisions };
+    // Fade old evidence after the decisions, so this story counts in full now and less later.
+    for (const scope of touched) {
+      const faded = temper(state[scope]);
+      await tx.saveAbility(i.learnerId, scope, faded, summarise(faded));
+    }
+
+    return { applied: true, level, focus, summaries, measures, result, decisions };
   });
 }

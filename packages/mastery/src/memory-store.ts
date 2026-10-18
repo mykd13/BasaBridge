@@ -9,13 +9,24 @@ import type { AbilityScope, AbilityState } from './engine';
 import { COMPREHENSION_SKILLS, type StoryAnswers } from './simple';
 import type { MasteryStore, MasteryTx } from './store';
 
+/** A stored answer row, joined with its session's story level. */
+export interface MemoryAnswer {
+  learnerId: string;
+  sessionId: string;
+  answerId: string;
+  storyLevel: number;
+  rushed: boolean;
+  weight: number;
+}
+
 export interface MemoryState {
   learners: Record<string, { level: number; passes: number }>;
   ability: Record<
     string,
     Partial<Record<AbilityScope, { posterior: Posterior; summary: AbilitySummary }>>
   >;
-  answerWeights: Record<string, { rushed: boolean; weight: number }>;
+  /** Stored before mastery runs (BB-36 stores answers), as in the database. */
+  answers: MemoryAnswer[];
   /** Oldest first. */
   countedTries: { learnerId: string; sessionId: string; wordsRightShare: number }[];
   /** Oldest first. */
@@ -26,7 +37,7 @@ export interface MemoryState {
 const empty = (): MemoryState => ({
   learners: {},
   ability: {},
-  answerWeights: {},
+  answers: [],
   countedTries: [],
   history: [],
   decisions: [],
@@ -51,6 +62,15 @@ export function createMemoryStore(
         if (!l) throw new Error('Unknown learner');
         return { ...l };
       },
+      async hasStoryResult(id, sessionId) {
+        guard('hasStoryResult');
+        return draft.decisions.some(
+          (d) =>
+            d.learnerId === id &&
+            d.decision.kind === 'analysis' &&
+            d.decision.evidence.sessionId === sessionId,
+        );
+      },
       async getAbility(id) {
         guard('getAbility');
         const rows = draft.ability[id] ?? {};
@@ -62,9 +82,25 @@ export function createMemoryStore(
         guard('saveAbility');
         draft.ability[id] = { ...draft.ability[id], [scope]: { posterior, summary } };
       },
-      async saveAnswerWeight(_learnerId, answerId, w) {
+      async saveAnswerWeight(id, sessionId, answerId, w) {
         guard('saveAnswerWeight');
-        draft.answerWeights[answerId] = w;
+        const row = draft.answers.find(
+          (a) => a.answerId === answerId && a.sessionId === sessionId && a.learnerId === id,
+        );
+        if (!row) throw new Error('No such answer for this learner and session');
+        row.rushed = w.rushed;
+        row.weight = w.weight;
+      },
+      async getLevelEvidence(id, { minStoryLevel, excludeSessionId }) {
+        guard('getLevelEvidence');
+        return draft.answers
+          .filter(
+            (a) =>
+              a.learnerId === id &&
+              a.sessionId !== excludeSessionId &&
+              a.storyLevel >= minStoryLevel,
+          )
+          .reduce((sum, a) => sum + a.weight, 0);
       },
       async getRecentWordsRight(id, { excludeSessionId, limit }) {
         guard('getRecentWordsRight');

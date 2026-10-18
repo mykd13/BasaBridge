@@ -1,7 +1,8 @@
 import type { ComprehensionSkill, QuestionType } from '@basabridge/contracts';
 import { MAX_LEVEL, MIN_LEVEL } from '@basabridge/levels';
 import { describe, expect, it } from 'vitest';
-import { THETA_MAX, THETA_MIN, guessFor, itemDifficulty, probAbove } from './ability';
+import { EVIDENCE_RULE } from '@basabridge/levels';
+import { GRID, THETA_MAX, THETA_MIN, guessFor, itemDifficulty, probAbove, temper } from './ability';
 import {
   ABILITY_SCOPES,
   decideLevel,
@@ -28,7 +29,9 @@ const TYPES: readonly QuestionType[] = ['multiple_choice', 'choose_all', 'order_
 const RUNS = 200;
 
 describe('properties', () => {
-  it('ability estimates stay on the scale and probabilities between 0 and 1', () => {
+  // Ability is on the -4 to 4 scale (ADR 0003), not 0 to 1. Screens show a level or a
+  // confidence label from it, never the raw number. Probabilities stay between 0 and 1.
+  it('ability estimates stay on the -4 to 4 scale and probabilities between 0 and 1', () => {
     for (let run = 0; run < RUNS; run++) {
       const r = rng(run);
       const level = MIN_LEVEL + Math.floor(r() * MAX_LEVEL);
@@ -40,12 +43,18 @@ describe('properties', () => {
           correct: r() < 0.5,
           weight: r() < 0.3 ? r() : 1,
         });
+        if (n % 5 === 4) {
+          for (const scope of ABILITY_SCOPES) state[scope] = temper(state[scope]);
+        }
       }
       const s = summariseAll(state);
       for (const scope of ABILITY_SCOPES) {
         expect(s[scope].mean).toBeGreaterThanOrEqual(THETA_MIN);
         expect(s[scope].mean).toBeLessThanOrEqual(THETA_MAX);
         expect(s[scope].sd).toBeGreaterThanOrEqual(0);
+        const total = state[scope].weights.reduce((a, b) => a + b, 0);
+        expect(state[scope].weights).toHaveLength(GRID.length);
+        expect(total).toBeCloseTo(1, 9);
         const p = probAbove(state[scope], r() * 6 - 3);
         expect(p).toBeGreaterThanOrEqual(0);
         expect(p).toBeLessThanOrEqual(1 + 1e-9);
@@ -98,6 +107,7 @@ describe('properties', () => {
               questionsTotal: 5,
             },
             comprehension: state.comprehension,
+            levelItems: r() * 2 * EVIDENCE_RULE.up.minItems,
             recentWordsRight: recent,
             model,
           });

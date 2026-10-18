@@ -24,7 +24,9 @@ export function compactEstimates(s: AbilitySummaries): Record<string, unknown> {
   );
 }
 
+/** One per applied session. evidence.sessionId lets a retry see the session was applied. */
 export function analysisDecision(
+  sessionId: string,
   answers: readonly ScoredAnswer[],
   summaries: AbilitySummaries,
   measures: ReadingMeasures,
@@ -36,6 +38,8 @@ export function analysisDecision(
     summary: `${answers.length} answers counted, ${reduced} counted for less.`,
     evidence: {
       messageKey: 'decision.analysis',
+      params: { answers: answers.length, reduced },
+      sessionId,
       answers: answers.map((a) => ({
         questionId: a.questionId,
         skill: a.skill,
@@ -59,6 +63,8 @@ export interface LevelEvidence {
   fromLevel: number;
   outcome: LevelOutcome;
   comprehension: AbilitySummary;
+  /** Summed answer weights at or above the level that fed the item gates. */
+  levelItems: number;
   measures: ReadingMeasures;
   result: StoryResult;
   recentWordsRight: readonly number[];
@@ -91,6 +97,7 @@ export function levelDecision(e: LevelEvidence): Decision {
       abilityMean: e.comprehension.mean,
       abilitySd: e.comprehension.sd,
       items: e.comprehension.items,
+      levelItems: e.levelItems,
       wordsRightShare: e.measures.wordsRightShare,
       wordsPerMinute: e.measures.wordsPerMinute,
       questionsCorrect: e.result.questionsCorrect,
