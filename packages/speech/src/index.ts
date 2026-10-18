@@ -48,3 +48,20 @@ export { readingSeconds, stoppingPoint, toTryRecord } from './completion';
 export type { StoppingPoint, TryRecord } from './completion';
 
 export { wordsPerMinute, summariseTry } from './summary';
+export {
+  MISHEARD_LIMITS,
+  correctedShare,
+  correctionAudit,
+  correctionDecision,
+  markMisheard,
+  markedCount,
+  maxMarksForTry,
+} from './misheard';
+export type {
+  CorrectionAudit,
+  CorrectionRecordInput,
+  CorrectionRole,
+  MisheardInput,
+  MisheardRefusal,
+  MisheardResult,
+} from './misheard';
