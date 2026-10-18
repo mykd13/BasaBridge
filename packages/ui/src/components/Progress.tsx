@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react';
 import { cx } from './util';
 
+function stepState(step: number, current: number): 'done' | 'current' | 'todo' {
+  return step < current ? 'done' : step === current ? 'current' : 'todo';
+}
+
 function clamp(value: number, max: number): number {
   if (!Number.isFinite(value) || max <= 0) return 0;
   return Math.min(Math.max(value, 0), max);
@@ -76,7 +80,7 @@ export function StepDots({ current, total, label, variant = 'dots' }: StepDotsPr
       <ol className={cx('bb-steps__list', `bb-steps--${variant}`)} aria-hidden="true">
         {Array.from({ length: total }, (_, i) => {
           const step = i + 1;
-          const state = step < current ? 'done' : step === current ? 'current' : 'todo';
+          const state = stepState(step, current);
           return <li key={step} className={`bb-steps__item bb-steps__item--${state}`} />;
         })}
       </ol>
