@@ -1,7 +1,7 @@
 import { EVIDENCE_RULE } from '@basabridge/levels';
 import { describe, expect, it } from 'vitest';
 import { THETA_MAX, THETA_MIN, pCorrect } from './ability';
-import { estimateDifficulty, type CalibrationResponse } from './calibration';
+import { estimateDifficulty, retirementCheck, type CalibrationResponse } from './calibration';
 
 /** Small seeded random source so simulated answers are the same on every run. */
 function rng(seed: number): () => number {
@@ -99,5 +99,57 @@ describe('estimateDifficulty', () => {
       expect(est!.difficulty).toBeGreaterThanOrEqual(THETA_MIN);
       expect(est!.difficulty).toBeLessThanOrEqual(THETA_MAX);
     }
+  });
+});
+
+describe('retirementCheck', () => {
+  it('keeps a healthy question', () => {
+    const answers = simulate({ n: 200, difficulty: 0, guess: 0.25, seed: 5 });
+    const check = retirementCheck(answers, { guess: 0.25 });
+    expect(check.retire).toBe(false);
+    expect(check.reasons).toEqual([]);
+    expect(check.correlation).toBeGreaterThan(0);
+  });
+
+  it('retires a question nearly everyone gets right', () => {
+    const answers = simulate({ n: 200, difficulty: -3.8, guess: 0.25, seed: 5, abilityMean: 1 });
+    expect(retirementCheck(answers, { guess: 0.25 }).reasons).toContain('too_easy');
+  });
+
+  it('retires a question almost nobody gets right beyond guessing', () => {
+    const answers = simulate({ n: 200, difficulty: 3.9, guess: 0.25, seed: 5, abilityMean: -1.5 });
+    expect(retirementCheck(answers, { guess: 0.25 }).reasons).toContain('too_hard');
+  });
+
+  it('retires a question stronger readers get wrong more often', () => {
+    const answers = simulate({ n: 200, difficulty: 0, guess: 0.25, discrimination: -1.5, seed: 9 });
+    const check = retirementCheck(answers, { guess: 0.25 });
+    expect(check.correlation).toBeLessThan(0);
+    expect(check.reasons).toContain('negative_discrimination');
+  });
+
+  it('judges nothing before the minimum number of answers', () => {
+    const answers = Array.from({ length: MIN - 1 }, () => ({ theta: 0, correct: true }));
+    const check = retirementCheck(answers, { guess: 0.25 });
+    expect(check.enough).toBe(false);
+    expect(check.retire).toBe(false);
+  });
+
+  it('measures hard questions beyond guessing for each question type', () => {
+    // Right exactly as often as guessing an order-the-events question would be.
+    const answers = Array.from({ length: 48 }, (_, i) => ({
+      theta: i / 24 - 1,
+      correct: i % 24 === 0,
+    }));
+    const check = retirementCheck(answers, { guess: EVIDENCE_RULE.guess.order_events });
+    expect(check.beyondGuess).toBeCloseTo(0, 5);
+    expect(check.reasons).toContain('too_hard');
+  });
+
+  it('cannot compute a link to ability when everyone answers the same way', () => {
+    const answers = Array.from({ length: 40 }, (_, i) => ({ theta: i / 10 - 2, correct: true }));
+    const check = retirementCheck(answers, { guess: 0.25 });
+    expect(check.correlation).toBeNull();
+    expect(check.reasons).toEqual(['too_easy']);
   });
 });

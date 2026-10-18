@@ -92,3 +92,82 @@ export function estimateDifficulty(
 
   return { difficulty: Math.round(best * 100) / 100, se, answers: responses.length };
 }
+
+export type RetireReason = 'too_easy' | 'too_hard' | 'negative_discrimination';
+
+export interface ItemCheck {
+  answers: number;
+  /** Whether there were enough answers to judge the question at all. */
+  enough: boolean;
+  /** Weighted share of answers that were correct. */
+  shareCorrect: number;
+  /** Share correct beyond what guessing alone would give, from 0 to 1. */
+  beyondGuess: number;
+  /** Weighted correlation between ability and a correct answer. Null when it cannot be computed. */
+  correlation: number | null;
+  retire: boolean;
+  reasons: RetireReason[];
+}
+
+function weightedCorrelation(responses: readonly CalibrationResponse[]): number | null {
+  let sw = 0;
+  let sx = 0;
+  let sy = 0;
+  for (const r of responses) {
+    const w = r.weight ?? 1;
+    sw += w;
+    sx += w * r.theta;
+    sy += w * (r.correct ? 1 : 0);
+  }
+  if (!(sw > 0)) return null;
+  const mx = sx / sw;
+  const my = sy / sw;
+  let cov = 0;
+  let vx = 0;
+  let vy = 0;
+  for (const r of responses) {
+    const w = r.weight ?? 1;
+    const dx = r.theta - mx;
+    const dy = (r.correct ? 1 : 0) - my;
+    cov += w * dx * dy;
+    vx += w * dx * dx;
+    vy += w * dy * dy;
+  }
+  if (vx <= 0 || vy <= 0) return null;
+  return cov / Math.sqrt(vx * vy);
+}
+
+/**
+ * Should this question leave the story bank? It is retired when nearly everyone gets it right, when
+ * almost nobody gets it right beyond guessing, or when stronger readers do no better than weaker ones.
+ * Nothing is retired before `EVIDENCE_RULE.calibration.minAnswers` answers.
+ */
+export function retirementCheck(
+  responses: readonly CalibrationResponse[],
+  o: { guess: number },
+): ItemCheck {
+  const totalWeight = responses.reduce((a, r) => a + (r.weight ?? 1), 0);
+  const correctWeight = responses.reduce((a, r) => a + (r.correct ? (r.weight ?? 1) : 0), 0);
+  const shareCorrect = totalWeight > 0 ? correctWeight / totalWeight : 0;
+  const beyondGuess = o.guess < 1 ? Math.max(0, (shareCorrect - o.guess) / (1 - o.guess)) : 0;
+  const correlation = weightedCorrelation(responses);
+  const enough = responses.length >= RULE.minAnswers;
+
+  const reasons: RetireReason[] = [];
+  if (enough) {
+    if (shareCorrect >= RULE.tooEasy) reasons.push('too_easy');
+    if (beyondGuess <= RULE.tooHard) reasons.push('too_hard');
+    if (correlation !== null && correlation <= RULE.minCorrelation) {
+      reasons.push('negative_discrimination');
+    }
+  }
+  return {
+    answers: responses.length,
+    enough,
+    shareCorrect,
+    beyondGuess,
+    correlation,
+    retire: reasons.length > 0,
+    reasons,
+  };
+}
