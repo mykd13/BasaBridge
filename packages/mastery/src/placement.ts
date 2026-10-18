@@ -350,7 +350,9 @@ export function skipPlacement(grade: number | null | undefined): PlacementResult
  * silent placement gave, and its result replaces it.
  */
 export function startRecheck(previous: PlacementResult): PlacementState {
-  return { startLevel: previous.level, stories: [] };
+  // `previous.level` already sits `conservative` deviations below the estimate, and finishing the
+  // re-check lowers it again. Start from the estimate itself so the offset is applied once.
+  return { startLevel: thetaToLevel(previous.theta), stories: [] };
 }
 
 /** The re-check as a stored session, so its progress can be saved and resumed. */
@@ -362,6 +364,16 @@ export function nextRecheck(state: PlacementState): NextPlacement {
   return nextPlacement(state, { maxStories: PLACEMENT_RULE.recheckStories });
 }
 
+/**
+ * The re-check is offered once. Its result never carries `voice_missing`, even when every read was
+ * skipped, so the gate does not offer the re-check again and lock the learner out of the course.
+ */
 export function finishRecheck(state: PlacementState): PlacementResult {
-  return finishPlacement(state, { voice: true });
+  const r = finishPlacement(state, { voice: true });
+  return { ...r, flags: r.flags.filter((f) => f !== 'voice_missing') };
+}
+
+/** A skipped placement has no stories behind it. `skipPlacement` is the only source of such a result. */
+export function isSkippedPlacement(r: PlacementResult): boolean {
+  return r.storiesRead === 0 && r.confidence === PLACEMENT_RULE.skipConfidence;
 }

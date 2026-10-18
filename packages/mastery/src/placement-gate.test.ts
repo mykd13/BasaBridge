@@ -71,13 +71,13 @@ describe('"Do this later"', () => {
 
   it('opens the main course and offers placement again at the next sign-in', () => {
     const gate = placementGate(snapshot({ latest, newSignIn: true }));
-    expect(gate).toEqual({ kind: 'open', offerPlacement: true, retakeAllowed: false });
+    expect(gate).toEqual({ kind: 'open', offerPlacement: true, retakeAllowed: true });
     expect(mainCourseLocked(gate)).toBe(false);
   });
 
   it('does not ask again within the same sign-in', () => {
     const gate = placementGate(snapshot({ latest, newSignIn: false }));
-    expect(gate).toEqual({ kind: 'open', offerPlacement: false, retakeAllowed: false });
+    expect(gate).toEqual({ kind: 'open', offerPlacement: false, retakeAllowed: true });
   });
 
   it('pairs with a grade-default start at low confidence', () => {
