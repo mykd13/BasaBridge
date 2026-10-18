@@ -5,6 +5,7 @@
  * Nothing here stores audio unless audio_objects is used, which only happens when retention is on.
  */
 import {
+  bigint,
   boolean,
   index,
   integer,
@@ -40,12 +41,83 @@ export const users = pgTable('users', {
   id: id(),
   role: roleEnum('role').notNull(),
   username: text('username').notNull().unique(),
-  email: text('email'),
-  passwordHash: text('password_hash').notNull(),
+  displayUsername: text('display_username'),
+  /** Better Auth needs a name. We never store a real name, so it holds the username. */
+  name: text('name').notNull(),
+  /** Students without an email get a reserved .invalid address. See email_real and ADR 0005. */
+  email: text('email').notNull().unique(),
+  /** True only when the email can receive mail. Password reset is offered only then. */
+  emailReal: boolean('email_real').notNull().default(false),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  /** Required by Better Auth. Not used: we have no profile pictures. */
+  image: text('image'),
   /** Birth year band is enough for the age gate. Do not store a full birth date. */
   ageBand: text('age_band'),
   createdAt: createdAt(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** Auth tables (ADR 0005). Better Auth reads and writes these. Passwords live in accounts. */
+export const sessions = pgTable('sessions', {
+  id: id(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  createdAt: createdAt(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const accounts = pgTable('accounts', {
+  id: id(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  accountId: text('account_id').notNull(),
+  providerId: text('provider_id').notNull(),
+  /** Password hash for the credential provider. Never selected outside the auth module. */
+  password: text('password'),
+  /** Better Auth's OAuth columns. We have no OAuth provider, so these stay null. */
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  idToken: text('id_token'),
+  accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+  scope: text('scope'),
+  createdAt: createdAt(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const verifications = pgTable('verifications', {
+  id: id(),
+  identifier: text('identifier').notNull(),
+  value: text('value').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: createdAt(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const rateLimits = pgTable('rate_limits', {
+  id: id(),
+  key: text('key').notNull().unique(),
+  count: integer('count').notNull(),
+  lastRequest: bigint('last_request', { mode: 'number' }).notNull(),
+});
+
+/** One row per failed sign-in. Lockout counts recent rows per identifier. No password is stored. */
+export const signInFailures = pgTable(
+  'sign_in_failures',
+  {
+    id: id(),
+    /** Lowercased username or email, whatever the person typed to sign in. */
+    identifier: text('identifier').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('sign_in_failures_identifier_idx').on(t.identifier, t.createdAt)],
+);
 
 export const learners = pgTable('learners', {
   userId: uuid('user_id')

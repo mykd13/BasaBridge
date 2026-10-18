@@ -41,12 +41,14 @@ describe('deleting a user', () => {
     const student = await createUser(db, {
       role: 'student',
       username: 'cascade-student',
-      passwordHash: 'x',
+      name: 'cascade-student',
+      email: 'cascade-student@example.test',
     });
     const parent = await createUser(db, {
       role: 'parent',
       username: 'cascade-parent',
-      passwordHash: 'x',
+      name: 'cascade-parent',
+      email: 'cascade-parent@example.test',
     });
     await createLearner(db, student.id, 4);
     await db
@@ -153,8 +155,18 @@ describe('deleting a user', () => {
   });
 
   it('rejects a duplicate parent link', async () => {
-    const parent = await createUser(db, { role: 'parent', username: 'dup-p', passwordHash: 'x' });
-    const student = await createUser(db, { role: 'student', username: 'dup-s', passwordHash: 'x' });
+    const parent = await createUser(db, {
+      role: 'parent',
+      username: 'dup-p',
+      name: 'dup-p',
+      email: 'dup-p@example.test',
+    });
+    const student = await createUser(db, {
+      role: 'student',
+      username: 'dup-s',
+      name: 'dup-s',
+      email: 'dup-s@example.test',
+    });
     const link = { parentUserId: parent.id, learnerUserId: student.id };
     await db.insert(schema.parentLinks).values(link);
     await expect(db.insert(schema.parentLinks).values(link)).rejects.toThrow();
