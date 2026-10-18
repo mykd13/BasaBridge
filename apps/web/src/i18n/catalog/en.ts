@@ -119,6 +119,83 @@ export const en = {
     parentDecisions: { standard: 'AI decisions' },
     parentPrivacy: { standard: 'Linked children and privacy' },
   },
+  readingHelp: {
+    title: { standard: 'Reading help' },
+    presets: { standard: 'Choose a set of help' },
+    presetStandard: { standard: 'Standard' },
+    presetMore: { standard: 'More help' },
+    audio: {
+      label: { standard: 'Speak instructions', simple: 'Say the steps' },
+      desc: {
+        standard: 'A speaker button on every instruction, and the first screen speaks by itself.',
+        simple: 'A speaker button on every step.',
+      },
+    },
+    questions: {
+      label: { standard: 'Read questions to me', simple: 'Read questions to me' },
+      desc: {
+        standard: 'Listen to each question and its answers. This does not change your score.',
+        simple: 'Hear each question. Your score stays the same.',
+      },
+    },
+    language: {
+      label: { standard: 'Language for instructions', simple: 'Language' },
+      desc: { standard: 'Stories stay in English.', simple: 'Stories stay in English.' },
+    },
+    simple: {
+      label: { standard: 'Short, simple words', simple: 'Easy words' },
+      desc: {
+        standard: 'Instructions use fewer and easier words.',
+        simple: 'Fewer and easier words.',
+      },
+    },
+    textSize: {
+      legend: { standard: 'Text size', simple: 'Text size' },
+      small: { standard: 'Small text', simple: 'Small text' },
+      medium: { standard: 'Medium text', simple: 'Medium text' },
+      large: { standard: 'Large text', simple: 'Large text' },
+    },
+    lineSpacing: {
+      legend: { standard: 'Space between lines', simple: 'Space between lines' },
+      normal: { standard: 'Normal', simple: 'Normal' },
+      wide: { standard: 'Wide', simple: 'Wide' },
+    },
+    ruler: {
+      label: { standard: 'Reading ruler', simple: 'Reading ruler' },
+      desc: {
+        standard: 'Highlights the line you are reading and dims the rest.',
+        simple: 'Shows the line you are reading.',
+      },
+      previous: { standard: 'Previous line', simple: 'Line up' },
+      next: { standard: 'Next line', simple: 'Line down' },
+      story: { standard: 'Story text', simple: 'Story' },
+    },
+    contrast: {
+      label: { standard: 'High contrast', simple: 'Strong colors' },
+      desc: {
+        standard: 'Black and white with darker lines. This setting stays on this device.',
+        simple: 'Darker colors. Only on this device.',
+      },
+    },
+    own: { standard: 'These settings are yours. A grown-up cannot change them for you.' },
+    preview: {
+      title: { standard: 'Preview', simple: 'Preview' },
+      line1: { standard: 'Lia and her grandfather have a mango tree.' },
+      line2: { standard: 'Every morning, Lia checks the tree.' },
+      line3: { standard: 'The mangoes are still green.' },
+    },
+    status: {
+      device: {
+        standard:
+          'Saved on this device. Your account cannot keep these settings yet, so language and simple words wait until it can.',
+        simple: 'Saved on this device only.',
+      },
+      blocked: {
+        standard: 'This browser would not save your settings. They reset when you leave.',
+        simple: 'We could not save your settings.',
+      },
+    },
+  },
   language: {
     label: { standard: 'Language', simple: 'Language' },
     en: { standard: 'English' },

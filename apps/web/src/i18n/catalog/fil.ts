@@ -190,6 +190,111 @@ export const fil = {
     parentDecisions: { standard: 'Mga desisyon ng AI', reviewed: false },
     parentPrivacy: { standard: 'Mga naka-link na anak at privacy', reviewed: false },
   },
+  readingHelp: {
+    title: { standard: 'Tulong sa pagbasa', reviewed: false },
+    presets: { standard: 'Pumili ng set ng tulong', reviewed: false },
+    presetStandard: { standard: 'Karaniwan', reviewed: false },
+    presetMore: { standard: 'Mas maraming tulong', reviewed: false },
+    audio: {
+      label: {
+        standard: 'Basahin ang mga tagubilin',
+        simple: 'Sabihin ang mga hakbang',
+        reviewed: false,
+      },
+      desc: {
+        standard: 'May speaker button sa bawat tagubilin, at kusang magsasalita ang unang screen.',
+        simple: 'May speaker button sa bawat hakbang.',
+        reviewed: false,
+      },
+    },
+    questions: {
+      label: {
+        standard: 'Basahin sa akin ang mga tanong',
+        simple: 'Basahin ang mga tanong',
+        reviewed: false,
+      },
+      desc: {
+        standard: 'Pakinggan ang bawat tanong at mga sagot. Hindi nito binabago ang iyong score.',
+        simple: 'Pakinggan ang tanong. Pareho pa rin ang score.',
+        reviewed: false,
+      },
+    },
+    language: {
+      label: { standard: 'Wika ng mga tagubilin', simple: 'Wika', reviewed: false },
+      desc: {
+        standard: 'Nananatiling Ingles ang mga kuwento.',
+        simple: 'Ingles pa rin ang mga kuwento.',
+        reviewed: false,
+      },
+    },
+    simple: {
+      label: { standard: 'Maikli at simpleng salita', simple: 'Madaling salita', reviewed: false },
+      desc: {
+        standard: 'Mas kaunti at mas madaling salita ang mga tagubilin.',
+        simple: 'Mas kaunti at mas madaling salita.',
+        reviewed: false,
+      },
+    },
+    textSize: {
+      legend: { standard: 'Laki ng teksto', simple: 'Laki ng teksto', reviewed: false },
+      small: { standard: 'Maliit na teksto', simple: 'Maliit na teksto', reviewed: false },
+      medium: { standard: 'Katamtamang teksto', simple: 'Katamtamang teksto', reviewed: false },
+      large: { standard: 'Malaking teksto', simple: 'Malaking teksto', reviewed: false },
+    },
+    lineSpacing: {
+      legend: { standard: 'Layo ng mga linya', simple: 'Layo ng mga linya', reviewed: false },
+      normal: { standard: 'Karaniwan', simple: 'Karaniwan', reviewed: false },
+      wide: { standard: 'Malawak', simple: 'Malawak', reviewed: false },
+    },
+    ruler: {
+      label: {
+        standard: 'Panuntunan sa pagbasa',
+        simple: 'Panuntunan sa pagbasa',
+        reviewed: false,
+      },
+      desc: {
+        standard: 'Iha-highlight ang linyang binabasa mo at padidilimin ang iba.',
+        simple: 'Ipinapakita ang linyang binabasa mo.',
+        reviewed: false,
+      },
+      previous: { standard: 'Naunang linya', simple: 'Pataas na linya', reviewed: false },
+      next: { standard: 'Susunod na linya', simple: 'Pababang linya', reviewed: false },
+      story: { standard: 'Teksto ng kuwento', simple: 'Kuwento', reviewed: false },
+    },
+    contrast: {
+      label: { standard: 'Mataas na contrast', simple: 'Matitingkad na kulay', reviewed: false },
+      desc: {
+        standard:
+          'Itim at puti na may mas madilim na linya. Nananatili ang setting na ito sa device na ito.',
+        simple: 'Mas madilim na kulay. Sa device na ito lang.',
+        reviewed: false,
+      },
+    },
+    own: {
+      standard: 'Sa iyo ang mga setting na ito. Hindi ito mababago ng nakatatanda para sa iyo.',
+      reviewed: false,
+    },
+    preview: {
+      title: { standard: 'Preview', simple: 'Preview', reviewed: false },
+      line1: { standard: 'Lia and her grandfather have a mango tree.', reviewed: false },
+      line2: { standard: 'Every morning, Lia checks the tree.', reviewed: false },
+      line3: { standard: 'The mangoes are still green.', reviewed: false },
+    },
+    status: {
+      device: {
+        standard:
+          'Naka-save sa device na ito. Hindi pa kayang itago ng account mo ang mga setting, kaya maghihintay ang wika at simpleng salita.',
+        simple: 'Naka-save sa device na ito lang.',
+        reviewed: false,
+      },
+      blocked: {
+        standard:
+          'Hindi na-save ng browser na ito ang mga setting mo. Mawawala ito kapag umalis ka.',
+        simple: 'Hindi namin na-save ang mga setting mo.',
+        reviewed: false,
+      },
+    },
+  },
   language: {
     label: { standard: 'Wika', simple: 'Wika', reviewed: false },
     en: { standard: 'English', reviewed: false },

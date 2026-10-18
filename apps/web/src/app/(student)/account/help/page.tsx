@@ -1,5 +1,5 @@
-import { ScreenPlaceholder } from '@/components/states/ScreenPlaceholder';
+import { ReadingHelpScreen } from '@/components/reading-help/ReadingHelpScreen';
 
 export default function Page() {
-  return <ScreenPlaceholder screen="help" boards="I1" />;
+  return <ReadingHelpScreen />;
 }
