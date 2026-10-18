@@ -130,7 +130,11 @@ function digitize(t: string): string {
 }
 
 /** Tone problems in a set of notes. Empty when the notes are fine. */
-export function toneProblems(n: ModelNotes, facts: NotesFacts): ToneProblem[] {
+export function toneProblems(raw: ModelNotes, facts: NotesFacts): ToneProblem[] {
+  // Full-width digits and other look-alike forms are folded to plain ones before any check.
+  const n: ModelNotes = JSON.parse(JSON.stringify(raw), (_k, v) =>
+    typeof v === 'string' ? v.normalize('NFKC') : v,
+  );
   const problems = new Set<ToneProblem>();
   const child = n.childMessage;
   if (/\d/.test(child) || CHILD_NUMBER_WORDS.test(child)) problems.add('child_number');
@@ -208,7 +212,7 @@ export function toneProblems(n: ModelNotes, facts: NotesFacts): ToneProblem[] {
   if (facts.wordsRight != null && facts.wordsTotal != null) {
     pairs.add(`${facts.wordsRight}/${facts.wordsTotal}`);
   }
-  for (const m of parent.matchAll(/(\d+)\s+(?:of|out of)\s+(\d+)/gi)) {
+  for (const m of parent.matchAll(/(\d+)\s+(?:of|out of|sa)\s+(\d+)/gi)) {
     if (!pairs.has(`${m[1]}/${m[2]}`)) problems.add('unknown_number');
   }
 

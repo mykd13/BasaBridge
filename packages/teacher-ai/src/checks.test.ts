@@ -258,3 +258,20 @@ describe('claims and safety (review of PR 13)', () => {
     }
   });
 });
+
+describe('count wording follow-ups (review of PR 13)', () => {
+  it('checks Filipino count wording against the real count', () => {
+    expect(
+      toneProblems({ ...good, whatHappened: 'Tama ang sagot sa apat sa lima tanong.' }, facts),
+    ).toContain('unknown_number');
+    expect(
+      toneProblems({ ...good, whatHappened: 'Tama ang sagot sa 3 sa 5 tanong.' }, facts),
+    ).not.toContain('unknown_number');
+  });
+
+  it('rejects full-width digits in the child note', () => {
+    expect(toneProblems({ ...good, childMessage: 'You got ３ right!' }, facts)).toContain(
+      'child_number',
+    );
+  });
+});
