@@ -67,6 +67,13 @@ describe('README tier table', () => {
         tier.tries,
       );
       expect(cells[4], `description, row ${i + 1}`).toBe(tier.description);
+      expect(Number(cells[5]), `known rank, row ${i + 1}`).toBe(tier.vocabulary.maxRank);
+      expect(Number(cells[6]?.replace('%', '')) / 100, `known share, row ${i + 1}`).toBeCloseTo(
+        tier.vocabulary.minKnownShare,
+        10,
+      );
+      expect(Number(cells[7]), `new words, row ${i + 1}`).toBe(tier.vocabulary.maxNewWords);
+      expect(cells[8] === 'yes', `idioms, row ${i + 1}`).toBe(tier.idiomsAllowed);
     });
   });
 });

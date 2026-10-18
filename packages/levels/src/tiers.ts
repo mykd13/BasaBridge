@@ -12,6 +12,14 @@ export interface Tier {
   words: { min: number; max: number };
   /** Maximum Flesch-Kincaid reading grade for stories in this tier. */
   maxReadingGrade: number;
+  /**
+   * Word-frequency limits for the vocabulary check in story-ai (BB-72). Words up to maxRank on the
+   * word list count as known, with child words, local words and names. At least minKnownShare of
+   * the words must be known, and at most maxNewWords different words may be new.
+   */
+  vocabulary: { maxRank: number; minKnownShare: number; maxNewWords: number };
+  /** Whether idioms may appear. Below this, stories say what they mean in plain words. */
+  idiomsAllowed: boolean;
   /** Tries per story. null means unlimited. */
   tries: number | null;
   description: string;
@@ -23,6 +31,8 @@ export const TIERS: readonly Readonly<Tier>[] = deepFreeze<Tier[]>([
     to: 10,
     words: { min: 5, max: 15 },
     maxReadingGrade: 2,
+    vocabulary: { maxRank: 500, minKnownShare: 0.95, maxNewWords: 1 },
+    idiomsAllowed: false,
     tries: null,
     description: 'Everyday words, 5 to 8 words per sentence',
   },
@@ -31,6 +41,8 @@ export const TIERS: readonly Readonly<Tier>[] = deepFreeze<Tier[]>([
     to: 30,
     words: { min: 25, max: 50 },
     maxReadingGrade: 3.5,
+    vocabulary: { maxRank: 1000, minKnownShare: 0.95, maxNewWords: 2 },
+    idiomsAllowed: false,
     tries: 5,
     description: 'A few new words explained by context',
   },
@@ -39,6 +51,8 @@ export const TIERS: readonly Readonly<Tier>[] = deepFreeze<Tier[]>([
     to: 55,
     words: { min: 50, max: 90 },
     maxReadingGrade: 5,
+    vocabulary: { maxRank: 1500, minKnownShare: 0.9, maxNewWords: 5 },
+    idiomsAllowed: false,
     tries: 4,
     description: 'Joined sentences, some topic words',
   },
@@ -47,6 +61,8 @@ export const TIERS: readonly Readonly<Tier>[] = deepFreeze<Tier[]>([
     to: 75,
     words: { min: 90, max: 140 },
     maxReadingGrade: 6.5,
+    vocabulary: { maxRank: 2000, minKnownShare: 0.9, maxNewWords: 6 },
+    idiomsAllowed: true,
     tries: 3,
     description: 'Varied sentences, several topic words',
   },
@@ -55,6 +71,8 @@ export const TIERS: readonly Readonly<Tier>[] = deepFreeze<Tier[]>([
     to: 90,
     words: { min: 140, max: 200 },
     maxReadingGrade: 8,
+    vocabulary: { maxRank: 2809, minKnownShare: 0.9, maxNewWords: 12 },
+    idiomsAllowed: true,
     tries: 2,
     description: 'Long sentences, subject words',
   },
@@ -63,6 +81,8 @@ export const TIERS: readonly Readonly<Tier>[] = deepFreeze<Tier[]>([
     to: 100,
     words: { min: 200, max: 260 },
     maxReadingGrade: 10,
+    vocabulary: { maxRank: 2809, minKnownShare: 0.88, maxNewWords: 18 },
+    idiomsAllowed: true,
     tries: 1,
     description: 'Advanced words, figurative language',
   },

@@ -82,6 +82,39 @@ describe('reading grade', () => {
   });
 });
 
+describe('vocabulary', () => {
+  it('never gets stricter from one tier to the next', () => {
+    for (const { prev, cur } of pairs(TIERS)) {
+      expect(cur.vocabulary.maxRank).toBeGreaterThanOrEqual(prev.vocabulary.maxRank);
+      expect(cur.vocabulary.minKnownShare).toBeLessThanOrEqual(prev.vocabulary.minKnownShare);
+      expect(cur.vocabulary.maxNewWords).toBeGreaterThanOrEqual(prev.vocabulary.maxNewWords);
+    }
+  });
+
+  it('keeps the known share between 0 and 1 and the counts whole', () => {
+    for (const t of TIERS) {
+      expect(t.vocabulary.minKnownShare).toBeGreaterThan(0);
+      expect(t.vocabulary.minKnownShare).toBeLessThanOrEqual(1);
+      expect(Number.isInteger(t.vocabulary.maxRank) && t.vocabulary.maxRank >= 1).toBe(true);
+      expect(Number.isInteger(t.vocabulary.maxNewWords) && t.vocabulary.maxNewWords >= 0).toBe(
+        true,
+      );
+    }
+  });
+});
+
+describe('idioms', () => {
+  it('are not allowed in the first tier', () => {
+    expect(TIERS[0]!.idiomsAllowed).toBe(false);
+  });
+
+  it('stay allowed once a tier allows them', () => {
+    for (const { prev, cur } of pairs(TIERS)) {
+      if (prev.idiomsAllowed) expect(cur.idiomsAllowed).toBe(true);
+    }
+  });
+});
+
 describe('pass rule values', () => {
   it('keeps the words share between 0 and 1', () => {
     expect(PASS_RULE.minWordsRight).toBeGreaterThan(0);
