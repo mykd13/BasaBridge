@@ -8,6 +8,7 @@ const config: NextConfig = {
     '@basabridge/learn',
     '@basabridge/levels',
     '@basabridge/mastery',
+    '@basabridge/observability',
     '@basabridge/speech',
     '@basabridge/story-ai',
     '@basabridge/teacher-ai',

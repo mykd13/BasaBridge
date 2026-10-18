@@ -6,6 +6,7 @@
  */
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -315,6 +316,68 @@ export const lessonProgress = pgTable(
     recheckTotal: integer('recheck_total').notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.learnerUserId, t.lessonId] })],
+);
+
+export const aiCallKindEnum = pgEnum('ai_call_kind', [
+  'story',
+  'verifier',
+  'notes',
+  'speech',
+  'tts',
+]);
+export const aiCallOutcomeEnum = pgEnum('ai_call_outcome', [
+  'ok',
+  'error',
+  'timeout',
+  'invalid',
+  'limited',
+]);
+
+/**
+ * One row per AI or speech call (BB-39): latency, cost and outcome only. No prompt, reply,
+ * audio or transcript is ever stored here. Deleting a learner keeps the cost but drops the link.
+ * Read only by operations code (cost report, budget, alerts), never by learner or parent pages.
+ */
+export const aiCalls = pgTable(
+  'ai_calls',
+  {
+    id: id(),
+    kind: aiCallKindEnum('kind').notNull(),
+    model: text('model').notNull(),
+    outcome: aiCallOutcomeEnum('outcome').notNull(),
+    latencyMs: integer('latency_ms').notNull(),
+    /** US dollars. Null when the provider did not report a cost. */
+    costUsd: doublePrecision('cost_usd'),
+    learnerUserId: uuid('learner_user_id').references(() => users.id, { onDelete: 'set null' }),
+    storyId: uuid('story_id').references(() => stories.id, { onDelete: 'set null' }),
+    /** Groups the calls of one story generation until the story is saved. */
+    runId: uuid('run_id'),
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('ai_calls_at_idx').on(t.at),
+    index('ai_calls_learner_at_idx').on(t.learnerUserId, t.at),
+    index('ai_calls_story_idx').on(t.storyId),
+    index('ai_calls_run_idx').on(t.runId),
+  ],
+);
+
+/**
+ * Fixed-window counters for rate limits and error counts (BB-39). Keys hold a policy name and a
+ * keyed hash of the subject, never a raw username or IP address.
+ */
+export const rateCounters = pgTable(
+  'rate_counters',
+  {
+    key: text('key').notNull(),
+    windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
+    count: integer('count').notNull().default(0),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.key, t.windowStart] }),
+    index('rate_counters_expires_idx').on(t.expiresAt),
+  ],
 );
 
 /** Per-learner settings such as the reading help preset (ADR 0004). */
