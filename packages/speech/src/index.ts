@@ -34,6 +34,14 @@ export interface SpeechProvider {
   transcribe(audio: Blob, options: TranscribeOptions): Promise<HeardWord[]>;
 }
 
+export { assessRoom, ROOM_THRESHOLDS } from './environment';
+export type { RoomCheck, RoomInput, RoomStatus, RoomTip } from './environment';
+export { CONDITION_THRESHOLDS, detectConditions } from './conditions';
+export type { AudioFrame, ConditionResult } from './conditions';
+export { AUTHENTICITY_THRESHOLDS, assessAuthenticity, timingSignature } from './authenticity';
+export type { ReviewReason } from './authenticity';
+export { checkTry, confirmReview, LEARNER_MESSAGE_KEYS } from './checks';
+export type { TryCheckInput, TryCheckResult } from './checks';
 export { alignWords, alignWordsTimed, isLowConfidence, LOW_CONFIDENCE_THRESHOLD } from './align';
 export type { HeardSpan, TimedAlignment } from './align';
 export { readingSeconds, stoppingPoint, toTryRecord } from './completion';

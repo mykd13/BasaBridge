@@ -217,7 +217,23 @@ export const WordResult = z.object({
 });
 export type WordResult = z.infer<typeof WordResult>;
 
+/** Conditions detected during a try (BB-70). Affected words are flagged low confidence, not errors. */
+export const TryCondition = z.enum(['overlapping_voices', 'background_speech', 'low_volume']);
+export type TryCondition = z.infer<typeof TryCondition>;
+
+/** `needs_review` tries are not used for level movement until someone confirms them. */
+export const TryReview = z.enum(['none', 'needs_review', 'confirmed']);
+export type TryReview = z.infer<typeof TryReview>;
+
+export const TryChecks = z.object({
+  conditions: z.array(TryCondition),
+  review: TryReview,
+});
+export type TryChecks = z.infer<typeof TryChecks>;
+
 export const TryAnalysis = z.object({
+  /** Absent on tries analysed before the environment checks existed. */
+  checks: TryChecks.optional(),
   completed: z.boolean(),
   /** Index of the last expected word reached. */
   lastWordIndex: z.number().int().min(-1),
