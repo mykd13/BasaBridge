@@ -1,9 +1,9 @@
 'use client';
 
 import { LogOut } from '@basabridge/ui/icons';
-import { endSession, signOut } from '@/server/actions/sign-out';
+import { useTranslations } from 'next-intl';
 import { signOutAndReload } from '@/lib/sign-out-client';
-import { t } from '@/i18n';
+import { endSession, signOut } from '@/server/actions/sign-out';
 
 /**
  * Sign out is a form, so it works without script and a link cannot trigger it by accident.
@@ -11,6 +11,7 @@ import { t } from '@/i18n';
  * next learner on a shared device sees nothing from the last one (BB-71).
  */
 export function SignOutForm() {
+  const t = useTranslations();
   return (
     <form
       action={signOut}

@@ -1,9 +1,9 @@
 import { BookOpen } from '@basabridge/ui/icons';
-import { t, type MessageKey } from '@/i18n';
+import { useTranslations } from 'next-intl';
+import type { en } from '@/i18n/catalog/en';
 import { EmptyState } from './EmptyState';
 
-export type ScreenKey =
-  Extract<MessageKey, `screens.${string}`> extends `screens.${infer K}` ? K : never;
+export type ScreenKey = keyof (typeof en)['screens'];
 
 /**
  * The page body for a screen that is on the canvas but not built yet.
@@ -11,6 +11,7 @@ export type ScreenKey =
  * No sample data: it says the screen is not ready.
  */
 export function ScreenPlaceholder({ screen, boards }: { screen: ScreenKey; boards: string }) {
+  const t = useTranslations();
   return (
     <EmptyState
       headingLevel={1}

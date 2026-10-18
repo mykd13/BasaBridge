@@ -1,13 +1,14 @@
 import { BookOpen, House, Star, User } from '@basabridge/ui/icons';
 import type { ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { IdleSignOut } from '@/components/IdleSignOut';
-import { t } from '@/i18n';
 import { NavLink } from './NavLink';
 import { ShellFrame } from './ShellFrame';
 import { SignOutForm } from './SignOutForm';
 
 /** Header and menu for a signed-in learner (canvas A3): Home, Learn, My progress, My account, Sign out. */
 export function StudentShell({ children }: { children: ReactNode }) {
+  const t = useTranslations();
   return (
     <ShellFrame
       nav={

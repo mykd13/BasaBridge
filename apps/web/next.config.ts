@@ -1,24 +1,9 @@
 import type { NextConfig } from 'next';
+import createNextIntlPlugin from 'next-intl/plugin';
+import { NO_STORE_SOURCE } from './src/lib/no-store.ts';
 
-/**
- * Pages that show a learner's or parent's data. `no-store` keeps them out of shared caches and
- * out of the browser's back-forward cache, so Back on a shared device cannot show the last
- * person's page (BB-71).
- */
-export const PRIVATE_PATHS = [
-  '/home',
-  '/learn/:path*',
-  '/learn',
-  '/progress',
-  '/read/:path*',
-  '/read',
-  '/placement/:path*',
-  '/placement',
-  '/account/:path*',
-  '/account',
-  '/parent/:path*',
-  '/parent',
-];
+// Locale comes from the request (cookie or browser), not the URL. See src/i18n/request.ts.
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const config: NextConfig = {
   // Workspace packages ship TypeScript source, so Next compiles them.
@@ -34,11 +19,8 @@ const config: NextConfig = {
     '@basabridge/ui',
   ],
   async headers() {
-    return PRIVATE_PATHS.map((source) => ({
-      source,
-      headers: [{ key: 'Cache-Control', value: 'no-store' }],
-    }));
+    return [{ source: NO_STORE_SOURCE, headers: [{ key: 'Cache-Control', value: 'no-store' }] }];
   },
 };
 
-export default config;
+export default withNextIntl(config);

@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { ReloadOnRestore } from '@/components/ReloadOnRestore';
-import { t } from '@/i18n';
 import { Logo } from './Logo';
 import './shell.css';
 
 /** The parts both shells share: skip link, header, a nav slot and the main landmark. */
 export function ShellFrame({ nav, children }: { nav: ReactNode; children: ReactNode }) {
+  const t = useTranslations();
   return (
     <div className="bb-shell">
       <ReloadOnRestore />

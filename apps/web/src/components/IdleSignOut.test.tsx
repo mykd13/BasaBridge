@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { withIntl } from '@/i18n/test-intl';
 import { IDLE_SIGN_OUT_MS, IDLE_WARN_MS } from '@/lib/shared-device';
 import { IdleSignOut } from './IdleSignOut';
 
@@ -10,6 +11,6 @@ describe('IdleSignOut', () => {
   });
 
   it('shows nothing until the learner has been idle', () => {
-    expect(renderToStaticMarkup(<IdleSignOut />)).toBe('');
+    expect(renderToStaticMarkup(withIntl(<IdleSignOut />))).toBe('');
   });
 });

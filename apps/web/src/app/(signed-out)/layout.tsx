@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import { SignedOutHeader } from '@/components/shell/SignedOutHeader';
-import { t } from '@/i18n';
+import { useTranslations } from 'next-intl';
 
 export default function SignedOutLayout({ children }: { children: ReactNode }) {
+  const t = useTranslations();
   return (
     <>
       <a className="bb-skip" href="#main">

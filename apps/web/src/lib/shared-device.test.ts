@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { clearSessionKeys } from './shared-device';
 import { signOutAndReload } from './sign-out-client';
-import config, { PRIVATE_PATHS } from '../../next.config';
+import { NO_STORE_SOURCE } from './no-store';
 
 function fakeStorage(entries: Record<string, string>) {
   const map = new Map(Object.entries(entries));
@@ -44,15 +44,34 @@ describe('signOutAndReload', () => {
   });
 });
 
-describe('private page headers', () => {
-  it('sends no-store on every learner and parent page', async () => {
-    const rules = (await config.headers?.()) ?? [];
-    expect(rules.map((r) => r.source)).toEqual(PRIVATE_PATHS);
-    for (const rule of rules) {
-      expect(rule.headers).toContainEqual({ key: 'Cache-Control', value: 'no-store' });
+describe('no-store source', () => {
+  // A Next header source is /<regex>. Next anchors it, so the test does the same.
+  const matches = (path: string) => new RegExp(`^${NO_STORE_SOURCE}$`).test(path);
+
+  it('covers learner pages, parent pages, API routes and pages added later', () => {
+    for (const path of [
+      '/home',
+      '/read/analysis',
+      '/learn/a/b',
+      '/parent/x/levels',
+      '/api/learn/words/check',
+      '/brand-new-page',
+    ]) {
+      expect(matches(path), path).toBe(true);
     }
-    expect(PRIVATE_PATHS).toEqual(
-      expect.arrayContaining(['/home', '/read/:path*', '/learn/:path*']),
-    );
+  });
+
+  it('leaves out only the public pages and static assets', () => {
+    for (const path of [
+      '/',
+      '/sign-in',
+      '/sign-up',
+      '/_next/static/chunks/a.js',
+      '/_next/image',
+      '/favicon.ico',
+    ]) {
+      expect(matches(path), path).toBe(false);
+    }
+    expect(matches('/sign-in-help')).toBe(true);
   });
 });

@@ -2,7 +2,7 @@
 
 import { Button, Notice } from '@basabridge/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { t } from '@/i18n';
+import { useTranslations } from 'next-intl';
 import { IDLE_SIGN_OUT_MS, IDLE_WARN_MS } from '@/lib/shared-device';
 import { signOutAndReload } from '@/lib/sign-out-client';
 import { endSession } from '@/server/actions/sign-out';
@@ -21,6 +21,7 @@ export function IdleSignOut({
   warnAfterMs?: number;
   signOutAfterMs?: number;
 }) {
+  const t = useTranslations();
   const [warning, setWarning] = useState(false);
   const warnTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const outTimer = useRef<ReturnType<typeof setTimeout>>(undefined);

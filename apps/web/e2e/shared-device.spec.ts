@@ -2,7 +2,15 @@ import { expect, test } from '@playwright/test';
 import { hydrated } from './helpers';
 
 test('private pages send Cache-Control: no-store', async ({ request }) => {
-  for (const path of ['/home', '/read', '/learn', '/progress', '/account']) {
+  for (const path of [
+    '/home',
+    '/read',
+    '/learn',
+    '/progress',
+    '/account',
+    '/parent/link',
+    '/api/health',
+  ]) {
     const res = await request.get(path);
     expect(res.headers()['cache-control'], path).toContain('no-store');
   }

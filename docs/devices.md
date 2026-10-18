@@ -30,10 +30,16 @@ The code floors in `browser-support.ts` and the `browserslist` in `apps/web/pack
 ## Shared devices
 
 - Sign out removes this tab's `bb:` session keys and loads the sign-in page fresh.
-- Learner and parent pages send `Cache-Control: no-store`, so Back cannot show the last person's page.
+- Every response sends `Cache-Control: no-store` except the sign-in and sign-up pages and static assets
+  (`apps/web/src/lib/no-store.ts`). A new page or API route is private by default, so Back cannot show the last
+  person's page.
 - A learner sees a warning after 25 minutes idle and is signed out at 30.
-- The server must also end idle student sessions at 30 minutes. That needs a change to BB-7 (Rhett). Until then a
-  closed tab keeps its session cookie.
+- The idle timer runs in the browser only, one per tab. If a learner has two tabs open and one sits idle, it signs
+  out the whole session, including the tab in use. That is acceptable on a shared device.
+- The server must also end idle student sessions at 30 minutes (a sliding expiry). That is a follow-up on BB-7
+  (Rhett), because PR #8 sets sessions to 30 days. Until it lands, a closed tab keeps its session cookie.
+- The layouts only redirect by role. A page must still read learner data through the authorization layer (BB-10),
+  passing the viewer.
 
 ## Checks
 
@@ -45,6 +51,8 @@ The code floors in `browser-support.ts` and the `browserslist` in `apps/web/pack
 | Bundle size                  | `pnpm --filter @basabridge/web check:bundle`                              |
 
 Playwright runs against the dev server with `BB_DEV_ROLE=student`, because sign in is not built yet (BB-7).
+The dev override uses fixed uuids (`DEV_USER_IDS` in `apps/web/src/server/session.ts`), because every user id column
+is a uuid. Once BB-7 lands, switch the job to `next start` on the built app, so the browser tests cover what we ship.
 The two-account shared-device test is marked `fixme` until sign in and sign up exist.
 
 ## Pilot devices
