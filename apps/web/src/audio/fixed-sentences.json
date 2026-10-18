@@ -1,4 +1,42 @@
 {
-  "en": ["Read out loud.", "Read out loud. Understand more."],
-  "fil": ["Magbasa nang malakas.", "Magbasa nang malakas. Umunawa nang mas mabuti."]
+  "en": [
+    "Read out loud.",
+    "Read out loud. Understand more.",
+    "Draft. Awaiting qualified review. A grown-up who knows the law will check this page.",
+    "BasaBridge helps you read stories.",
+    "You read out loud, and a computer checks the words.",
+    "We keep your username.",
+    "We keep how you read and how you answered.",
+    "We use your voice to check your reading.",
+    "Then we throw it away, unless you choose to keep it.",
+    "If you keep it, we delete it after 30 days. Parents never hear it.",
+    "Some computer helpers work with BasaBridge.",
+    "We never send your name or username to a helper.",
+    "Your voice goes only to the helper that listens to your reading.",
+    "If you are under 13, a grown-up must say yes before you use the microphone.",
+    "You can still read quietly and answer questions.",
+    "You choose what a parent can see.",
+    "You can stop sharing at any time.",
+    "Have a question? Ask a grown-up to write to the address on this page."
+  ],
+  "fil": [
+    "Magbasa nang malakas.",
+    "Magbasa nang malakas. Umunawa nang mas mabuti.",
+    "Draft pa lang ito. Naghihintay ng kwalipikadong pagsusuri. Susuriin ito ng nakatatandang marunong sa batas.",
+    "Tinutulungan ka ng BasaBridge na magbasa ng mga kuwento.",
+    "Nagbabasa ka nang malakas, at sinusuri ng computer ang mga salita.",
+    "Itinatago namin ang iyong username.",
+    "Itinatago namin kung paano ka nagbasa at kung paano ka sumagot.",
+    "Ginagamit namin ang boses mo para suriin ang pagbasa mo.",
+    "Pagkatapos, itinatapon namin ito, maliban kung pipiliin mong itago.",
+    "Kung itatago, buburahin namin ito pagkalipas ng 30 araw. Hindi ito naririnig ng mga magulang.",
+    "May ilang computer na katulong na gumagana kasama ng BasaBridge.",
+    "Hindi namin ipinapadala sa katulong ang pangalan o username mo.",
+    "Ang boses mo ay napupunta lamang sa katulong na nakikinig sa pagbasa mo.",
+    "Kung wala ka pang 13 taong gulang, kailangang pumayag muna ang nakatatanda bago mo gamitin ang mikropono.",
+    "Makakabasa ka pa rin nang tahimik at makakasagot sa mga tanong.",
+    "Ikaw ang pipili kung ano ang makikita ng magulang.",
+    "Maaari kang tumigil sa pagbabahagi anumang oras.",
+    "May tanong? Magpasulat sa nakatatanda sa address na nasa pahinang ito."
+  ]
 }

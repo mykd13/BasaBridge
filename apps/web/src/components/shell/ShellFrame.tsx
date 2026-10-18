@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import { LegalLinks } from '@/components/legal/LegalLinks';
 import { ReloadOnRestore } from '@/components/ReloadOnRestore';
 import { Logo } from './Logo';
 import './shell.css';
@@ -22,6 +23,9 @@ export function ShellFrame({ nav, children }: { nav: ReactNode; children: ReactN
       <main id="main" tabIndex={-1} className="bb-shell__main">
         {children}
       </main>
+      <footer>
+        <LegalLinks />
+      </footer>
     </div>
   );
 }
