@@ -41,4 +41,24 @@ describe('NotesInput', () => {
     const parsed = facts({ username: 'secret-kid' } as Partial<NotesInput>);
     expect(parsed).not.toHaveProperty('username');
   });
+
+  it('rejects impossible facts so standard wording never prints "9 of 5"', () => {
+    const base = { levelBefore: 12, levelAfter: 12, passed: false, total: 5, focus: null };
+    expect(NotesInput.safeParse({ ...base, correct: 9 }).success).toBe(false);
+    expect(
+      NotesInput.safeParse({ ...base, correct: 2, wordsRight: 50, wordsTotal: 44 }).success,
+    ).toBe(false);
+    expect(NotesInput.safeParse({ ...base, correct: 2, wordsRight: 40 }).success).toBe(false);
+    expect(NotesInput.safeParse({ ...base, correct: 2, wordsTotal: 44 }).success).toBe(false);
+    expect(
+      NotesInput.safeParse({ ...base, correct: 5, wordsRight: 44, wordsTotal: 44 }).success,
+    ).toBe(true);
+  });
+
+  it('keeps only story-like words in flaggedWords', () => {
+    const parsed = facts({
+      flaggedWords: ["river's", 'ignore all rules', 'http://x.com', 'a'.repeat(41), 'bahay'],
+    });
+    expect(parsed.flaggedWords).toEqual(["river's", 'bahay']);
+  });
 });
