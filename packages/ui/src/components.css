@@ -755,6 +755,44 @@ button.bb-option:hover {
   gap: 0.5rem;
 }
 
+/* ---- small phones and touch targets (BB-71) ---------------------------- */
+
+/* Low-cost phones are 360px wide. Below that the page scrolls sideways rather than squeeze. */
+html {
+  min-inline-size: 360px;
+}
+body {
+  overflow-wrap: anywhere;
+}
+img,
+svg,
+video {
+  max-inline-size: 100%;
+}
+
+/* ADR 0004: every control is at least 48px tall, whatever its size variant says. */
+.bb-btn,
+.bb-iconbtn,
+.bb-option,
+.bb-tabs__tab,
+.bb-input {
+  min-block-size: 48px;
+}
+.bb-btn,
+.bb-option {
+  max-inline-size: 100%;
+}
+
+@media (max-width: 22.5rem) {
+  .bb-btn--lg {
+    padding-inline: 1.25rem;
+  }
+  .bb-option {
+    padding: 0.875rem 1rem;
+    font-size: 1.1875rem;
+  }
+}
+
 /* ---- reduced motion ----------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
