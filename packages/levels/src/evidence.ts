@@ -35,10 +35,22 @@ export const EVIDENCE_RULE = deepFreeze({
  * How answers are scored (BB-44). The guess rates in EVIDENCE_RULE assume all-or-nothing scoring,
  * so partial credit would make guessing pay again. Change both together or not at all.
  */
-export const SCORING_RULE = {
+export const SCORING_RULE = deepFreeze({
   /** Choose-all and ordering count as correct only when every part is right. */
   partialCredit: false,
-} as const;
+} as const);
+
+/**
+ * Chance of guessing a whole order of `eventCount` events: one in n factorial. An ordering
+ * question has 3 to 5 events, so one fixed rate would be wrong for most of them.
+ * `EVIDENCE_RULE.guess.order_events` is this rate for 4 events, used when the count is unknown.
+ */
+export function orderEventsGuess(eventCount: number): number {
+  if (!Number.isInteger(eventCount) || eventCount < 2) return EVIDENCE_RULE.guess.order_events;
+  let ways = 1;
+  for (let i = 2; i <= eventCount; i++) ways *= i;
+  return 1 / ways;
+}
 
 /** Placement test rules (docs/PLAN.md section 6.2). Placeholders to tune. */
 export const PLACEMENT_RULE = deepFreeze({

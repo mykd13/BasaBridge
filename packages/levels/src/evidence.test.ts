@@ -5,6 +5,7 @@ import {
   LISTEN_THEN_READ,
   MAX_LEVEL,
   MIN_LEVEL,
+  orderEventsGuess,
   PASS_RULE,
   PLACEMENT_RULE,
   SCORING_RULE,
@@ -183,5 +184,27 @@ describe('SCORING_RULE', () => {
     const { guess } = EVIDENCE_RULE;
     expect(guess.choose_all).toBeLessThan(guess.multiple_choice);
     expect(guess.order_events).toBeLessThan(guess.choose_all);
+  });
+
+  it('cannot be changed at run time', () => {
+    expect(Object.isFrozen(SCORING_RULE)).toBe(true);
+  });
+});
+
+describe('orderEventsGuess', () => {
+  it('is one in n factorial for 3 to 5 events', () => {
+    expect(orderEventsGuess(3)).toBeCloseTo(1 / 6, 10);
+    expect(orderEventsGuess(4)).toBeCloseTo(1 / 24, 10);
+    expect(orderEventsGuess(5)).toBeCloseTo(1 / 120, 10);
+  });
+
+  it('matches the stored ordering rate for 4 events', () => {
+    expect(orderEventsGuess(4)).toBeCloseTo(EVIDENCE_RULE.guess.order_events, 10);
+  });
+
+  it('falls back to the stored rate for a count that is not a real ordering', () => {
+    for (const n of [0, 1, -3, 2.5, Number.NaN]) {
+      expect(orderEventsGuess(n)).toBe(EVIDENCE_RULE.guess.order_events);
+    }
   });
 });
