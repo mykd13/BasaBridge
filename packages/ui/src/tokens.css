@@ -5,10 +5,12 @@
   --ink: #14212b;
   --muted: #56646e;
   --line: #d9ded6;
+  --line-strong: #7a8781;
   --accent: #0c6b63;
   --accent-ink: #ffffff;
   --accent-soft: #dceeea;
   --mark: #f3b93b;
+  --mark-ink: #14212b;
   --mark-soft: #fbefcf;
   --good: #23724a;
   --good-soft: #ddf0e4;
@@ -17,7 +19,38 @@
   --warn: #9a5a07;
   --font-display: 'Lexend', 'Atkinson Hyperlegible', system-ui, sans-serif;
   --font-body: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Shape and size. Radii follow the canvas scale. */
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+  --border: 1.5px;
+  /* ADR 0004: every touch target is at least 48px. */
+  --touch: 48px;
+  --focus-ring: 3px solid var(--ink);
+  --focus-halo: 0 0 0 6px var(--mark);
+
+  /* Reading help (ADR 0004). The root font size is the text size, so rem values scale. */
+  --leading: 1.55;
+  --leading-body: 1.55;
+  font-size: 16px;
   color-scheme: light;
+}
+
+/* Text sizes: small, medium (the canvas sizes) and large. */
+:root[data-text-size='small'] {
+  font-size: 15px;
+}
+:root[data-text-size='large'] {
+  font-size: 18.5px;
+}
+
+/* Line spacing: normal and wide. */
+:root[data-line-spacing='wide'] {
+  --leading: 1.9;
+  --leading-body: 1.9;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -27,10 +60,12 @@
     --ink: #e7eeec;
     --muted: #9baaa6;
     --line: #2b3937;
+    --line-strong: #6f807b;
     --accent: #52c4b5;
     --accent-ink: #04201c;
     --accent-soft: #17332f;
     --mark: #e9b24a;
+    --mark-ink: #1a1405;
     --mark-soft: #3a2f15;
     --good: #6cc48f;
     --good-soft: #173525;
@@ -47,10 +82,12 @@
   --ink: #e7eeec;
   --muted: #9baaa6;
   --line: #2b3937;
+  --line-strong: #6f807b;
   --accent: #52c4b5;
   --accent-ink: #04201c;
   --accent-soft: #17332f;
   --mark: #e9b24a;
+  --mark-ink: #1a1405;
   --mark-soft: #3a2f15;
   --good: #6cc48f;
   --good-soft: #173525;
@@ -58,4 +95,55 @@
   --bad-soft: #3c1e1b;
   --warn: #f0a64b;
   color-scheme: dark;
+}
+
+/*
+ * High contrast (ADR 0004). Chosen in reading help with data-contrast="more",
+ * or taken from the system unless the learner picked data-contrast="normal".
+ * Black on white with darker accents and solid lines. It wins over dark mode.
+ */
+@media (prefers-contrast: more) {
+  :root:not([data-contrast='normal']) {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --ink: #000000;
+    --muted: #2b3640;
+    --line: #14212b;
+    --line-strong: #14212b;
+    --accent: #064740;
+    --accent-ink: #ffffff;
+    --accent-soft: #dceeea;
+    --mark: #f3b93b;
+    --mark-ink: #14212b;
+    --mark-soft: #fbefcf;
+    --good: #0f4a2c;
+    --good-soft: #ddf0e4;
+    --bad: #7d1a15;
+    --bad-soft: #f7e0dd;
+    --warn: #5c3300;
+    --border: 2px;
+    color-scheme: light;
+  }
+}
+
+:root[data-contrast='more'] {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --ink: #000000;
+  --muted: #2b3640;
+  --line: #14212b;
+  --line-strong: #14212b;
+  --accent: #064740;
+  --accent-ink: #ffffff;
+  --accent-soft: #dceeea;
+  --mark: #f3b93b;
+  --mark-ink: #14212b;
+  --mark-soft: #fbefcf;
+  --good: #0f4a2c;
+  --good-soft: #ddf0e4;
+  --bad: #7d1a15;
+  --bad-soft: #f7e0dd;
+  --warn: #5c3300;
+  --border: 2px;
+  color-scheme: light;
 }
