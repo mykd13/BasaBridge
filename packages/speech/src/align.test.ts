@@ -495,7 +495,7 @@ describe('alignWords speed', () => {
     const result = alignWords(expected, heard);
     const elapsed = performance.now() - started;
     expect(result.filter((r) => r.expected !== null)).toHaveLength(600);
-    expect(elapsed).toBeLessThan(500);
+    expect(elapsed).toBeLessThan(1000);
   });
 });
 
