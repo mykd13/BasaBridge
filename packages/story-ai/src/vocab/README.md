@@ -9,6 +9,8 @@ The vocabulary check measures how many words in a story a Filipino learner at th
 - The research version lists every inflected form (go, goes, went, gone, going), so the check needs no stemmer.
 - It has an open licence.
 
+NGSL counts how often adults use words, so it ranks many words that young children learn first (red, kite, tree, sister, beach) low or leaves them out. `child-words.ts` lists about 250 of these concrete early words, and the check counts them as known at every tier. Keep that list short and concrete.
+
 Common Filipino words that appear in English stories (Lola, adobo, jeepney, barangay) are not in NGSL. They are in `LOCAL_WORDS` in `src/guidelines.ts`, and the check counts them as known at every tier. Names of people and places are skipped.
 
 ## Files
@@ -20,6 +22,8 @@ Common Filipino words that appear in English stories (Lola, adobo, jeepney, bara
 | `data/SUP_lemmatized.csv`                  | Days, months and number words. Allowed at every tier.        |
 | `word-list.json`                           | Built from the three files above. The code reads only this.  |
 | `word-list.ts`                             | Looks up the rank of a word form.                            |
+| `child-words.ts`                           | Early concrete words known at every tier.                    |
+| `profile.ts`                               | Counts known and new words in a passage.                     |
 | `idioms.ts`                                | Idioms that are not allowed below the tiers that allow them. |
 
 The CSV files were downloaded from newgeneralservicelist.com on 2026-10-18. The only changes are line endings (CRLF to LF) and a removed byte order mark.

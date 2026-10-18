@@ -7,6 +7,7 @@ const STORY_LEVEL_CODES: CheckFailureCode[] = [
   'too_short',
   'too_long',
   'too_hard',
+  'too_many_new_words',
   'too_few_questions',
 ];
 
