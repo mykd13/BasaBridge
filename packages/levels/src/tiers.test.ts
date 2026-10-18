@@ -1,6 +1,15 @@
 import { Level } from '@basabridge/contracts';
 import { describe, expect, it } from 'vitest';
-import { MAX_LEVEL, MIN_LEVEL, PASS_RULE, TIERS, tierFor, triesFor, type Tier } from './index';
+import {
+  MAX_LEVEL,
+  MIN_LEVEL,
+  PASS_RULE,
+  QUESTIONS_PER_STORY,
+  TIERS,
+  tierFor,
+  triesFor,
+  type Tier,
+} from './index';
 
 /** Each tier with the one before it. The first tier has no previous tier, so it is skipped. */
 function pairs(tiers: readonly Readonly<Tier>[]) {
@@ -93,10 +102,10 @@ describe('pass rule values', () => {
     expect(PASS_RULE.veryWeakShare).toBeLessThan(1);
   });
 
-  it('needs a whole number of correct answers from 1 to 5', () => {
+  it('needs a whole number of correct answers from 1 to QUESTIONS_PER_STORY', () => {
     expect(Number.isInteger(PASS_RULE.minQuestionsCorrect)).toBe(true);
     expect(PASS_RULE.minQuestionsCorrect).toBeGreaterThanOrEqual(1);
-    expect(PASS_RULE.minQuestionsCorrect).toBeLessThanOrEqual(5);
+    expect(PASS_RULE.minQuestionsCorrect).toBeLessThanOrEqual(QUESTIONS_PER_STORY);
   });
 
   it('needs a whole number of passes, at least 1, to level up', () => {
@@ -105,7 +114,9 @@ describe('pass rule values', () => {
   });
 
   it('never makes a pass also very weak', () => {
-    expect(PASS_RULE.veryWeakShare).toBeLessThan(PASS_RULE.minQuestionsCorrect / 5);
+    expect(PASS_RULE.veryWeakShare).toBeLessThan(
+      PASS_RULE.minQuestionsCorrect / QUESTIONS_PER_STORY,
+    );
   });
 });
 

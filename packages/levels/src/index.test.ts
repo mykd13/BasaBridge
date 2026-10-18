@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_LEVEL,
   MIN_LEVEL,
+  PASS_RULE,
   QUESTION_RULE,
+  QUESTIONS_PER_STORY,
   TIERS,
   allowsHardQuestion,
   hasTriesLeft,
@@ -78,5 +80,12 @@ describe('question types', () => {
 
   it('starts above the first tier', () => {
     expect(QUESTION_RULE.hardTypeFromLevel).toBeGreaterThan(tierFor(MIN_LEVEL).to);
+  });
+});
+
+describe('questions per story', () => {
+  it('asks enough questions for the pass rule to be reachable', () => {
+    expect(Number.isInteger(QUESTIONS_PER_STORY)).toBe(true);
+    expect(PASS_RULE.minQuestionsCorrect).toBeLessThanOrEqual(QUESTIONS_PER_STORY);
   });
 });
