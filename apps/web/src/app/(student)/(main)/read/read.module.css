@@ -1,28 +1,6 @@
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 14px 24px;
-  border-bottom: 1px solid var(--line);
-}
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 19px;
-}
-.level {
-  font-weight: 700;
-  color: var(--muted);
-}
 .main {
   max-width: 1000px;
   margin: 0 auto;
-  padding: 40px 24px;
   display: flex;
   flex-wrap: wrap;
   gap: 40px;

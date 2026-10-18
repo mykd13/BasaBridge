@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import { ReloadOnRestore } from '@/components/ReloadOnRestore';
 import { Logo } from './Logo';
 import './shell.css';
 
@@ -8,6 +9,7 @@ export function ShellFrame({ nav, children }: { nav: ReactNode; children: ReactN
   const t = useTranslations();
   return (
     <div className="bb-shell">
+      <ReloadOnRestore />
       <a className="bb-skip" href="#main">
         {t('skip.toContent')}
       </a>

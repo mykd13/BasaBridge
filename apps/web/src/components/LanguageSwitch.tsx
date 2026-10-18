@@ -25,6 +25,7 @@ export function LanguageSwitch() {
           lang={lang}
           aria-pressed={lang === current}
           disabled={pending}
+          style={{ minHeight: 48, minWidth: 48 }}
           onClick={() => choose(lang)}
         >
           {t(lang)}
