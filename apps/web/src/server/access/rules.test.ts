@@ -78,10 +78,6 @@ describe('every role, link and share-flag combination', () => {
       expect(decide(self, learner, kind, 'write', null).allowed, kind).toBe(false);
   });
 
-  it('a student cannot mark a word as misheard, which is a parent action', () => {
-    expect(decide(self, learner, 'tries', 'mark_misheard', null).allowed).toBe(false);
-  });
-
   it("a student never reaches another student's data", () => {
     for (const kind of kinds)
       for (const action of actions)

@@ -86,9 +86,9 @@ export function decide(
   if (viewer.role === 'student') {
     if (viewer.id !== learnerId) return deny('not_own_data');
     if (action === 'read') return allow('own_data');
-    return STUDENT_WRITABLE.includes(kind) && action === 'write'
-      ? allow('own_data')
-      : deny('student_cannot_write');
+    // mark_misheard is already limited to tries above and is the learner's own flag on a word.
+    if (action === 'mark_misheard') return allow('own_data');
+    return STUDENT_WRITABLE.includes(kind) ? allow('own_data') : deny('student_cannot_write');
   }
 
   if (viewer.role !== 'parent') return deny('unknown_role');

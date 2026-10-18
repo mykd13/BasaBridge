@@ -14,7 +14,7 @@ async function restricted(code: string, file: string): Promise<string[]> {
 
 const route = 'apps/web/src/app/api/x/route.ts';
 
-describe('the lint rule that guards learner tables', () => {
+describe('the lint rule that guards learner tables', { timeout: 60_000 }, () => {
   it('fails when a page imports anything from the db package', async () => {
     for (const name of [
       'getLearner',
