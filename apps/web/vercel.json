@@ -1,4 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "buildCommand": "if [ \"$VERCEL_ENV\" = \"production\" ]; then pnpm --filter @basabridge/db db:migrate; fi && next build"
 }
