@@ -10,7 +10,7 @@
  * and a position column exist, so they reset when the server restarts. They start empty.
  */
 import { lessonRegistry, memoryLessonProgressStore } from '@basabridge/learn';
-import { NotWiredError } from './not-wired';
+import { NotWiredError } from '@/server/errors';
 import {
   createLearnPort,
   memoryOfferCounter,
