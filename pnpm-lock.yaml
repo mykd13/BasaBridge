@@ -255,6 +255,10 @@ importers:
       '@basabridge/levels':
         specifier: workspace:*
         version: link:../levels
+    devDependencies:
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
 
   packages/teacher-ai:
     dependencies:
