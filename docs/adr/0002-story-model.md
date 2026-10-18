@@ -17,13 +17,13 @@ The team chose Gemini for story generation. Going through the AI Gateway keeps t
 ## Consequences
 
 - The verifier shares a vendor and some blind spots with the generator. The deterministic checks (length, reading grade, evidence sentences) and the evaluation harness (BB-21) carry more of the safety load, and BB-21 should compare the verifier against a human-checked gold set. If the verifier misses unsafe or wrong stories, move it to another model family. Only the environment variable changes.
-- Provider terms must be checked before any pilot (BB-41): whether prompts and outputs can be used for training, how long they are kept, and whether the tier in use has terms suitable for a children's product. Prompts carry levels, topic seeds and story text only. Never names, usernames or audio.
+- Provider terms must be checked before any pilot (BB-41): whether prompts and outputs can be used for training, how long they are kept, and whether the tier in use has terms suitable for a children's product. Prompts carry levels, tier numbers, a topic seed, the skill mix and fixed retry feedback only. Never names, usernames, recent titles or audio.
 - Cost per story and per learner is tracked from day one (BB-39), because pre-generating a story bank (BB-18) is what keeps latency and cost down.
 - Reading-grade caps in `packages/levels` were tuned against the Flesch-Kincaid measure, not against Gemini output. BB-16 and BB-21 must check that Gemini can actually hit each tier's range, and tune the prompt or the caps.
 
 ## Model names
 
-- **Story model (BB-15): `google/gemini-3.8-flash`.** Picked on 2026-10-18 from the public AI Gateway model list (`https://ai-gateway.vercel.sh/v1/models`). It is the newest general Flash model there. Price at that date: $0.75 per million input tokens and $3.75 per million output tokens. Set it as `STORY_MODEL`. It is not written in code.
+- **Story model (BB-15), proposed: `google/gemini-3.8-flash`.** Taken on 2026-10-18 from the public AI Gateway model list (`https://ai-gateway.vercel.sh/v1/models`), where it was the newest general Flash model. The list showed $0.75 per million input tokens and $3.75 per million output tokens that day; prices change, so read them from the gateway, not from here. Jhade confirms the choice before the first real run. Set it as `STORY_MODEL`. It is not written in code.
 - Not yet checked against real output: whether it hits every tier's word range and reading-grade cap. That needs a gateway key and is part of the BB-15 manual check and BB-21.
 
 ## Open
