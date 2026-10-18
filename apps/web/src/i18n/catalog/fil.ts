@@ -18,9 +18,14 @@ export const fil = {
   },
   home: {
     levelOne: {
-      standard: 'Ang mga kuwento sa Antas {level} ay {min} hanggang {max} salita.',
+      standard: 'Ang mga kuwento sa Antas {level} ay {min} hanggang {max} salita na may {tries}.',
       reviewed: false,
     },
+    tries: {
+      standard: '{count, plural, one {# subok} other {# na subok}}',
+      reviewed: false,
+    },
+    triesUnlimited: { standard: 'walang limitasyong subok', reviewed: false },
   },
   skip: {
     toContent: {
