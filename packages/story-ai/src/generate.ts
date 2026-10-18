@@ -9,10 +9,11 @@ import { tierFor } from '@basabridge/levels';
 import { generateText, type LanguageModel, NoObjectGeneratedError, Output } from 'ai';
 import { z } from 'zod';
 import { loadStoryConfig } from './config';
-import { checkStory } from './index';
+import { checkStory } from './checks';
 import { fail, type StoryError, type StoryOutcome, type Usage } from './errors';
 import { skillMix } from './mix';
 import { buildStoryPrompt } from './prompt';
+import { failureFeedback } from './retry';
 import { isRecentTitle, pickTopic } from './topics';
 import { addCall } from './usage';
 
@@ -56,7 +57,7 @@ export function acceptStory(out: GeneratedStory, level: number, recentTitles: st
     return fail('checks_failed', 'The title repeats a recent story. Use a new title.');
   }
   const checked = checkStory(out.text, out.questions, level);
-  if (!checked.ok) return fail('checks_failed', checked.reason);
+  if (!checked.ok) return fail('checks_failed', failureFeedback(checked.failures));
   const parsed = StorySchema.safeParse({
     title,
     text: out.text.trim(),

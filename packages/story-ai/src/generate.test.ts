@@ -21,7 +21,37 @@ const question = (over: Record<string, unknown> = {}) => ({
 const goodStory = (over: Record<string, unknown> = {}) => ({
   title: 'The Mango Tree',
   text: PASSAGE,
-  questions: [question(), question(), question(), question(), question()],
+  questions: [
+    question(),
+    question({
+      question: 'How many mangoes fall?',
+      options: ['Three', 'One', 'Five', 'Ten'],
+      evidence: 'Three mangoes fall.',
+    }),
+    question({
+      question: 'What color are the mangoes?',
+      options: ['Green', 'Red', 'Yellow', 'Brown'],
+      evidence: 'The mangoes are still green.',
+    }),
+    question({
+      skill: 'inferential',
+      question: 'Why does Grandfather say they must be patient?',
+      options: [
+        'The mangoes are not ready yet',
+        'The tree is too tall',
+        'Lia is too small',
+        'It is going to rain',
+      ],
+      evidence: 'Lia picks them up, but they are too sour.',
+    }),
+    question({
+      skill: 'vocabulary',
+      word: 'patient',
+      question: 'What does "patient" mean in the story?',
+      options: ['Able to wait calmly', 'Very hungry', 'Feeling sick', 'In a hurry'],
+      evidence: '"We must be patient," he says.',
+    }),
+  ],
   ...over,
 });
 
