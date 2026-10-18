@@ -51,3 +51,4 @@ All numbers live in `packages/levels` (`EVIDENCE_RULE`, `PLACEMENT_RULE`). The m
 - Lesson content needs a reading specialist (BB-53, BB-74).
 - Calibration needs real answers, so BB-45 runs after the first learner testing (M6).
 - The ability maths and rules are placeholders until real learners and an outside measure check them (BB-77).
+- Old evidence fades (BB-19). After each finished story the stored estimates are tempered by `EVIDENCE_RULE.storyDecay` (0.9 for now), so a learner who improves is not judged on old answers for long. It plays the part of the 0.85 per-story decay in the simple model. The value is a placeholder for BB-77.

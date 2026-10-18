@@ -89,6 +89,32 @@ export function updateAll(p: Posterior, evidence: ItemEvidence[]): Posterior {
   return evidence.reduce(updatePosterior, p);
 }
 
+/**
+ * Fades old evidence by raising the belief to `power` (0 to 1) and normalising. The estimate stays
+ * near its centre and widens, so later answers move it more. The item count is unchanged.
+ */
+export function temper(p: Posterior, power: number = EVIDENCE_RULE.storyDecay): Posterior {
+  if (power >= 1) return p;
+  return { weights: normalise(p.weights.map((w) => Math.pow(w, power))), items: p.items };
+}
+
+/**
+ * Checks a posterior read from storage: one finite, non-negative weight per grid point with a
+ * positive total, and a whole, non-negative item count. Throws on a bad row instead of quietly
+ * resetting the learner or carrying NaN into a level decision.
+ */
+export function checkStoredPosterior(scope: string, p: Posterior): Posterior {
+  const ok =
+    Array.isArray(p.weights) &&
+    p.weights.length === GRID.length &&
+    p.weights.every((w) => typeof w === 'number' && Number.isFinite(w) && w >= 0) &&
+    p.weights.some((w) => w > 0) &&
+    Number.isInteger(p.items) &&
+    p.items >= 0;
+  if (!ok) throw new Error(`Stored ability estimate for ${scope} is invalid.`);
+  return p;
+}
+
 export interface AbilitySummary {
   mean: number;
   sd: number;
@@ -147,7 +173,7 @@ export function evidenceWeight(o: { rushed: boolean; supportedTry: boolean }): n
 }
 
 export interface ReadinessContext {
-  /** Answered questions at this level or above that fed the posterior. */
+  /** Summed answer weights from stories at this level or above. Rushed answers add less than 1. */
   items: number;
   /** Stories passed at the current level. */
   passedStories: number;
@@ -171,9 +197,10 @@ export function levelReadiness(p: Posterior, level: number, ctx: ReadinessContex
   const here = levelToTheta(level);
   const pa = probAbove(p, here + EVIDENCE_RULE.up.margin);
   const pb = probBelow(p, here - EVIDENCE_RULE.down.margin);
-  const lastTwo = ctx.recentWordsRight.slice(-2);
+  const recent = ctx.recentWordsRight.slice(-EVIDENCE_RULE.up.recentTries);
   const decodingOk =
-    lastTwo.length >= 2 && lastTwo.every((x) => x >= EVIDENCE_RULE.up.minWordsRight);
+    recent.length >= EVIDENCE_RULE.up.recentTries &&
+    recent.every((x) => x >= EVIDENCE_RULE.up.minWordsRight);
   const up =
     level < MAX_LEVEL &&
     pa >= EVIDENCE_RULE.up.probability &&
