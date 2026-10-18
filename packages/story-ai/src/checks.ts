@@ -144,9 +144,18 @@ function containsWord(normalisedPassage: string, word: string): boolean {
   return new RegExp(`(?<![a-z])(?:${forms.join('|')})(?![a-z])`).test(normalisedPassage);
 }
 
+/** Whether a passage meets the vocabulary limits of the tier for its level (BB-72). */
+export function vocabularyCheck(passage: string, level: number) {
+  const { maxRank, minKnownShare, maxNewWords } = tierFor(level).vocabulary;
+  const profile = vocabularyProfile(passage, maxRank);
+  const ok = profile.knownShare >= minKnownShare && profile.newWords.length <= maxNewWords;
+  return { ok, profile };
+}
+
 /**
  * Deterministic checks on a generated story: length range, reading grade cap, vocabulary limits
- * and no idioms where the tier does not allow them (BB-72), valid questions, distinct options, evidence is a whole sentence (or adjacent sentences) of the passage,
+ * and no idioms where the tier does not allow them (BB-72), valid questions, distinct options,
+ * evidence is a whole sentence (or adjacent sentences) of the passage,
  * vocabulary word present on word boundaries, no repeated questions.
  * At least four valid questions must remain. Every failure is reported, not just the first.
  */
@@ -170,9 +179,9 @@ export function checkStory(text: string, rawQuestions: RawQuestion[], level: num
     });
   }
 
-  const vocab = vocabularyProfile(passage, tier.vocabulary.maxRank);
-  const { minKnownShare, maxNewWords } = tier.vocabulary;
-  if (vocab.knownShare < minKnownShare || vocab.newWords.length > maxNewWords) {
+  const { ok: vocabOk, profile: vocab } = vocabularyCheck(passage, level);
+  if (!vocabOk) {
+    const { minKnownShare, maxNewWords } = tier.vocabulary;
     const known = Math.floor(vocab.knownShare * 100);
     failures.push({
       code: 'too_many_new_words',

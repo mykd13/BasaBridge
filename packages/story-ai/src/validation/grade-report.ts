@@ -1,10 +1,11 @@
 /**
- * Checks the reading-grade measure against passages that people rated by hand (BB-16).
+ * Checks the reading-grade measure and the vocabulary check against passages that people rated by
+ * hand (BB-16, BB-72).
  * Pure functions on plain data. The only input is passage text, a level and a grade number.
  * No learner data goes through here. See README.md in this folder.
  */
 import { TIERS, tierFor } from '@basabridge/levels';
-import { readingGrade } from '../checks';
+import { readingGrade, vocabularyCheck } from '../checks';
 
 export interface RatedPassage {
   id: string;
@@ -27,6 +28,15 @@ export interface TierGradeReport {
   wronglyRejected: number;
   /** Rater grade is over the cap, but the measure is at or under it, so the check would accept. */
   wronglyAccepted: number;
+  /** Rater grade is at or under the cap, but the vocabulary check would reject. */
+  vocabWronglyRejected: number;
+  /** Rater grade is over the cap, but the vocabulary check would accept. */
+  vocabWronglyAccepted: number;
+  /** The reading-grade cap and the vocabulary check give different answers. */
+  disagree: number;
+  /** Of the passages where they disagree, how many the rater sides with each check. */
+  raterSidesWithGrade: number;
+  raterSidesWithVocab: number;
 }
 
 export interface GradeReport {
@@ -67,14 +77,29 @@ export function gradeReport(sample: RatedPassage[]): GradeReport {
     rated: 0,
     wronglyRejected: 0,
     wronglyAccepted: 0,
+    vocabWronglyRejected: 0,
+    vocabWronglyAccepted: 0,
+    disagree: 0,
+    raterSidesWithGrade: 0,
+    raterSidesWithVocab: 0,
   }));
   sample.forEach((p, i) => {
     const cap = tierFor(p.level).maxReadingGrade;
     const row = tiers.find((t) => p.level >= t.from && p.level <= t.to);
     if (!row) return;
     row.rated++;
-    if (p.ratedGrade <= cap && (measured[i] as number) > cap) row.wronglyRejected++;
-    if (p.ratedGrade > cap && (measured[i] as number) <= cap) row.wronglyAccepted++;
+    const fits = p.ratedGrade <= cap;
+    const gradeOk = (measured[i] as number) <= cap;
+    const vocabOk = vocabularyCheck(p.text, p.level).ok;
+    if (fits && !gradeOk) row.wronglyRejected++;
+    if (!fits && gradeOk) row.wronglyAccepted++;
+    if (fits && !vocabOk) row.vocabWronglyRejected++;
+    if (!fits && vocabOk) row.vocabWronglyAccepted++;
+    if (gradeOk !== vocabOk) {
+      row.disagree++;
+      if (gradeOk === fits) row.raterSidesWithGrade++;
+      else row.raterSidesWithVocab++;
+    }
   });
   return {
     count: sample.length,
@@ -123,11 +148,22 @@ export function formatGradeReport(report: GradeReport): string {
     `Mean absolute error: ${num(report.meanAbsoluteError)} grades`,
     `Correlation: ${num(report.correlation)}`,
     '',
-    'Levels   Cap   Rated   Wrongly rejected   Wrongly accepted',
+    'Reading grade (Flesch-Kincaid cap) and vocabulary (word list) against the rater.',
+    'Rejected and accepted count passages the check gets wrong. Disagree: the two checks differ.',
+    '',
+    'Levels   Cap   Rated   Grade rej/acc   Vocab rej/acc   Disagree   Rater sides grade/vocab',
   ];
   for (const t of report.tiers) {
     lines.push(
-      `${`${t.from}-${t.to}`.padEnd(8)} ${String(t.maxReadingGrade).padEnd(5)} ${String(t.rated).padEnd(7)} ${String(t.wronglyRejected).padEnd(18)} ${t.wronglyAccepted}`,
+      [
+        `${t.from}-${t.to}`.padEnd(8),
+        String(t.maxReadingGrade).padEnd(5),
+        String(t.rated).padEnd(7),
+        `${t.wronglyRejected}/${t.wronglyAccepted}`.padEnd(15),
+        `${t.vocabWronglyRejected}/${t.vocabWronglyAccepted}`.padEnd(15),
+        String(t.disagree).padEnd(10),
+        `${t.raterSidesWithGrade}/${t.raterSidesWithVocab}`,
+      ].join(' '),
     );
   }
   return lines.join('\n');
