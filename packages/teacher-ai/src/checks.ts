@@ -63,8 +63,9 @@ const CHILD_NUMBER_WORDS = new RegExp(
 );
 const SCORE_WORDS =
   /%|\b(score[sd]?|points?|marks?|grades?|out of|correct answers?|right answers?|marka|puntos)\b/i;
+/** "Behind" shames only as falling behind, so "the idea behind the words" stays allowed. */
 const SHAMING =
-  /\b(lazy|stupid|dumb|careless|bad|poor(ly)?|weak|fail(s|ed|ure)?|disappoint(ing|ed)?|not trying|should have known|behind|wrong|mistakes?|slow(er|ly)?|struggl(e|es|ed|ing)|tamad|bobo|tanga|mahina|bagal|palpak)\b/i;
+  /\b(lazy|stupid|dumb|careless|bad|poor(ly)?|weak|fail(s|ed|ure)?|disappoint(ing|ed)?|not trying|should have known|(?:fall(?:s|ing|en)?|fell|is|are|was|were|left) behind|behind (?:the )?(?:others|class|classmates|other (?:kids|children|learners))|wrong|mistakes?|slow(er|ly)?|struggl(e|es|ed|ing)|tamad|bobo|tanga|mahina|bagal|palpak)\b/i;
 
 /** Future wording. A sentence that has one and a topic word below is a promise. */
 const FUTURE =

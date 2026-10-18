@@ -3,6 +3,7 @@ import { checkNotes, toneProblems } from './checks';
 import { type ModelNotes, NotesInput } from './schema';
 import {
   STANDARD_ACTIVITIES,
+  standardActivity,
   standardChildMessage,
   standardWhatHappened,
   standardWhyFocus,
@@ -60,6 +61,21 @@ describe('toneProblems', () => {
         facts,
       ),
     ).toContain('shaming');
+    expect(
+      toneProblems({ ...good, whatHappened: 'Your child is falling behind the class.' }, facts),
+    ).toContain('shaming');
+    expect(
+      toneProblems({ ...good, whyFocus: 'Reading is behind the other kids.' }, facts),
+    ).toContain('shaming');
+  });
+
+  it('allows "behind" when it is not about falling behind', () => {
+    expect(
+      toneProblems(
+        { ...good, whyFocus: 'The missed questions asked about the idea behind the words.' },
+        facts,
+      ),
+    ).toEqual([]);
   });
 
   it('rejects promises of a score or a level', () => {
@@ -122,6 +138,31 @@ describe('standard wording', () => {
           homeActivity: activity,
         };
         expect(checkNotes(notes, f)).toMatchObject({ ok: true });
+      }
+    }
+  });
+
+  it('passes its own tone checks in Filipino and in simple wording too', () => {
+    for (const lang of ['en', 'fil'] as const) {
+      for (const wording of ['simple', 'standard'] as const) {
+        const style = { lang, wording };
+        for (const f of cases) {
+          for (const skill of ['vocabulary', 'literal', 'inferential'] as const) {
+            const homeActivity = standardActivity(skill, style);
+            const notes: ModelNotes = {
+              childMessage: standardChildMessage(f, style),
+              whatHappened: standardWhatHappened(f, style),
+              whyFocus: standardWhyFocus(f, style),
+              homeActivity,
+            };
+            expect([lang, wording, skill, toneProblems(notes, f)]).toEqual([
+              lang,
+              wording,
+              skill,
+              [],
+            ]);
+          }
+        }
       }
     }
   });
