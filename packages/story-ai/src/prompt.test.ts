@@ -1,5 +1,6 @@
 import { DistractorType, SubSkill } from '@basabridge/contracts';
 import { describe, expect, it } from 'vitest';
+import { MAX_LEVEL, QUESTIONS_PER_STORY } from '@basabridge/levels';
 import { buildStoryPrompt, type StoryPromptInput } from './prompt';
 
 const input: StoryPromptInput = {
@@ -25,7 +26,11 @@ describe('buildStoryPrompt', () => {
 
   it('uses the level tier from packages/levels', () => {
     expect(prompt).toContain('25 to 50 words');
-    expect(prompt).toContain('level 24 of 100');
+    expect(prompt).toContain(`level 24 of ${MAX_LEVEL}`);
+  });
+
+  it('takes the question count from packages/levels', () => {
+    expect(prompt).toContain(`write ${QUESTIONS_PER_STORY} multiple-choice questions`);
   });
 
   it('carries no learner data, even when the caller passes extra fields', () => {

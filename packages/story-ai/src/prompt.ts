@@ -5,7 +5,7 @@
  */
 import type { ComprehensionSkill, DistractorType, SubSkill } from '@basabridge/contracts';
 import { SUBSKILL_PARENT } from '@basabridge/contracts';
-import { tierFor } from '@basabridge/levels';
+import { MAX_LEVEL, QUESTIONS_PER_STORY, tierFor } from '@basabridge/levels';
 
 /** What each sub-skill tests, in the words the model sees. */
 export const SUBSKILL_MEANING: Record<SubSkill, string> = {
@@ -50,14 +50,14 @@ export function buildStoryPrompt(input: StoryPromptInput): string {
   const { level, focus, recentTitles, topicSeed } = input;
   const tier = tierFor(level);
   const lines = [
-    `Write a short English story for a child reading at level ${level} of 100.`,
+    `Write a short English story for a child reading at level ${level} of ${MAX_LEVEL}.`,
     `Length: ${tier.words.min} to ${tier.words.max} words. Style: ${tier.description}.`,
     `Keep the Flesch-Kincaid reading grade at or below ${tier.maxReadingGrade}.`,
     'Use a Philippine-relevant, everyday setting. Avoid stereotypes.',
     topicSeed ? `Topic: ${topicSeed}.` : '',
     recentTitles.length ? `Do not reuse these titles: ${recentTitles.join('; ')}.` : '',
     '',
-    'Then write five multiple-choice questions about the story.',
+    `Then write ${QUESTIONS_PER_STORY} multiple-choice questions about the story.`,
     focus ? `At least two questions must test the skill "${focus}".` : '',
     'Each question has exactly four different options and one correct answer.',
     'Each question has an "evidence" sentence copied word for word from the story.',

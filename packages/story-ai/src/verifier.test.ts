@@ -42,7 +42,7 @@ describe('buildVerifierPrompt', () => {
 describe('applyVerdict', () => {
   it('keeps questions where the answer and every label agree', () => {
     const r = applyVerdict(questions, verdict());
-    expect(r).toEqual({ ok: true, questions, dropped: 0 });
+    expect(r).toEqual({ ok: true, questions, dropped: 0, labelMismatches: 0 });
   });
 
   it('drops a question whose answer the verifier disagrees with', () => {
@@ -52,12 +52,16 @@ describe('applyVerdict', () => {
     expect(r.ok && r.dropped).toBe(1);
   });
 
-  it('drops a question whose distractor labels the verifier does not find honest', () => {
+  it('keeps a confirmed question whose labels differ, and reports the mismatch', () => {
     const answers = questions.map(agree);
     answers[1] = { answerIndex: 0, labels: [null, 'opposite', 'not_stated', 'unrelated'] };
     const r = applyVerdict(questions, verdict(answers));
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.questions.map((x) => x.question)).not.toContain('Two?');
+    if (r.ok) {
+      expect(r.questions.map((x) => x.question)).toContain('Two?');
+      expect(r.labelMismatches).toBe(1);
+      expect(r.dropped).toBe(0);
+    }
   });
 
   it('fails when fewer than four questions survive', () => {

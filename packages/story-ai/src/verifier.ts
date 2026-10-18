@@ -7,6 +7,7 @@
  */
 import { DistractorType } from '@basabridge/contracts';
 import { z } from 'zod';
+import { MIN_QUESTIONS } from './checks';
 import { DISTRACTOR_MEANING } from './prompt';
 import type { TaggedQuestion } from './tags';
 
@@ -55,7 +56,14 @@ export function buildVerifierPrompt(text: string, questions: TaggedQuestion[]): 
 }
 
 export type VerdictResult =
-  { ok: true; questions: TaggedQuestion[]; dropped: number } | { ok: false; reason: string };
+  | {
+      ok: true;
+      questions: TaggedQuestion[];
+      dropped: number;
+      /** Kept questions where the verifier labelled a wrong option differently. A soft signal only. */
+      labelMismatches: number;
+    }
+  | { ok: false; reason: string };
 
 /** True when the verifier gave every wrong option the same type the generator did. */
 export function labelsHonest(q: TaggedQuestion, labels: (DistractorType | null)[]): boolean {
@@ -63,9 +71,10 @@ export function labelsHonest(q: TaggedQuestion, labels: (DistractorType | null)[
 }
 
 /**
- * Applies the verifier's reply to checked questions. Keeps a question only when the verifier
- * picked the keyed answer and its labels match the generator's. Fails when the reply is invalid,
- * the story is unsafe, or fewer than four questions remain.
+ * Applies the verifier's reply to checked questions. Keeps a question when the verifier picked the
+ * keyed answer. The distractor label types overlap, so a label disagreement does not drop a
+ * question: it is counted in `labelMismatches` for review. Fails when the reply is invalid, the
+ * story is unsafe, or fewer than `MIN_QUESTIONS` questions remain.
  */
 export function applyVerdict(questions: TaggedQuestion[], rawVerdict: unknown): VerdictResult {
   const parsed = VerifierVerdict.safeParse(rawVerdict);
@@ -80,15 +89,18 @@ export function applyVerdict(questions: TaggedQuestion[], rawVerdict: unknown): 
   if (verdict.answers.length !== questions.length) {
     return { ok: false, reason: 'The verifier did not answer every question.' };
   }
+  let labelMismatches = 0;
   const kept = questions.filter((q, i) => {
     const a = verdict.answers[i]!;
-    return a.answerIndex === q.answerIndex && labelsHonest(q, a.labels);
+    if (a.answerIndex !== q.answerIndex) return false;
+    if (!labelsHonest(q, a.labels)) labelMismatches++;
+    return true;
   });
-  if (kept.length < 4) {
+  if (kept.length < MIN_QUESTIONS) {
     return {
       ok: false,
-      reason: `The verifier agreed with ${kept.length} questions; need at least 4.`,
+      reason: `The verifier agreed with ${kept.length} questions; need at least ${MIN_QUESTIONS}.`,
     };
   }
-  return { ok: true, questions: kept, dropped: questions.length - kept.length };
+  return { ok: true, questions: kept, dropped: questions.length - kept.length, labelMismatches };
 }
