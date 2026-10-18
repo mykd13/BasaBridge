@@ -159,8 +159,27 @@ export const ReadingHelp = z.object({
   language: z.enum(['en', 'fil']).default('en'),
   /** Use the shorter, simpler instruction wording. */
   simpleWords: z.boolean().default(false),
+  /** Hear the story read slowly before a try. Offered at the lowest levels only; the rule lives in packages/levels. */
+  listenThenRead: z.boolean().default(true),
 });
 export type ReadingHelp = z.infer<typeof ReadingHelp>;
+
+/** Story audio made once per story, with a start and end time for each word, in seconds. */
+export const StoryAudio = z.object({
+  /** CDN address of the audio file. */
+  url: z.string().url(),
+  durationSec: z.number().positive(),
+  words: z
+    .array(
+      z.object({
+        word: z.string().min(1),
+        startSec: z.number().nonnegative(),
+        endSec: z.number().nonnegative(),
+      }),
+    )
+    .min(1),
+});
+export type StoryAudio = z.infer<typeof StoryAudio>;
 
 export const READING_HELP_PRESETS = {
   standard: ReadingHelp.parse({}),
@@ -198,7 +217,23 @@ export const WordResult = z.object({
 });
 export type WordResult = z.infer<typeof WordResult>;
 
+/** Conditions detected during a try (BB-70). Affected words are flagged low confidence, not errors. */
+export const TryCondition = z.enum(['overlapping_voices', 'background_speech', 'low_volume']);
+export type TryCondition = z.infer<typeof TryCondition>;
+
+/** `needs_review` tries are not used for level movement until someone confirms them. */
+export const TryReview = z.enum(['none', 'needs_review', 'confirmed']);
+export type TryReview = z.infer<typeof TryReview>;
+
+export const TryChecks = z.object({
+  conditions: z.array(TryCondition),
+  review: TryReview,
+});
+export type TryChecks = z.infer<typeof TryChecks>;
+
 export const TryAnalysis = z.object({
+  /** Absent on tries analysed before the environment checks existed. */
+  checks: TryChecks.optional(),
   completed: z.boolean(),
   /** Index of the last expected word reached. */
   lastWordIndex: z.number().int().min(-1),
@@ -231,3 +266,104 @@ export const HomeActivity = z.object({
   source: z.enum(['ai', 'standard']),
 });
 export type HomeActivity = z.infer<typeof HomeActivity>;
+
+// ---- sessions, attempts and answers ----------------------------------------
+
+export const SessionStatus = z.enum(['reading', 'answering', 'done']);
+export type SessionStatus = z.infer<typeof SessionStatus>;
+
+/** One learner reading one story. The server owns the try counts (AGENTS.md rule 5). */
+export const ReadingSession = z.object({
+  id: z.string().uuid(),
+  learnerId: z.string().uuid(),
+  storyId: z.string().uuid(),
+  /** null means unlimited tries. The number comes from packages/levels, never from the UI. */
+  triesAllowed: z.number().int().positive().nullable(),
+  triesUsed: z.number().int().nonnegative(),
+  /** The try whose reading counts toward the result. null until a try is chosen. */
+  countedTryId: z.string().uuid().nullable(),
+  status: SessionStatus,
+});
+export type ReadingSession = z.infer<typeof ReadingSession>;
+
+/** One attempt at reading the story aloud, after analysis. Never carries audio. */
+export const TryRecord = z.object({
+  id: z.string().uuid(),
+  sessionId: z.string().uuid(),
+  analysis: TryAnalysis,
+  createdAt: z.coerce.date(),
+});
+export type TryRecord = z.infer<typeof TryRecord>;
+
+/** What the browser sends when a learner picks an answer. The server scores it. */
+export const AnswerSubmission = z.object({
+  sessionId: z.string().uuid(),
+  questionId: z.string().uuid(),
+  /** Indexes picked: one for multiple choice, several for choose-all, the order for order-events. */
+  chosen: z.array(z.number().int().min(0)).min(1),
+  responseMs: z.number().int().nonnegative(),
+  accommodations: z.array(Accommodation).default([]),
+});
+export type AnswerSubmission = z.infer<typeof AnswerSubmission>;
+
+/** A scored answer as stored and shared with the engine. */
+export const AnswerRecord = AnswerEvidence.extend({
+  sessionId: z.string().uuid(),
+  questionId: z.string().uuid(),
+  /**
+   * Same shape as AnswerSubmission.chosen. The database column `answers.chosen` is still a
+   * single integer, so only multiple-choice answers can be stored today. It must become jsonb
+   * before choose-all or order-events answers are saved.
+   */
+  chosen: z.array(z.number().int().min(0)).min(1),
+  /** How much this answer counts toward the ability estimate (ADR 0003). */
+  weight: z.number().min(0).max(1),
+});
+export type AnswerRecord = z.infer<typeof AnswerRecord>;
+
+// ---- learn plan -------------------------------------------------------------
+
+/** What the engine recommends next. Computed in code; the AI only explains it. */
+export const LearnPlan = z.object({
+  focusSkill: ComprehensionSkill,
+  /** A lesson id from packages/learn, or null when no lesson fits. */
+  lessonId: z.string().min(1).nullable(),
+  nextStoryLevel: Level,
+  /** standard means the fixed wording was used instead of an AI note. */
+  noteSource: z.enum(['ai', 'standard']),
+});
+export type LearnPlan = z.infer<typeof LearnPlan>;
+
+// ---- account events ---------------------------------------------------------
+
+const UserId = z.string().uuid();
+
+/**
+ * Things that happen to an account that other areas react to. They carry ids and codes only:
+ * no names, usernames or emails (AGENTS.md rule 2).
+ */
+export const AccountEvent = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('signed_up'),
+    userId: UserId,
+    role: Role,
+    ageBand: z.string().min(1),
+  }),
+  z.object({ type: z.literal('mic_approval_requested'), learnerId: UserId }),
+  z.object({ type: z.literal('mic_approval_decided'), learnerId: UserId, approved: z.boolean() }),
+  z.object({ type: z.literal('parent_linked'), parentId: UserId, learnerId: UserId }),
+  z.object({ type: z.literal('parent_link_revoked'), parentId: UserId, learnerId: UserId }),
+  z.object({
+    type: z.literal('consent_given'),
+    userId: UserId,
+    kind: z.string().min(1),
+    version: z.number().int().positive(),
+  }),
+  z.object({
+    type: z.literal('audio_retention_changed'),
+    learnerId: UserId,
+    keepAudio: z.boolean(),
+  }),
+  z.object({ type: z.literal('account_deleted'), userId: UserId }),
+]);
+export type AccountEvent = z.infer<typeof AccountEvent>;
