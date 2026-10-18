@@ -5,6 +5,8 @@
 import type { Story, StoryQuestion } from '@basabridge/contracts';
 import { tierFor } from '@basabridge/levels';
 
+export * from './keyideas';
+
 export function syllables(word: string): number {
   let w = word.toLowerCase().replace(/[^a-z]/g, '');
   if (!w) return 0;
