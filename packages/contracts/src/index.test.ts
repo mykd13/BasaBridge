@@ -9,6 +9,7 @@ import {
   ReadingPattern,
   ReadingPatterns,
   SUBSKILL_PARENT,
+  StoryAudio,
   SubSkill,
 } from './index';
 
@@ -90,6 +91,44 @@ describe('reading help', () => {
     expect(more.readingRuler).toBe(true);
     expect(more.simpleWords).toBe(true);
     expect(more.textSize).toBe('large');
+  });
+
+  it('turns listen-then-read on by default and lets the learner turn it off', () => {
+    expect(ReadingHelp.parse({}).listenThenRead).toBe(true);
+    expect(ReadingHelp.parse({ listenThenRead: false }).listenThenRead).toBe(false);
+  });
+
+  it('still parses saved settings from before listen-then-read existed', () => {
+    const saved = {
+      textSize: 'large',
+      audioInstructions: true,
+      questionReadAloud: true,
+      lineSpacing: 'wide',
+      readingRuler: true,
+      language: 'fil',
+      simpleWords: true,
+    };
+    const parsed = ReadingHelp.safeParse(saved);
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.listenThenRead).toBe(true);
+    expect(parsed.success && parsed.data.textSize).toBe('large');
+  });
+});
+
+describe('story audio', () => {
+  const ok = {
+    url: 'https://cdn.example.com/stories/abc.mp3',
+    durationSec: 3.2,
+    words: [{ word: 'The', startSec: 0, endSec: 0.4 }],
+  };
+
+  it('accepts audio with word timestamps', () => {
+    expect(StoryAudio.safeParse(ok).success).toBe(true);
+  });
+
+  it('rejects audio with no words or a bad address', () => {
+    expect(StoryAudio.safeParse({ ...ok, words: [] }).success).toBe(false);
+    expect(StoryAudio.safeParse({ ...ok, url: 'not a url' }).success).toBe(false);
   });
 });
 

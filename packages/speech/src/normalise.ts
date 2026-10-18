@@ -3,11 +3,15 @@
  * A word has one or more keys. Two words match when they share a key. Keys ignore case, accents,
  * punctuation, apostrophes and hyphens, and spell numerals out, so "Don't", "dont" and "don’t" share
  * a key and "3" matches "three". Some printed forms can be said more than one way (the year 1990 is
- * "nineteen ninety"), so a word can carry several keys.
+ * "nineteen ninety", 105 is "one hundred five" or "one hundred and five"), so a word can carry
+ * several keys.
+ *
+ * Known limits: numbers of a million or more, ordinals past 99th, and years before 1100 are not
+ * spelled out, so they only match when the provider returns the same digits.
  */
 
-/** Longest run of spoken words that can stand for one printed word, e.g. "one hundred twenty one". */
-export const MAX_JOIN = 5;
+/** Longest run of spoken words that can stand for one printed word, e.g. "one thousand one hundred and twenty one". */
+export const MAX_JOIN = 8;
 
 const ONES = [
   'zero',
@@ -67,16 +71,25 @@ const ORDINAL_TENS = [
   'ninetieth',
 ];
 
-/** Spell a whole number as one joined string, e.g. 21 becomes "twentyone". Up to 999,999. */
-function spellNumber(n: number): string {
+/**
+ * Spell a whole number as one joined string, e.g. 21 becomes "twentyone". Up to 999,999.
+ * With `and`, spell it the British way: 105 is "onehundredandfive".
+ */
+function spellNumber(n: number, and = false): string {
   if (n < 20) return ONES[n]!;
   if (n < 100) return TENS[Math.floor(n / 10)]! + (n % 10 ? ONES[n % 10]! : '');
   if (n < 1000) {
     const rest = n % 100;
-    return ONES[Math.floor(n / 100)]! + 'hundred' + (rest ? spellNumber(rest) : '');
+    return (
+      ONES[Math.floor(n / 100)]! + 'hundred' + (rest ? (and ? 'and' : '') + spellNumber(rest) : '')
+    );
   }
   const rest = n % 1000;
-  return spellNumber(Math.floor(n / 1000)) + 'thousand' + (rest ? spellNumber(rest) : '');
+  return (
+    spellNumber(Math.floor(n / 1000), and) +
+    'thousand' +
+    (rest ? (and && rest < 100 ? 'and' : '') + spellNumber(rest, and) : '')
+  );
 }
 
 /** Pairs of digits as spoken for years and times: 1990 is "nineteen ninety", 1905 "nineteen oh five". */
@@ -99,11 +112,13 @@ function numberKeys(text: string): string[] | null {
   if (integer) {
     const n = Number(text.replace(/,/g, ''));
     if (n > 999_999) return null;
-    const spelled = spellNumber(n);
-    const keys = [spelled];
+    const keys = [spellNumber(n)];
+    const british = spellNumber(n, true);
+    if (british !== keys[0]) keys.push(british);
     // "a hundred" and "a thousand"
-    if (spelled.startsWith('onehundred') || spelled.startsWith('onethousand')) {
-      keys.push('a' + spelled.slice(3));
+    for (const key of [...keys]) {
+      if (key.startsWith('onehundred') || key.startsWith('onethousand'))
+        keys.push('a' + key.slice(3));
     }
     // Years said in pairs: 1990, 1905, 1900, 2024
     if (n >= 1100 && n <= 2099 && !text.includes(',') && !(n >= 2000 && n < 2010)) {
@@ -137,47 +152,55 @@ function numberKeys(text: string): string[] | null {
 const WORD_ALIASES: Record<string, string> = { cannot: 'cant' };
 
 /**
- * Two spoken words that print as one contraction. Providers often return "do not" for "don't".
- * Keys are the joined spoken words, values are the key of the contraction.
+ * Contractions are built from two spoken words: any word followed by one of these joins to the
+ * word plus the suffix, so "I will", "we will" and "the dog will" all have a contraction form
+ * ("ill", "well", "dogll"). This covers pronouns, nouns ("Mom's home" for "Mom is home") and
+ * modals ("could have" for "could've") without listing each pair.
+ *
+ * Only keys the other side actually has are ever used, and alignment is by position, so a join
+ * that does not exist in the text does nothing. Some keys equal a plain word ("we will" and "well",
+ * "she will" and "shell", "we are" and "were", "it is" and "its"). That is accepted: a recogniser
+ * cannot tell them apart by sound, and the position check keeps it from changing other words.
  */
-const CONTRACTIONS: Record<string, string> = {
-  'do not': 'dont',
-  'does not': 'doesnt',
-  'did not': 'didnt',
-  'is not': 'isnt',
-  'are not': 'arent',
-  'was not': 'wasnt',
-  'were not': 'werent',
-  'have not': 'havent',
-  'has not': 'hasnt',
-  'had not': 'hadnt',
-  'would not': 'wouldnt',
-  'could not': 'couldnt',
-  'should not': 'shouldnt',
+const SPOKEN_SUFFIXES: Record<string, string> = {
+  will: 'll',
+  would: 'd',
+  had: 'd',
+  are: 're',
+  have: 've',
+  is: 's',
+  has: 's',
+  am: 'm',
+  not: 'nt',
+};
+
+/** Contractions that are not the first word plus a suffix: "will not" is "won't". */
+const IRREGULAR_CONTRACTIONS: Record<string, string> = {
   'will not': 'wont',
   'can not': 'cant',
-  'i am': 'im',
-  'you are': 'youre',
-  'they are': 'theyre',
-  'i have': 'ive',
-  'you have': 'youve',
-  'we have': 'weve',
-  'they have': 'theyve',
-  'he is': 'hes',
-  'she is': 'shes',
-  'it is': 'its',
-  'that is': 'thats',
-  'there is': 'theres',
-  'what is': 'whats',
+  'shall not': 'shant',
   'let us': 'lets',
 };
 
 /** Keys of one word, best first. Empty when the text has no letters or digits (stray punctuation). */
 export function wordKeys(text: string): string[] {
-  const edgeless = text.trim().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+  const trimmed = text.trim().replace(/[.,;:!?"'”’)\]]+$/u, '');
+  // "50%" is said "fifty percent".
+  const percent = /^(.+?)%$/.exec(trimmed);
+  if (percent) {
+    const base = wordKeys(percent[1]!);
+    if (base.length > 0 && /\d/.test(percent[1]!)) return base.map((key) => key + 'percent');
+  }
+  const edgeless = trimmed.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
   const plain = edgeless.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
   const numeric = numberKeys(plain);
   if (numeric) return numeric;
+  // "10-year-old" is said "ten year old": spell any number inside a hyphenated word.
+  if (plain.includes('-') && /\d/.test(plain)) {
+    const parts = plain.split('-').map((part) => wordKeys(part)[0] ?? '');
+    const joined = parts.join('');
+    if (joined !== '') return [joined];
+  }
   const key = plain.replace(/[^\p{L}\p{N}]/gu, '');
   if (key === '') return [];
   return [WORD_ALIASES[key] ?? key];
@@ -190,10 +213,16 @@ export function keysMatch(a: string[], b: string[]): boolean {
 
 /**
  * Keys a run of consecutive words could print as when written as one word. Covers contractions
- * ("do not"), numbers ("twenty one") and words a provider split ("in to").
+ * ("I will" for "I'll"), numbers ("twenty one") and words a provider split ("in to").
  */
 export function joinedKeys(keys: string[]): string[] {
-  const contraction = CONTRACTIONS[keys.join(' ')];
   const joined = keys.join('');
-  return contraction ? [contraction, joined] : [joined];
+  if (keys.length !== 2) return [joined];
+  const irregular = IRREGULAR_CONTRACTIONS[keys.join(' ')];
+  const suffix = SPOKEN_SUFFIXES[keys[1]!];
+  const out: string[] = [];
+  if (irregular) out.push(irregular);
+  if (suffix) out.push(keys[0] + suffix);
+  out.push(joined);
+  return out;
 }
