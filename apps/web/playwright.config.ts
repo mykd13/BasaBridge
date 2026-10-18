@@ -1,8 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// Locally the Kernel workspace sets KERNEL_PORT. CI uses 3000.
-const port = Number(process.env.KERNEL_PORT ?? process.env.PORT ?? 3000);
-const baseURL = `http://localhost:${port}`;
+import { baseURL, parentPort, parentURL, port } from './e2e/ports';
 
 export default defineConfig({
   testDir: './e2e',
@@ -29,13 +27,22 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    // The dev server honours BB_DEV_ROLE, which a production build ignores on purpose.
-    // Replace with real accounts when BB-7 lands.
-    command: `pnpm exec next dev -p ${port}`,
-    url: `${baseURL}/api/health`,
-    env: { BB_DEV_ROLE: 'student' },
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      // The dev server honours BB_DEV_ROLE, which a production build ignores on purpose.
+      // Replace with real accounts when BB-7 lands.
+      command: `pnpm exec next dev -p ${port}`,
+      url: `${baseURL}/api/health`,
+      env: { BB_DEV_ROLE: 'student' },
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      command: `pnpm exec next dev -p ${parentPort}`,
+      url: `${parentURL}/api/health`,
+      env: { BB_DEV_ROLE: 'parent', NEXT_DIST_DIR: '.next-parent' },
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
 });

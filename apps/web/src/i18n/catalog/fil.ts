@@ -401,7 +401,6 @@ export const fil = {
       level: {
         eyebrow: { standard: 'Antas', reviewed: false },
         of: { standard: 'sa {max}', reviewed: false },
-        progressLabel: { standard: 'Mga kuwentong naipasa sa antas na ito', reviewed: false },
         progressText: {
           standard: '{passes} sa {needed} kuwento ang naipasa para sa Antas {next}',
           reviewed: false,
@@ -906,11 +905,6 @@ export const fil = {
   progress: {
     level: { standard: 'Aking antas', simple: 'Aking antas', reviewed: false },
     levelOf: { standard: 'sa {max}', reviewed: false },
-    levelBar: {
-      standard: 'Progreso patungo sa susunod na antas',
-      simple: 'Hakbang sa susunod na antas',
-      reviewed: false,
-    },
     toNext: {
       standard:
         '{count, plural, one {# kuwento pa para umabot sa Antas {level}} other {# kuwento pa para umabot sa Antas {level}}}',

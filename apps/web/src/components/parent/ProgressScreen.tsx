@@ -121,12 +121,8 @@ function Progress({ data }: { data: ProgressView }) {
               ? undefined
               : {
                   value: Math.min(level.passes, needed) / needed,
-                  label: t('parent.progress.level.progressLabel'),
-                  valueText: t('parent.progress.level.progressText', {
-                    passes: level.passes,
-                    needed,
-                    next: level.level + 1,
-                  }),
+                  // The paragraph below says the same words, so the bar stays silent.
+                  decorative: true,
                 }
           }
         >

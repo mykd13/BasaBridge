@@ -167,7 +167,8 @@ function Reading({ row }: { row: ReadingRow }) {
     <li>
       <details className="bb-reading">
         <summary>
-          <span className="bb-reading__title">{row.title}</span>
+          {/* The reading is the h2 of its own block, so the sections inside it are h3. */}
+          <h2 className="bb-reading__title">{row.title}</h2>
           <span className="bb-parent__muted">
             {when} · {t('parent.readings.level', { level: row.level })}
           </span>

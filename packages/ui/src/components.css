@@ -403,7 +403,9 @@ button.bb-option:hover {
   border-radius: var(--radius-pill);
   font-weight: 700;
   line-height: 1.4;
-  white-space: nowrap;
+  /* Short labels stay on one line. A long one, such as Filipino at 200% text, wraps in its box. */
+  max-width: 100%;
+  overflow-wrap: break-word;
 }
 .bb-chip__icon {
   display: inline-flex;
@@ -801,16 +803,23 @@ video {
 /* ---- reduced motion ----------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .bb-btn,
-  .bb-option,
-  .bb-ruler__band {
-    transition: none;
+  /*
+   * Nothing moves by itself. A catch-all, because a rule such as `button.bb-option` is more
+   * specific than the class it styles and a list of classes here would miss it (BB-37).
+   */
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
   .bb-btn:active:not(:disabled) {
     transform: none;
   }
   /* The ring stands still and still shows that work is happening. */
   .bb-spinner svg {
-    animation: none;
+    animation: none !important;
   }
 }
