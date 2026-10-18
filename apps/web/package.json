@@ -12,6 +12,7 @@
   "dependencies": {
     "@basabridge/contracts": "workspace:*",
     "@basabridge/db": "workspace:*",
+    "@basabridge/engine": "workspace:*",
     "@basabridge/learn": "workspace:*",
     "@basabridge/levels": "workspace:*",
     "@basabridge/mastery": "workspace:*",
@@ -22,7 +23,8 @@
     "altcha-lib": "2.5.0",
     "next": "^16.4.1",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
