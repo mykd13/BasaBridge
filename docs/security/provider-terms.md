@@ -48,7 +48,7 @@ Note for the reader: Google's terms usually differ between the free tier and pai
 
 ## Prompt content test
 
-ADR 0002 and BB-41 require a test that proves story and verifier prompts contain only levels, topic seeds and story text. Prompt builders do not exist yet (`generateStory` in `packages/story-ai` is a stub until BB-15). The test belongs with BB-15 and BB-17. It should:
+ADR 0002 and BB-41 require a test that proves story and verifier prompts contain only levels, topic seeds and story text. The story side is in `packages/story-ai/src/prompt.test.ts` and `generate.test.ts` (BB-15). The verifier side belongs with BB-17. The test should:
 
 1. Build every prompt from typed inputs that have no identity fields.
 2. Assert the serialised prompt contains none of a set of planted values: a username, an email, a guardian email and a learner ID.
