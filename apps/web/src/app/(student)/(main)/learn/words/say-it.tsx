@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import Link from 'next/link';
-import { startCapture, type Capture } from '../../../lib/word-practice/capture';
-import { splitIntoChunks } from '../../../lib/word-practice/chunks';
-import { parseWordCheck } from '../../../lib/word-practice/check';
-import { messagesFor, type Lang, type Wording } from '../../../lib/word-practice/messages';
-import { currentWord, initialState, isLastWord, reduce } from '../../../lib/word-practice/session';
+import { startCapture, type Capture } from '@/lib/word-practice/capture';
+import { splitIntoChunks } from '@/lib/word-practice/chunks';
+import { parseWordCheck } from '@/lib/word-practice/check';
+import { messagesFor, type Lang, type Wording } from '@/lib/word-practice/messages';
+import { currentWord, initialState, isLastWord, reduce } from '@/lib/word-practice/session';
 import styles from './say-it.module.css';
 
 const RECORD_MS = 4000;

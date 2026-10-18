@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import { getFlaggedWords } from '../../../lib/word-practice/flagged';
-import type { Lang, Wording } from '../../../lib/word-practice/messages';
+import { getFlaggedWords } from '@/lib/word-practice/flagged';
+import type { Lang, Wording } from '@/lib/word-practice/messages';
 import { SayIt } from './say-it';
 
 export const metadata: Metadata = { title: 'Say it · BasaBridge' };
