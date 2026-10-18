@@ -5,6 +5,8 @@ import tseslint from 'typescript-eslint';
  * Pages and routes must not reach the database in any way (BB-10, AGENTS.md rule 4). The rule is
  * a ban on whole packages, not a list of table and helper names, so a new table, a new helper,
  * `createDbFromEnv`, `@basabridge/db/testing` and the database drivers are all covered.
+ * The rule covers `src/app` only. Modules under `src/server` are trusted: they are reviewed as the
+ * place where authorization happens, and must not be imported by client components.
  */
 const DB_MODULES = [
   '@basabridge/db',
