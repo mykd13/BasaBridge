@@ -324,3 +324,55 @@ export function parsePlacementProgress(value: unknown): PlacementSession | null 
   if (read.length > (session.maxStories ?? PLACEMENT_RULE.maxStories)) return null;
   return session;
 }
+
+// ---- retake, skip and re-check ---------------------------------------------------
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** When a learner who finished a placement at `finishedAt` may take it again. */
+export function retakeAvailableAt(finishedAt: Date): Date {
+  return new Date(finishedAt.getTime() + PLACEMENT_RULE.retakeAfterDays * DAY_MS);
+}
+
+/** A learner who never finished a placement may take one now. */
+export function canRetakePlacement(lastFinishedAt: Date | null, now: Date): boolean {
+  return lastFinishedAt == null || now.getTime() >= retakeAvailableAt(lastFinishedAt).getTime();
+}
+
+/**
+ * The start for a learner who skips placement: the grade default with no confidence, so the
+ * learner is asked again. No story evidence stands behind it.
+ */
+export function skippedPlacement(grade: number | null | undefined): PlacementResult {
+  const level = startLevelForGrade(grade);
+  return {
+    level,
+    theta: levelToTheta(level),
+    sd: START_SD,
+    confidence: 'none',
+    storiesRead: 0,
+    flags: ['few_stories'],
+    recommendedHelp: recommendedHelp(level, false),
+  };
+}
+
+/** A silent placement gets a short re-check once the learner's voice is approved. */
+export function needsVoiceRecheck(result: PlacementResult, voiceApproved: boolean): boolean {
+  return voiceApproved && result.flags.includes('voice_missing');
+}
+
+/**
+ * The short re-check. It starts from what the silent placement already knew, at its estimate
+ * rather than its cautious starting level, and reads `PLACEMENT_RULE.recheckStories` stories
+ * with voice.
+ */
+export function startRecheck(previous: PlacementResult): PlacementSession {
+  return {
+    kind: 'recheck',
+    voice: true,
+    startLevel: thetaToLevel(previous.theta),
+    stories: [],
+    prior: { theta: previous.theta, sd: previous.sd, stories: previous.storiesRead },
+    maxStories: PLACEMENT_RULE.recheckStories,
+  };
+}
