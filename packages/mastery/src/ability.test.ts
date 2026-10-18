@@ -1,3 +1,4 @@
+import { EVIDENCE_RULE, isSupportedTry } from '@basabridge/levels';
 import { describe, expect, it } from 'vitest';
 import {
   GRID,
@@ -150,6 +151,17 @@ describe('rushed answers and weights', () => {
     expect(evidenceWeight({ rushed: false, supportedTry: false })).toBe(1);
     expect(evidenceWeight({ rushed: true, supportedTry: false })).toBeCloseTo(0.3, 5);
     expect(evidenceWeight({ rushed: true, supportedTry: true })).toBeCloseTo(0.21, 5);
+  });
+
+  it('discounts a supported try, and turning listen-then-read off removes the discount', () => {
+    const ctx = { level: 5, inPlacement: false, enabled: true, listened: true };
+    const on = evidenceWeight({ rushed: false, supportedTry: isSupportedTry(ctx) });
+    const off = evidenceWeight({
+      rushed: false,
+      supportedTry: isSupportedTry({ ...ctx, enabled: false }),
+    });
+    expect(on).toBe(EVIDENCE_RULE.weight.supportedTry);
+    expect(off).toBe(1);
   });
 });
 

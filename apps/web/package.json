@@ -20,6 +20,7 @@
     "@basabridge/story-ai": "workspace:*",
     "@basabridge/teacher-ai": "workspace:*",
     "@basabridge/ui": "workspace:*",
+    "altcha-lib": "2.5.0",
     "next": "^16.4.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
