@@ -76,6 +76,9 @@ export function defaultFlags(): Flags {
   return out as Flags;
 }
 
+/** Keys already warned about, so a bad stored value logs once, not on every refresh. */
+const warnedInvalid = new Set<string>();
+
 /** Turns stored rows into flag values. Unknown keys are ignored; bad values fall back to the default. */
 export function resolveFlags(rows: { key: string; value: unknown }[]): Flags {
   const out = defaultFlags() as Record<string, unknown>;
@@ -84,7 +87,10 @@ export function resolveFlags(rows: { key: string; value: unknown }[]): Flags {
     if (!def) continue;
     const parsed = def.parse(value);
     if (parsed === undefined) {
-      console.warn(`[flags] invalid stored value for ${key}, using the default`);
+      if (!warnedInvalid.has(key)) {
+        warnedInvalid.add(key);
+        console.warn(`[flags] invalid stored value for ${key}, using the default`);
+      }
       continue;
     }
     out[key] = parsed;
@@ -97,23 +103,29 @@ export const FLAG_CACHE_MS = 30_000;
 
 let shared: Db | undefined;
 let cache: { at: number; flags: Flags } | undefined;
+/** After a failed read, the defaults are reused briefly so an outage does not hit the database on every request. */
+const FAILURE_CACHE_MS = 5_000;
+let failedAt: number | undefined;
 
 function getDb(): Db {
   shared ??= createDbFromEnv().db as unknown as Db;
   return shared;
 }
 
-/** Loads all flags. On any failure it returns the safe defaults and does not cache them. */
+/** Loads all flags. On any failure it returns the safe defaults, reused for 5 seconds. */
 export async function loadFlags(
   read: () => Promise<{ key: string; value: unknown }[]> = () => readFlagRows(getDb()),
   now: number = Date.now(),
 ): Promise<Flags> {
   if (cache && now - cache.at < FLAG_CACHE_MS) return cache.flags;
+  if (failedAt !== undefined && now - failedAt < FAILURE_CACHE_MS) return defaultFlags();
   try {
     const flags = resolveFlags(await read());
     cache = { at: now, flags };
+    failedAt = undefined;
     return flags;
   } catch {
+    failedAt = now;
     console.warn('[flags] could not read flags, using the safe defaults');
     return defaultFlags();
   }
@@ -131,16 +143,20 @@ export async function setFlag<K extends FlagKey>(
   key: K,
   value: Flags[K],
   actorUserId: string | null,
-  db: Db = getDb(),
+  db?: Db,
 ): Promise<void> {
   const def = (FLAGS as Record<string, FlagDef<unknown>>)[key];
   if (!def) throw new Error(`Unknown flag: ${String(key)}`);
-  if (def.parse(value) === undefined) throw new Error(`Invalid value for flag ${String(key)}`);
-  await writeFlag(db, key, value, actorUserId);
+  const parsed = def.parse(value);
+  if (parsed === undefined) throw new Error(`Invalid value for flag ${String(key)}`);
+  await writeFlag(db ?? getDb(), key, parsed, actorUserId);
   cache = undefined;
+  failedAt = undefined;
 }
 
 /** For tests only. */
 export function clearFlagCache(): void {
   cache = undefined;
+  failedAt = undefined;
+  warnedInvalid.clear();
 }

@@ -8,8 +8,10 @@ Flags switch risky features on and off without a deploy. They are part of BB-65.
 - Stored values live in the `feature_flags` table. Only changed flags have a row.
 - Every change writes a row to `feature_flag_changes` with the old value, the new value, the user id of whoever changed it (or none for a team script) and the time. No names are stored.
 - Flags are read on the server only. Never import `flags.ts` into a client component.
-- A read is reused for 30 seconds. A change takes effect within that time.
-- If a row is missing, a value is invalid or the database cannot be read, the app uses the safe default.
+- A read is reused for 30 seconds. A change takes effect within that time. The cache is per server instance, and `setFlag` clears only the cache of the instance it runs on. A change made from a script reaches the web instances when their own cache expires.
+- If a row is missing, a value is invalid or the database cannot be read, the app uses the safe default. A failed read is reused for 5 seconds, so an outage does not hit the database on every request.
+- While the database is down, a flag that was turned off is ignored and reads as its default. For the `microphone` kill switch that means voice stays on during an outage.
+- Setting `model_choices` to `null` stores JSON null and puts the environment variables back in charge. The change is logged like any other.
 
 ## The flags
 

@@ -45,4 +45,19 @@ describe('feature flag storage', () => {
     const [row] = (await readFlagRows(db)).filter((r) => r.key === 'model_choices');
     expect(row?.value).toEqual(models);
   });
+
+  it('stores JSON null to reset an override, and logs it', async () => {
+    const models = { story: 'google/a', verifier: 'google/b', notes: 'google/a' };
+    await writeFlag(db, 'reset_me', models, null);
+    await writeFlag(db, 'reset_me', null, null);
+    const [row] = (await readFlagRows(db)).filter((r) => r.key === 'reset_me');
+    expect(row?.value).toBeNull();
+    const log = await readFlagChanges(db, 'reset_me');
+    expect(log).toHaveLength(2);
+    expect(log[1]).toMatchObject({ oldValue: models, newValue: null });
+    // and it can be set again after a reset
+    await writeFlag(db, 'reset_me', models, null);
+    const [again] = (await readFlagRows(db)).filter((r) => r.key === 'reset_me');
+    expect(again?.value).toEqual(models);
+  });
 });

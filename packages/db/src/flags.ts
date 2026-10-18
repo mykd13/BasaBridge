@@ -2,7 +2,7 @@
  * Raw reads and writes for feature flags (BB-65). The flag list, defaults and validation live in
  * apps/web/src/server/flags.ts. Nothing here decides what a value means.
  */
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { Db } from './queries';
 import { featureFlagChanges, featureFlags } from './schema';
 
@@ -23,17 +23,23 @@ export async function writeFlag(
   value: unknown,
   actorUserId: string | null,
 ): Promise<void> {
+  // A JS null would be sent as SQL NULL, which both value columns reject. Store JSON null.
+  const stored = value === null ? sql`'null'::jsonb` : value;
   await db.transaction(async (tx) => {
-    const [current] = await tx.select().from(featureFlags).where(eq(featureFlags.key, key));
+    const [current] = await tx
+      .select()
+      .from(featureFlags)
+      .where(eq(featureFlags.key, key))
+      .for('update');
     const now = new Date();
     await tx
       .insert(featureFlags)
-      .values({ key, value, updatedAt: now })
-      .onConflictDoUpdate({ target: featureFlags.key, set: { value, updatedAt: now } });
+      .values({ key, value: stored, updatedAt: now })
+      .onConflictDoUpdate({ target: featureFlags.key, set: { value: stored, updatedAt: now } });
     await tx.insert(featureFlagChanges).values({
       key,
       oldValue: current?.value ?? null,
-      newValue: value,
+      newValue: stored,
       actorUserId,
       at: now,
     });

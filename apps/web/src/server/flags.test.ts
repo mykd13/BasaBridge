@@ -59,10 +59,23 @@ describe('loadFlags', () => {
     expect(flags).toEqual(defaultFlags());
   });
 
-  it('does not cache a failed read', async () => {
-    await loadFlags(() => Promise.reject(new Error('down')), 0);
-    const flags = await loadFlags(() => Promise.resolve([{ key: 'placement', value: true }]), 1);
+  it('reuses the defaults briefly after a failed read, then tries again', async () => {
+    const read = vi.fn().mockRejectedValue(new Error('down'));
+    await loadFlags(read, 0);
+    await loadFlags(read, 1_000);
+    expect(read).toHaveBeenCalledTimes(1);
+    const flags = await loadFlags(
+      () => Promise.resolve([{ key: 'placement', value: true }]),
+      6_000,
+    );
     expect(flags.placement).toBe(true);
+  });
+
+  it('warns once about an invalid stored value across refreshes', async () => {
+    const read = () => Promise.resolve([{ key: 'placement', value: 'yes' }]);
+    await loadFlags(read, 0);
+    await loadFlags(read, FLAG_CACHE_MS + 1);
+    expect(console.warn).toHaveBeenCalledTimes(1);
   });
 
   it('reuses a read inside the cache window and reads again after it', async () => {
@@ -80,5 +93,15 @@ describe('setFlag', () => {
     const db = {} as never;
     await expect(setFlag('placement', 'on' as never, null, db)).rejects.toThrow('Invalid value');
     await expect(setFlag('nope' as never, true as never, null, db)).rejects.toThrow('Unknown flag');
+  });
+
+  it('validates before it needs a database connection', async () => {
+    const saved = process.env.DATABASE_URL;
+    delete process.env.DATABASE_URL;
+    try {
+      await expect(setFlag('nope' as never, true as never, null)).rejects.toThrow('Unknown flag');
+    } finally {
+      if (saved !== undefined) process.env.DATABASE_URL = saved;
+    }
   });
 });
