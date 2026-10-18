@@ -21,6 +21,15 @@ export type ActionResult<T> = { ok: true; data: T } | { ok: false };
 
 const failed = { ok: false } as const;
 
+/** A part that is not wired yet throws NotWiredError. The browser gets a plain failure. */
+async function attempt<T>(call: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
+  try {
+    return await call();
+  } catch {
+    return failed;
+  }
+}
+
 const TryInput = z.object({
   sessionId: z.string().uuid(),
   /** The try id the browser made for the upload: 32 hex characters (see newTryId). */
@@ -33,8 +42,19 @@ export async function finishTryAction(input: unknown): Promise<ActionResult<TryF
   const id = await learnerId();
   const parsed = TryInput.safeParse(input);
   if (!id || !parsed.success) return failed;
-  const result = await student.finishTry(id, parsed.data);
-  return result.ok ? { ok: true, data: result.data } : failed;
+  return attempt(async () => {
+    const result = await student.finishTry(id, parsed.data);
+    return result.ok ? { ok: true, data: result.data } : failed;
+  });
+}
+
+/** The learner tapped a word to hear it. The server records the accommodation (rule 12). */
+export async function recordWordTapAction(input: unknown): Promise<ActionResult<null>> {
+  const id = await learnerId();
+  const parsed = z.object({ sessionId: z.string().uuid() }).safeParse(input);
+  if (!id || !parsed.success) return failed;
+  const result = await student.recordWordTap(id, parsed.data);
+  return result.ok ? { ok: true, data: null } : failed;
 }
 
 /** The learner taps a word they say was read right. The server fixes it. */
@@ -51,8 +71,10 @@ export async function submitAnswerAction(input: unknown): Promise<ActionResult<A
   const id = await learnerId();
   const parsed = AnswerSubmission.safeParse(input);
   if (!id || !parsed.success) return failed;
-  const result = await student.answer(id, parsed.data);
-  return result.ok ? { ok: true, data: result.data } : failed;
+  return attempt(async () => {
+    const result = await student.answer(id, parsed.data);
+    return result.ok ? { ok: true, data: result.data } : failed;
+  });
 }
 
 /** Placement: begin, or go on to the next placement story. Then read. */

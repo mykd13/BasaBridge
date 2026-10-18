@@ -234,6 +234,11 @@ export const studentEn = {
       simple: 'No note for this try.',
     },
     wordsToPractise: { standard: 'Words to practise' },
+    wordTapHint: {
+      standard: 'Tap a word to hear it.',
+      simple: 'Tap a word to hear it.',
+    },
+    wordTapWord: { standard: 'Hear “{word}”', simple: 'Hear “{word}”' },
     misheardLead: {
       standard:
         'I could not hear these words clearly. If I got one wrong, tap it and I will fix it.',

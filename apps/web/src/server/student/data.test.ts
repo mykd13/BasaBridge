@@ -1,17 +1,37 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { resetStudentData, setStudentData, student, unwiredStudentData } from './data';
-import { fakeStudentData, home, question } from './test-fixtures';
+import { NotWiredError } from '../errors';
+import { SESSION_ID, fakeStudentData, home, question } from './test-fixtures';
 
 afterEach(resetStudentData);
 
 const LEARNER = '00000000-0000-4000-8000-000000000001';
 
 describe('student data seam', () => {
-  it('says unavailable for everything until the engine is wired in', async () => {
-    expect(await student.home(LEARNER)).toEqual({ ok: false, reason: 'unavailable' });
-    expect(await student.reading(LEARNER)).toEqual({ ok: false, reason: 'unavailable' });
-    expect(await student.question(LEARNER)).toEqual({ ok: false, reason: 'unavailable' });
-    expect(await student.placement(LEARNER)).toEqual({ ok: false, reason: 'unavailable' });
+  it('throws NotWiredError for every call until the engine is wired in', async () => {
+    const calls = [
+      student.home(LEARNER),
+      student.reading(LEARNER),
+      student.analysis(LEARNER),
+      student.question(LEARNER),
+      student.result(LEARNER),
+      student.levelUp(LEARNER),
+      student.placement(LEARNER),
+    ];
+    for (const call of calls) await expect(call).rejects.toBeInstanceOf(NotWiredError);
+    await expect(student.question(LEARNER)).rejects.toThrow(/waits for the learning engine/);
+    await expect(student.placement(LEARNER)).rejects.toThrow(/placement as its own session/);
+  });
+
+  it('answers unavailable, not an error, when a write is not wired', async () => {
+    expect(await student.recordWordTap(LEARNER, { sessionId: SESSION_ID })).toEqual({
+      ok: false,
+      reason: 'unavailable',
+    });
+    expect(await student.startPlacementStory(LEARNER)).toEqual({
+      ok: false,
+      reason: 'unavailable',
+    });
   });
 
   it('returns what a registered implementation gives, checked by the schema', async () => {

@@ -120,7 +120,10 @@ export function PlacementResultScreen({ step }: { step: Step<'result'> }) {
   const guess = result.flags.includes('voice_missing');
   return (
     <div className="bb-s-page bb-s-page--narrow">
-      <Eyebrow tone="accent">{t('placement.result.eyebrow')}</Eyebrow>
+      {/* The canvas draws this as a small accent label. It is the page's one h1. */}
+      <h1 className="bb-eyebrow bb-eyebrow--accent bb-s-eyebrow-title">
+        {t('placement.result.eyebrow')}
+      </h1>
       <LevelCard
         variant="hero"
         eyebrow={t('placement.result.title')}

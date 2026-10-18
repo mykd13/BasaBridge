@@ -1,7 +1,14 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { RouteError } from '@/components/states/RouteError';
 import { withIntl } from '@/i18n/test-intl';
+import { DEFAULT_STATE } from '@/lib/reading-help/settings';
+import { NotWiredError } from '../errors';
 
+const helpState = DEFAULT_STATE;
+vi.mock('@/components/reading-help/ReadingHelpProvider', () => ({
+  useReadingHelp: () => ({ state: helpState, persisted: true, update: vi.fn() }),
+}));
 vi.mock('next/navigation', () => ({
   redirect: (to: string) => {
     throw new Error(`REDIRECT:${to}`);
@@ -41,24 +48,54 @@ const noSearch = Promise.resolve({});
 
 afterEach(resetStudentData);
 
+const routes: [string, () => Promise<React.ReactNode>][] = [
+  ['home', () => home()],
+  ['read', () => read({ searchParams: noSearch })],
+  ['analysis', () => analysis()],
+  ['questions', () => questions()],
+  ['result', () => result()],
+  ['level up', () => levelUp()],
+  ['placement', () => placement()],
+  ['placement next', () => placementNext()],
+  ['placement result', () => placementResult()],
+];
+
 describe('screens start empty until the engine answers (rule 8)', () => {
-  it('every route shows the not ready state, never sample data', async () => {
-    const pages = [
-      await home(),
-      await read({ searchParams: noSearch }),
-      await analysis(),
-      await questions(),
-      await result(),
-      await levelUp(),
-      await placement(),
-      await placementNext(),
-      await placementResult(),
-    ];
-    for (const page of pages) {
-      const out = html(page);
-      expect(out).toContain('This part is not ready yet');
-      expect(out).not.toMatch(/Level \d|\d+%/);
-    }
+  it.each(routes)(
+    '%s fails visibly with NotWiredError, never with sample data',
+    async (_n, page) => {
+      await expect(page()).rejects.toBeInstanceOf(NotWiredError);
+    },
+  );
+
+  it('the route error boundary turns NotWiredError into the not ready notice', async () => {
+    const error = await home().catch((e: unknown) => e as Error);
+    const out = renderToStaticMarkup(
+      withIntl(<RouteError error={error as Error} reset={vi.fn()} />),
+    );
+    expect(out).toContain('not ready');
+    expect(out).not.toMatch(/Level \d|\d+%/);
+  });
+
+  it.each(routes)('%s shows the not ready state when the engine fails', async (_n, page) => {
+    setStudentData(
+      fx.fakeStudentData(
+        Object.fromEntries(
+          [
+            'getStudentHome',
+            'getReading',
+            'getAnalysis',
+            'getQuestion',
+            'getResult',
+            'getLevelUp',
+            'getPlacementStep',
+          ].map((method) => [method, async () => ({ ok: false, reason: 'unavailable' })]),
+        ),
+      ),
+    );
+    const out = html(await page());
+    expect(out).toContain('This part is not ready yet');
+    expect(out).not.toMatch(/Level \d|\d+%/);
   });
 
   it('shows the nothing yet state with a way to start when there is no result', async () => {
@@ -117,6 +154,28 @@ describe('one reading session, start to finish', () => {
       fx.fakeStudentData({ getQuestion: async () => ({ ok: true, data: { status: 'complete' } }) }),
     );
     await expect(questions()).rejects.toThrow('REDIRECT:/read/result');
+  });
+
+  it('hands the question screen only the fields the schema allows (rule 5)', async () => {
+    // An engine that sends the whole stored question must not leak its key to the browser.
+    setStudentData(
+      fx.fakeStudentData({
+        getQuestion: async () => ({
+          ok: true,
+          data: {
+            ...fx.question,
+            answerIndex: 0,
+            correctIndex: 0,
+            evidence: 'Lia checks the tree.',
+            story: fx.reading.text,
+          },
+        }),
+      }),
+    );
+    const page = (await questions()) as { props: { question: Record<string, unknown> } };
+    const props = page.props.question;
+    expect(Object.keys(props).sort()).toEqual(Object.keys(fx.question).sort());
+    expect(JSON.stringify(props)).not.toMatch(/answerIndex|correctIndex|evidence|Lia checks/);
   });
 
   it('never puts the story on the questions page', async () => {
