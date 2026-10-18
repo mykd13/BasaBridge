@@ -94,7 +94,6 @@
 }
 .bb-parent__table {
   width: 100%;
-  min-width: 32rem;
   border-collapse: collapse;
 }
 .bb-parent__table caption {
@@ -145,5 +144,45 @@
 @media (max-width: 40rem) {
   .bb-parent__title {
     font-size: 1.625rem;
+  }
+}
+
+.bb-parent p,
+.bb-parent__section > h2,
+.bb-parent__section > h3 {
+  margin: 0;
+}
+
+/* On a phone each table row becomes a small card, with the column name before each value. */
+@media (max-width: 40rem) {
+  .bb-parent__table {
+    min-width: 0;
+  }
+  .bb-parent__table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .bb-parent__table,
+  .bb-parent__table tbody,
+  .bb-parent__table tr,
+  .bb-parent__table th,
+  .bb-parent__table td {
+    display: block;
+  }
+  .bb-parent__table tr {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .bb-parent__table th,
+  .bb-parent__table td {
+    border: 0;
+    padding: 0.25rem 0.75rem;
+  }
+  .bb-parent__table td[data-label]::before {
+    content: attr(data-label) ': ';
+    font-weight: 700;
   }
 }

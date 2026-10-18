@@ -39,17 +39,19 @@ function Tries({ id, tries }: { id: string; tries: TryRow[] }) {
                     ? t('parent.readings.tries.counted', { number: row.number })
                     : row.number}
                 </th>
-                <td>
+                <td data-label={t('parent.readings.tries.done')}>
                   {t(row.completed ? 'parent.readings.tries.yes' : 'parent.readings.tries.no')}
                 </td>
-                <td>
+                <td data-label={t('parent.readings.tries.words')}>
                   {t('parent.readings.tries.wordsCell', {
                     right: row.wordsRight,
                     total: row.wordsTotal,
                     percent: percent(row.wordsRight, row.wordsTotal),
                   })}
                 </td>
-                <td>{t('parent.readings.tries.paceCell', { wpm: row.wordsPerMinute })}</td>
+                <td data-label={t('parent.readings.tries.pace')}>
+                  {t('parent.readings.tries.paceCell', { wpm: row.wordsPerMinute })}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -85,8 +87,10 @@ function Words({ id, words }: { id: string; words: WordToCheck[] }) {
               {words.map((word, index) => (
                 <tr key={`${word.expected}:${index}`}>
                   <th scope="row">{word.expected}</th>
-                  <td>{word.heard ?? t('parent.readings.words.nothing')}</td>
-                  <td>
+                  <td data-label={t('parent.readings.words.heard')}>
+                    {word.heard ?? t('parent.readings.words.nothing')}
+                  </td>
+                  <td data-label={t('parent.readings.words.sure')}>
                     {t(`parent.readings.words.${word.confidence}`)}
                     {word.markedMisheard ? (
                       <>
@@ -170,7 +174,7 @@ function Reading({ row }: { row: ReadingRow }) {
           <span>{result}</span>
         </summary>
         <div className="bb-reading__body">
-          <Tries id={row.id} tries={row.tries} />
+          {row.tries.length > 0 ? <Tries id={row.id} tries={row.tries} /> : null}
           <Words id={row.id} words={row.wordsToCheck} />
           <section aria-labelledby={`${row.id}-analysis`} className="bb-parent__section">
             <h3 id={`${row.id}-analysis`}>{t('parent.readings.analysis.title')}</h3>

@@ -93,14 +93,16 @@ function Levels({ data }: { data: LevelsView }) {
                         </>
                       ) : null}
                     </th>
-                    <td>
+                    <td data-label={t('parent.levels.table.length')}>
                       {t('parent.levels.table.wordsRange', {
                         min: tier.words.min,
                         max: tier.words.max,
                       })}
                     </td>
-                    <td>{key ? t(`parent.levels.tier.${key}`) : null}</td>
-                    <td>
+                    <td data-label={t('parent.levels.table.words')}>
+                      {key ? t(`parent.levels.tier.${key}`) : null}
+                    </td>
+                    <td data-label={t('parent.levels.table.tries')}>
                       {tier.tries === null ? t('parent.progress.tries.unlimited') : tier.tries}
                     </td>
                   </tr>
