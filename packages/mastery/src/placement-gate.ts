@@ -2,8 +2,9 @@
  * Placement gating (docs/PLAN.md section 6.2). Pure functions. Owner: Jhade (BB-49).
  *
  * The server builds a snapshot of the learner's latest placement and asks what happens next. The
- * main course stays locked until placement is done or skipped, and the server enforces that with
- * `mainCourseLocked`, not only the page.
+ * main course stays locked until placement is done or skipped. The server route that serves
+ * main-course stories must call `mainCourseLocked` with this gate and refuse, not only the page.
+ * One gate is used everywhere; a skipped learner may retake placement at any time.
  */
 import type { PlacementResult } from '@basabridge/contracts';
 import { PLACEMENT_RULE } from '@basabridge/levels';
@@ -82,7 +83,8 @@ export function placementGate(s: PlacementSnapshot): PlacementGate {
       };
     }
     case 'skipped':
-      return { kind: 'open', offerPlacement: s.newSignIn, retakeAllowed: false };
+      // A skipped learner has no placement to wait out, so taking it now is allowed.
+      return { kind: 'open', offerPlacement: s.newSignIn, retakeAllowed: true };
     case 'finished': {
       if (latest.result.flags.includes('voice_missing') && s.mic === 'granted') {
         return { kind: 'recheck', startLevel: latest.result.level };

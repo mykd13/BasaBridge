@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { PlacementResult } from '@basabridge/contracts';
 import { PLACEMENT_RULE } from '@basabridge/levels';
-import { guessFor, itemDifficulty, levelToTheta, pCorrect } from './ability';
+import { guessFor, itemDifficulty, levelToTheta, pCorrect, thetaToLevel } from './ability';
 import {
   finishPlacement,
   finishRecheck,
+  isSkippedPlacement,
   nextPlacement,
   nextRecheck,
   PLACEMENT_SUPPORTS,
@@ -222,6 +223,19 @@ describe('skipPlacement', () => {
   it('uses the default start without a grade', () => {
     expect(skipPlacement(null).level).toBe(PLACEMENT_RULE.defaultStart);
   });
+
+  it('is recognised as a skip, and a real placement is not', () => {
+    expect(isSkippedPlacement(skipPlacement(3))).toBe(true);
+    const real = finishPlacement(
+      { startLevel: 30, stories: [{ level: 30, answers: [{ correct: true }] }] },
+      { voice: true },
+    );
+    expect(isSkippedPlacement(real)).toBe(false);
+  });
+
+  it('uses a confidence the contract accepts', () => {
+    expect(PlacementResult.shape.confidence.options).toContain(PLACEMENT_RULE.skipConfidence);
+  });
 });
 
 describe('short re-check after a silent placement', () => {
@@ -236,10 +250,23 @@ describe('short re-check after a silent placement', () => {
     { voice: false },
   );
 
-  it('starts at the level the silent placement gave', () => {
+  it('starts at the silent placement estimate, not its already lowered level', () => {
     const state = startRecheck(silent);
     expect(state.stories).toEqual([]);
-    expect(nextRecheck(state).level).toBe(silent.level);
+    expect(state.startLevel).toBe(thetaToLevel(silent.theta));
+    expect(state.startLevel).toBeGreaterThanOrEqual(silent.level);
+    expect(nextRecheck(state).level).toBe(state.startLevel);
+  });
+
+  it('never keeps voice_missing, so a learner whose recordings fail is not locked out', () => {
+    const state = startRecheck(silent);
+    for (let i = 0; i < PLACEMENT_RULE.recheckStories; i++) {
+      state.stories.push({ level: nextRecheck(state).level!, answers: [{ correct: true }] });
+    }
+    // Every read was skipped: no words-right share at all.
+    expect(state.stories.every((s) => s.wordsRightShare === undefined)).toBe(true);
+    expect(finishPlacement(state, { voice: true }).flags).toContain('voice_missing');
+    expect(finishRecheck(state).flags).not.toContain('voice_missing');
   });
 
   it('stops after the re-check length', () => {
