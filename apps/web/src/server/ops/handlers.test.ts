@@ -13,7 +13,7 @@ import {
   createCostReportHandler,
   parseClientError,
 } from './handlers';
-import { clientIp, hasBearer } from './request';
+import { clientIp, clientSubject, hasBearer } from './request';
 
 const SECRET = 'a-long-enough-test-secret';
 const authed = (url: string) =>
@@ -44,12 +44,15 @@ describe('clientIp', () => {
 });
 
 describe('client error reports', () => {
-  function setup(allow = true) {
+  function setup(allow: boolean | 'throws' = true) {
     const sink = memorySink();
     let counted = 0;
     const handler = createClientErrorHandler({
       log: createLogger({ service: 't', sink }),
-      allow: async () => allow,
+      allow: async () => {
+        if (allow === 'throws') throw new Error('store down');
+        return allow;
+      },
       countError: async () => {
         counted += 1;
       },
@@ -59,13 +62,15 @@ describe('client error reports', () => {
   const post = (body: string) =>
     new Request('http://x/api/client-errors', { method: 'POST', body });
 
-  it('logs a valid report with emails scrubbed and counts it', async () => {
+  it('logs a valid report without the browser message and counts it', async () => {
     const s = setup();
     const res = await s.handler(
       post(
         JSON.stringify({
           kind: 'error',
-          message: 'failed for maria@example.com',
+          errorClass: 'TypeError',
+          message: 'Maria Santos read: the quick brown fox',
+          stack: 'TypeError: Maria Santos read\n    at Foo (https://x/_next/a.js?token=abc:1:2)',
           route: '/read/:id',
           username: 'maria_s',
         }),
@@ -75,24 +80,62 @@ describe('client error reports', () => {
     expect(s.counted()).toBe(1);
     const line = s.sink.lines[0]!.line;
     expect(line).toContain('client.error');
+    expect(line).toContain('TypeError');
+    expect(line).toContain('at Foo');
+    expect(line).not.toContain('Maria');
     expect(line).not.toContain('maria');
+    expect(line).not.toContain('token=abc');
   });
 
-  it('drops fields the reporter does not send', () => {
-    const r = parseClientError(JSON.stringify({ kind: 'error', message: 'x', answer: 'B' }));
-    expect(r).toEqual({ kind: 'error', message: 'x', stack: null, source: null, route: null });
+  it('keeps only the class, frames and route, and drops the message', () => {
+    const r = parseClientError(
+      JSON.stringify({ kind: 'error', errorClass: 'bad name!', message: 'x', answer: 'B' }),
+    );
+    expect(r).toEqual({
+      kind: 'error',
+      errorClass: 'Error',
+      stack: null,
+      source: null,
+      route: null,
+    });
+  });
+
+  it('refuses a report from another origin', async () => {
+    const body = JSON.stringify({ kind: 'error', errorClass: 'Error' });
+    const make = (origin: string) =>
+      new Request('http://x/api/client-errors', {
+        method: 'POST',
+        body,
+        headers: { origin, host: 'x' },
+      });
+    expect((await setup().handler(make('https://evil.example'))).status).toBe(403);
+    expect((await setup().handler(make('https://x'))).status).toBe(204);
+  });
+
+  it('fails closed when the limiter store is down', async () => {
+    const s = setup('throws');
+    const res = await s.handler(post(JSON.stringify({ kind: 'error', errorClass: 'Error' })));
+    expect(res.status).toBe(503);
+    expect(s.counted()).toBe(0);
+    expect(s.sink.lines.some((l) => l.line.includes('"client.error"'))).toBe(false);
+  });
+
+  it('splits callers with no address by user agent', () => {
+    const a = new Request('http://x/', { headers: { 'user-agent': 'A' } });
+    const b = new Request('http://x/', { headers: { 'user-agent': 'B' } });
+    expect(clientSubject(a)).not.toBe(clientSubject(b));
   });
 
   it('refuses bad, oversized and over-limit reports', async () => {
     expect((await setup().handler(post('not json'))).status).toBe(400);
-    expect((await setup().handler(post(JSON.stringify({ kind: 'x', message: 'y' })))).status).toBe(
-      400,
-    );
-    const big = JSON.stringify({ kind: 'error', message: 'x'.repeat(CLIENT_ERROR_MAX_BYTES) });
+    expect(
+      (await setup().handler(post(JSON.stringify({ kind: 'x', errorClass: 'y' })))).status,
+    ).toBe(400);
+    const big = JSON.stringify({ kind: 'error', errorClass: 'x'.repeat(CLIENT_ERROR_MAX_BYTES) });
     expect((await setup().handler(post(big))).status).toBe(413);
     const limited = setup(false);
     expect(
-      (await limited.handler(post(JSON.stringify({ kind: 'error', message: 'x' })))).status,
+      (await limited.handler(post(JSON.stringify({ kind: 'error', errorClass: 'Error' })))).status,
     ).toBe(429);
     expect(limited.counted()).toBe(0);
   });

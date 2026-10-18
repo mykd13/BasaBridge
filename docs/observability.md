@@ -17,8 +17,9 @@ The logic lives in `packages/observability`. The data lives in two tables in `pa
 - **Browser:** `apps/web/src/instrumentation-client.ts` reports uncaught errors and rejected promises to `POST /api/client-errors`.
   - At most 5 reports leave one page load.
   - Ids in the path become `:id`.
-  - Emails are scrubbed before sending.
-  - The route caps the body at 8 KB, keeps only known fields, rate limits per network address and logs `client.error`.
+  - Only the error class (`errorClass`, such as `TypeError`) and stack frames are sent. The browser's error message is never sent or logged, because it can hold text a learner typed or read. Frames lose their query strings.
+  - The route refuses requests from another origin, caps the body at 8 KB, keeps only known fields and rate limits per network address (callers with no address are split by user agent). If the limit store is down it refuses the report (503) instead of logging it unmetered.
+  - The route cannot require sign-in, because errors can happen before a learner signs in. The origin check and the rate limit are its guards.
 - We use no third-party error service, so no new company receives data. Search the Vercel logs for `"level":"error"`.
 
 ## Metering AI and speech calls
@@ -54,6 +55,7 @@ const result = await meter(
   - `costPerLearnerDay`: the average and the highest cost for one learner on one day
   - `rows`: day, learner id, kind, calls, failures, cost and average latency
 - Learners appear by id only.
+- This is an operator endpoint behind `OPS_TOKEN`. It reads `ai_calls` through `costReport` in `packages/db` and returns totals and learner ids, with no names, text or audio. It is not a learner-facing read. When the authorization layer (BB-10) lands, route `costReport` through it.
 
 ```bash
 curl -H "Authorization: Bearer $OPS_TOKEN" "https://<deployment>/api/ops/cost-report?from=2026-10-01&to=2026-10-07"
@@ -84,14 +86,14 @@ Override any policy with `RATE_LIMIT_<POLICY>=<limit>/<seconds>`, for example `R
   - `global_budget`: today's total spend reached `AI_DAILY_BUDGET_USD`
   - `learner_budget`: this learner's spend reached `AI_LEARNER_DAILY_BUDGET_USD`
   - `rate_limit`: a story generation limit was hit
-- On `bank`, serve `pickBankStory(db, level, excludeIds)`. If that is empty too, fail visibly.
+- On `bank`, serve `pickBankStory(db, level, excludeIds)`. If that is empty too, fail visibly. `pickBankStory` reads the shared story bank only (`source = 'bank'`), not learner data. The caller fetches the learner's read stories through the authorization layer (BB-10) and passes them as `excludeIds`.
 - A database error also returns `bank`, so an outage can never run up cost.
 - The budget day starts at midnight in the Philippines.
 - BB-63 adds the learner-facing "come back tomorrow" message on top of `learner_budget`.
 
 ## Alerts
 
-Vercel cron calls `GET /api/cron/alerts` every 5 minutes with `Authorization: Bearer $CRON_SECRET`. It checks:
+Vercel cron calls `GET /api/cron/alerts` with `Authorization: Bearer $CRON_SECRET`. It checks:
 
 | Alert                | Fires when                                                       | Setting                         |
 | -------------------- | ---------------------------------------------------------------- | ------------------------------- |
@@ -107,4 +109,4 @@ Vercel cron calls `GET /api/cron/alerts` every 5 minutes with `Authorization: Be
 
 ## Setup on Vercel
 
-Set `CRON_SECRET`, `OPS_TOKEN`, `AI_DAILY_BUDGET_USD`, `AI_LEARNER_DAILY_BUDGET_USD` and, if wanted, `ALERT_WEBHOOK_URL` in every environment. Cron jobs that run every 5 minutes need a Vercel Pro plan. On Hobby, change the schedule in `apps/web/vercel.json` to once a day, or deploys fail.
+Set `CRON_SECRET`, `OPS_TOKEN`, `AI_DAILY_BUDGET_USD`, `AI_LEARNER_DAILY_BUDGET_USD` and, if wanted, `ALERT_WEBHOOK_URL` in every environment. `apps/web/vercel.json` runs the alert check once a day (01:00 UTC), which Vercel Hobby accepts. The budget alerts (`high_cost`, `budget_exhausted`) work at that rate. The spike alerts look at the last full 5 minutes, so at a daily rate they only see the moment the check runs. On a Vercel Pro plan, set the schedule to `*/5 * * * *` so the spike and speech alerts do their job. A schedule more often than daily makes a Hobby deploy fail.

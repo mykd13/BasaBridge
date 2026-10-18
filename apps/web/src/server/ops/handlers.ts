@@ -11,7 +11,8 @@ import {
   type Logger,
 } from '@basabridge/observability';
 import type { CostReportRow } from '@basabridge/db';
-import { clientIp } from './request';
+import { scrubString } from '@basabridge/observability/redact';
+import { clientSubject, isSameOrigin } from './request';
 
 export const CLIENT_ERROR_MAX_BYTES = 8 * 1024;
 
@@ -25,6 +26,7 @@ export interface ClientErrorDeps {
 /** POST /api/client-errors: one browser error report, logged after redaction. */
 export function createClientErrorHandler(deps: ClientErrorDeps) {
   return async (request: Request): Promise<Response> => {
+    if (!isSameOrigin(request)) return new Response(null, { status: 403 });
     const declared = Number(request.headers.get('content-length') ?? 0);
     if (declared > CLIENT_ERROR_MAX_BYTES) return new Response(null, { status: 413 });
     const raw = await request.text();
@@ -33,11 +35,13 @@ export function createClientErrorHandler(deps: ClientErrorDeps) {
     const report = parseClientError(raw);
     if (!report) return new Response(null, { status: 400 });
 
-    let allowed = true;
+    // Fails closed: if the limiter cannot be reached, the report is refused, not logged unmetered.
+    let allowed: boolean;
     try {
-      allowed = await deps.allow(clientIp(request));
+      allowed = await deps.allow(clientSubject(request));
     } catch (err) {
       deps.log.warn('client.error.limit_unavailable', { error: err });
+      return new Response(null, { status: 503 });
     }
     if (!allowed) return new Response(null, { status: 429 });
 
@@ -53,13 +57,29 @@ export function createClientErrorHandler(deps: ClientErrorDeps) {
 
 export interface ClientErrorReport {
   kind: 'error' | 'unhandledrejection';
-  message: string;
+  /** The error class, such as TypeError. The browser message is never kept: it can hold learner text. */
+  errorClass: string;
+  /** Stack frames only (no message line), without query strings, cut short. */
   stack: string | null;
   source: string | null;
   route: string | null;
 }
 
-/** Accepts only the fields the browser reporter sends. Anything else is dropped. */
+const FRAME_MAX = 1500;
+
+/** Keeps lines that look like stack frames and drops query strings, so no message text survives. */
+function sanitizeFrames(stack: string): string | null {
+  const frames = stack
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => /^at\s|@/.test(l))
+    .map((l) => scrubString(l.replace(/[?#][^\s)]*/g, '')))
+    .join('\n')
+    .slice(0, FRAME_MAX);
+  return frames || null;
+}
+
+/** Accepts only the fields the browser reporter sends. Anything else, including message, is dropped. */
 export function parseClientError(raw: string): ClientErrorReport | null {
   let body: unknown;
   try {
@@ -69,12 +89,15 @@ export function parseClientError(raw: string): ClientErrorReport | null {
   }
   const b = body as Record<string, unknown> | null;
   if (!b || (b.kind !== 'error' && b.kind !== 'unhandledrejection')) return null;
-  if (typeof b.message !== 'string') return null;
-  const opt = (v: unknown) => (typeof v === 'string' && v !== '' ? v : null);
+  const opt = (v: unknown) => (typeof v === 'string' && v !== '' ? v.slice(0, 200) : null);
+  const errorClass =
+    typeof b.errorClass === 'string' && /^[A-Za-z][A-Za-z0-9]{0,39}$/.test(b.errorClass)
+      ? b.errorClass
+      : 'Error';
   return {
     kind: b.kind,
-    message: b.message,
-    stack: opt(b.stack),
+    errorClass,
+    stack: typeof b.stack === 'string' ? sanitizeFrames(b.stack) : null,
     source: opt(b.source),
     route: opt(b.route),
   };

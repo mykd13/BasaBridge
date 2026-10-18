@@ -1,9 +1,9 @@
 /**
  * Browser error tracking (BB-39). Uncaught errors and rejected promises are sent to
- * /api/client-errors, which redacts and logs them. Emails are scrubbed here too, ids in the
- * path are replaced, and at most a few reports leave one page load.
+ * /api/client-errors, which logs them. Only the error class and stack frames are sent. The
+ * message is never sent, because it can hold text a learner typed or read. Ids in the path are
+ * replaced, and at most a few reports leave one page load.
  */
-import { scrubString } from '@basabridge/observability/redact';
 
 const MAX_REPORTS = 5;
 let sent = 0;
@@ -26,8 +26,8 @@ function report(kind: 'error' | 'unhandledrejection', reason: unknown, source?: 
   const err = reason instanceof Error ? reason : null;
   const body = JSON.stringify({
     kind,
-    message: scrubString(err?.message ?? String(reason ?? 'Unknown error')),
-    stack: err?.stack ? scrubString(err.stack).slice(0, 2000) : undefined,
+    errorClass: err?.name ?? 'Error',
+    stack: err?.stack?.slice(0, 3000),
     source: stripQuery(source),
     route: routeTemplate(window.location.pathname),
   });
