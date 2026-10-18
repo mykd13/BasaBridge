@@ -325,6 +325,45 @@ export function parsePlacementProgress(value: unknown): PlacementSession | null 
   return session;
 }
 
+// ---- story picker ----------------------------------------------------------------
+
+/** A calibrated, reviewed story from the placement bank (BB-48). Only what the picker needs. */
+export interface PlacementBankStory {
+  id: string;
+  level: number;
+}
+
+/**
+ * The next placement story from the bank: the unread story nearest the level `nextPlacement`
+ * asks for, within `PLACEMENT_RULE.maxStep` of the last story. A tie goes to the easier story.
+ * Returns null when the placement is done or the bank has nothing suitable left, so the caller
+ * can fail visibly instead of showing a generated story.
+ */
+export function pickPlacementStory<T extends PlacementBankStory>(
+  bank: readonly T[],
+  session: PlacementSession,
+): T | null {
+  const next = nextPlacement(session);
+  if (next.done || next.level == null) return null;
+  const target = next.level;
+  const last = session.stories[session.stories.length - 1]?.level ?? session.startLevel;
+  const read = new Set(session.stories.map((s) => s.storyId));
+  let best: T | null = null;
+  for (const story of bank) {
+    if (read.has(story.id) || Math.abs(story.level - last) > PLACEMENT_RULE.maxStep) continue;
+    if (!best || closer(story, best, target)) best = story;
+  }
+  return best;
+}
+
+function closer(a: PlacementBankStory, b: PlacementBankStory, target: number): boolean {
+  const da = Math.abs(a.level - target);
+  const db = Math.abs(b.level - target);
+  if (da !== db) return da < db;
+  if (a.level !== b.level) return a.level < b.level;
+  return a.id < b.id;
+}
+
 // ---- retake, skip and re-check ---------------------------------------------------
 
 const DAY_MS = 24 * 60 * 60 * 1000;
