@@ -6,8 +6,13 @@
  * we are sure enough. The learner starts the main course slightly below the estimate so the first
  * stories feel doable.
  */
-import type { PlacementFlag, PlacementResult, SubSkill } from '@basabridge/contracts';
-import { PLACEMENT_RULE } from '@basabridge/levels';
+import {
+  QuestionType,
+  SubSkill,
+  type PlacementFlag,
+  type PlacementResult,
+} from '@basabridge/contracts';
+import { MAX_LEVEL, MIN_LEVEL, PLACEMENT_RULE } from '@basabridge/levels';
 import {
   guessFor,
   itemDifficulty,
@@ -19,6 +24,9 @@ import {
   type ItemEvidence,
   type Posterior,
 } from './ability';
+
+/** Spread of the starting belief, before any placement story. */
+const PRIOR_SD = 1.5;
 
 export function startLevelForGrade(grade: number | null | undefined): number {
   if (grade == null) return PLACEMENT_RULE.defaultStart;
@@ -64,7 +72,7 @@ export interface PlacementState {
 
 /** Belief about ability after the stories read so far. */
 export function placementPosterior(state: PlacementState): Posterior {
-  let p = prior(levelToTheta(state.startLevel), 1.5);
+  let p = prior(levelToTheta(state.startLevel), PRIOR_SD);
   for (const story of state.stories) {
     for (const a of story.answers) {
       const e: ItemEvidence = {
@@ -87,13 +95,21 @@ export interface NextPlacement {
   sd: number;
 }
 
-/** Which story comes next, or whether the placement is finished. */
-export function nextPlacement(state: PlacementState): NextPlacement {
+/**
+ * Which story comes next, or whether the placement is finished.
+ * `maxStories` shortens the run for the re-check; it defaults to the full placement.
+ */
+export function nextPlacement(
+  state: PlacementState,
+  opts: { maxStories?: number } = {},
+): NextPlacement {
+  const maxStories = opts.maxStories ?? PLACEMENT_RULE.maxStories;
   const s = summarise(placementPosterior(state));
   const estimateLevel = thetaToLevel(s.mean);
   const count = state.stories.length;
-  const enough = count >= PLACEMENT_RULE.minStories && s.sd <= PLACEMENT_RULE.stopSd;
-  if (count >= PLACEMENT_RULE.maxStories || enough) {
+  const minStories = Math.min(PLACEMENT_RULE.minStories, maxStories);
+  const enough = count >= minStories && s.sd <= PLACEMENT_RULE.stopSd;
+  if (count >= maxStories || enough) {
     return { done: true, level: null, estimateLevel, sd: s.sd };
   }
   const last = state.stories[count - 1]?.level ?? state.startLevel;
@@ -102,7 +118,16 @@ export function nextPlacement(state: PlacementState): NextPlacement {
     last - PLACEMENT_RULE.maxStep,
     Math.min(last + PLACEMENT_RULE.maxStep, target),
   );
-  return { done: false, level: Math.max(1, Math.min(100, stepped)), estimateLevel, sd: s.sd };
+  return {
+    done: false,
+    level: Math.max(MIN_LEVEL, Math.min(MAX_LEVEL, stepped)),
+    estimateLevel,
+    sd: s.sd,
+  };
+}
+
+function recommendedHelp(level: number, lowDecoding: boolean): PlacementResult['recommendedHelp'] {
+  return level <= 20 || lowDecoding ? 'more' : 'standard';
 }
 
 /**
@@ -122,7 +147,8 @@ export function finishPlacement(state: PlacementState, opts: { voice: boolean })
   const avgRight = shares.length ? shares.reduce((a, b) => a + b, 0) / shares.length : null;
   const lowDecoding = avgRight != null && avgRight < PLACEMENT_RULE.lowDecoding;
   if (lowDecoding) flags.push('low_decoding');
-  if (state.stories.length < 3) flags.push('few_stories');
+  const storiesRead = state.stories.length;
+  if (storiesRead < 3) flags.push('few_stories');
   // Without voice we cannot be fully sure, so cap the label at 'early'.
   const confidence = !voiceUsed && s.confidence !== 'none' ? 'early' : s.confidence;
   return {
@@ -130,8 +156,224 @@ export function finishPlacement(state: PlacementState, opts: { voice: boolean })
     theta: s.mean,
     sd: s.sd,
     confidence,
-    storiesRead: state.stories.length,
+    storiesRead,
     flags,
-    recommendedHelp: level <= 20 || lowDecoding ? 'more' : 'standard',
+    recommendedHelp: recommendedHelp(level, lowDecoding),
   };
+}
+
+// ---- sessions ----------------------------------------------------------------
+
+/** `full` is a learner's placement. `recheck` is the short voice re-check after a silent one. */
+export type PlacementKind = 'full' | 'recheck';
+
+export interface PlacementStoryRead extends PlacementStory {
+  /** Placement bank story, so a story is never read twice in one placement. */
+  storyId: string;
+}
+
+/**
+ * A placement in progress. Plain JSON, stored as `placement_sessions.progress` so a paused
+ * placement resumes where it stopped.
+ */
+export interface PlacementSession extends PlacementState {
+  kind: PlacementKind;
+  /** Whether the microphone was available when the placement started. */
+  voice: boolean;
+  stories: PlacementStoryRead[];
+}
+
+/** The next step for a session: a re-check is shorter than a full placement. */
+export function nextForSession(session: PlacementSession): NextPlacement {
+  return session.kind === 'recheck' ? nextRecheck(session) : nextPlacement(session);
+}
+
+export type PlacementErrorCode = 'already_read' | 'too_far' | 'done' | 'not_done';
+
+/** A story the server must not accept. The browser never decides these. */
+export class PlacementError extends Error {
+  constructor(readonly code: PlacementErrorCode) {
+    super(`placement: ${code}`);
+    this.name = 'PlacementError';
+  }
+}
+
+export function startPlacement(opts: {
+  grade: number | null | undefined;
+  voice: boolean;
+}): PlacementSession {
+  return {
+    kind: 'full',
+    voice: opts.voice,
+    startLevel: startLevelForGrade(opts.grade),
+    stories: [],
+  };
+}
+
+/**
+ * Add one finished story: one try, no help. Rejects a story already read, one more than
+ * `PLACEMENT_RULE.maxStep` levels from the last, and any story once the placement is done.
+ */
+export function recordPlacementStory(
+  session: PlacementSession,
+  story: PlacementStoryRead,
+): PlacementSession {
+  if (nextForSession(session).done) throw new PlacementError('done');
+  if (session.stories.some((s) => s.storyId === story.storyId)) {
+    throw new PlacementError('already_read');
+  }
+  const last = session.stories[session.stories.length - 1]?.level ?? session.startLevel;
+  if (Math.abs(story.level - last) > PLACEMENT_RULE.maxStep) throw new PlacementError('too_far');
+  return { ...session, stories: [...session.stories, story] };
+}
+
+/** The result, once `nextPlacement` says the placement is done. */
+export function finishPlacementSession(session: PlacementSession): PlacementResult {
+  if (!nextForSession(session).done) throw new PlacementError('not_done');
+  return finishPlacement(session, { voice: session.voice });
+}
+
+/** What to store in `placement_sessions.progress`. */
+export function placementProgress(session: PlacementSession): PlacementSession {
+  return JSON.parse(JSON.stringify(session)) as PlacementSession;
+}
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+const isLevel = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isInteger(v) && v >= MIN_LEVEL && v <= MAX_LEVEL;
+const isShare = (v: unknown): v is number => typeof v === 'number' && v >= 0 && v <= 1;
+
+function parseAnswer(v: unknown): PlacementAnswer | null {
+  if (!isRecord(v) || typeof v.correct !== 'boolean') return null;
+  const a: PlacementAnswer = { correct: v.correct };
+  if (v.subskill !== undefined) {
+    const sub = SubSkill.safeParse(v.subskill);
+    if (!sub.success) return null;
+    a.subskill = sub.data;
+  }
+  if (v.type !== undefined) {
+    const type = QuestionType.safeParse(v.type);
+    if (!type.success) return null;
+    a.type = type.data;
+  }
+  if (v.weight !== undefined) {
+    if (!isShare(v.weight)) return null;
+    a.weight = v.weight;
+  }
+  return a;
+}
+
+function parseStory(v: unknown): PlacementStoryRead | null {
+  if (!isRecord(v) || typeof v.storyId !== 'string' || v.storyId === '') return null;
+  if (!isLevel(v.level) || !Array.isArray(v.answers)) return null;
+  const answers = v.answers.map(parseAnswer);
+  if (answers.some((a) => a === null)) return null;
+  const story: PlacementStoryRead = {
+    storyId: v.storyId,
+    level: v.level,
+    answers: answers as PlacementAnswer[],
+  };
+  if (v.wordsRightShare !== undefined) {
+    if (!isShare(v.wordsRightShare)) return null;
+    story.wordsRightShare = v.wordsRightShare;
+  }
+  return story;
+}
+
+/**
+ * Read stored progress back. Returns null when it is not a placement we could have written,
+ * so a damaged row is never resumed with made-up evidence.
+ */
+export function parsePlacementProgress(value: unknown): PlacementSession | null {
+  if (!isRecord(value)) return null;
+  if (value.kind !== 'full' && value.kind !== 'recheck') return null;
+  if (typeof value.voice !== 'boolean' || !isLevel(value.startLevel)) return null;
+  if (!Array.isArray(value.stories)) return null;
+  const stories = value.stories.map(parseStory);
+  if (stories.some((s) => s === null)) return null;
+  const read = stories as PlacementStoryRead[];
+  if (new Set(read.map((s) => s.storyId)).size !== read.length) return null;
+  const session: PlacementSession = {
+    kind: value.kind,
+    voice: value.voice,
+    startLevel: value.startLevel,
+    stories: read,
+  };
+  if (
+    read.length >
+    (session.kind === 'recheck' ? PLACEMENT_RULE.recheckStories : PLACEMENT_RULE.maxStories)
+  ) {
+    return null;
+  }
+  return session;
+}
+
+// ---- retake, skip and re-check ---------------------------------------------------
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** When a learner who finished a placement at `finishedAt` may take it again. */
+export function retakeAvailableAt(finishedAt: Date): Date {
+  return new Date(finishedAt.getTime() + PLACEMENT_RULE.retakeAfterDays * DAY_MS);
+}
+
+/** A learner who never finished a placement may take one now. */
+export function canRetakePlacement(lastFinishedAt: Date | null, now: Date): boolean {
+  return lastFinishedAt == null || now.getTime() >= retakeAvailableAt(lastFinishedAt).getTime();
+}
+
+/** A silent placement gets a short re-check once the learner's voice is approved. */
+export function needsVoiceRecheck(result: PlacementResult, voiceApproved: boolean): boolean {
+  return voiceApproved && result.flags.includes('voice_missing');
+}
+
+/**
+ * "Do this later": start at the grade default with no evidence. Placement is offered again at the
+ * next sign-in (see `placementGate`).
+ */
+export function skipPlacement(grade: number | null | undefined): PlacementResult {
+  const level = startLevelForGrade(grade);
+  return {
+    level,
+    theta: levelToTheta(level),
+    sd: PRIOR_SD,
+    confidence: PLACEMENT_RULE.skipConfidence,
+    storiesRead: 0,
+    flags: [],
+    recommendedHelp: recommendedHelp(level, false),
+  };
+}
+
+/**
+ * A short re-check once voice is approved after a silent placement. It starts at the level the
+ * silent placement gave, and its result replaces it.
+ */
+export function startRecheck(previous: PlacementResult): PlacementState {
+  // `previous.level` already sits `conservative` deviations below the estimate, and finishing the
+  // re-check lowers it again. Start from the estimate itself so the offset is applied once.
+  return { startLevel: thetaToLevel(previous.theta), stories: [] };
+}
+
+/** The re-check as a stored session, so its progress can be saved and resumed. */
+export function startRecheckSession(previous: PlacementResult): PlacementSession {
+  return { ...startRecheck(previous), kind: 'recheck', voice: true, stories: [] };
+}
+
+export function nextRecheck(state: PlacementState): NextPlacement {
+  return nextPlacement(state, { maxStories: PLACEMENT_RULE.recheckStories });
+}
+
+/**
+ * The re-check is offered once. Its result never carries `voice_missing`, even when every read was
+ * skipped, so the gate does not offer the re-check again and lock the learner out of the course.
+ */
+export function finishRecheck(state: PlacementState): PlacementResult {
+  const r = finishPlacement(state, { voice: true });
+  return { ...r, flags: r.flags.filter((f) => f !== 'voice_missing') };
+}
+
+/** A skipped placement has no stories behind it. `skipPlacement` is the only source of such a result. */
+export function isSkippedPlacement(r: PlacementResult): boolean {
+  return r.storiesRead === 0 && r.confidence === PLACEMENT_RULE.skipConfidence;
 }

@@ -172,3 +172,10 @@ describe('rule data', () => {
     }).toThrow();
   });
 });
+
+describe('placement re-check', () => {
+  it('has a positive length shorter than a full placement', () => {
+    expect(isPositiveInteger(PLACEMENT_RULE.recheckStories)).toBe(true);
+    expect(PLACEMENT_RULE.recheckStories).toBeLessThan(PLACEMENT_RULE.maxStories);
+  });
+});

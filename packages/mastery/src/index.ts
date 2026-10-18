@@ -8,6 +8,7 @@ import { MAX_LEVEL, MIN_LEVEL, PASS_RULE } from '@basabridge/levels';
 
 export * from './ability';
 export * from './placement';
+export * from './placement-gate';
 export * from './evidence';
 
 /**
