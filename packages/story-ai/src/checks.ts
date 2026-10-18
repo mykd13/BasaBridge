@@ -2,8 +2,15 @@
  * Deterministic story checks (docs/PLAN.md section 7). Owner: Jhade (BB-16).
  * Pure functions: no model calls, no learner data.
  */
-import type { StoryQuestion } from '@basabridge/contracts';
-import { tierFor } from '@basabridge/levels';
+import {
+  ChooseAllQuestion,
+  OrderEventsQuestion,
+  QuestionTags,
+  SUBSKILL_PARENT,
+  SubSkill,
+  type StoryQuestion,
+} from '@basabridge/contracts';
+import { allowsHardQuestion, tierFor } from '@basabridge/levels';
 
 export function syllables(word: string): number {
   let w = word.toLowerCase().replace(/[^a-z]/g, '');
@@ -54,7 +61,8 @@ const normalise = (s: string) =>
   s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
 
 /** Why a story or one of its questions failed. Codes are stable: tests and retry feedback use them. */
-export type StoryFailureCode = 'too_short' | 'too_long' | 'too_hard' | 'too_few_questions';
+export type StoryFailureCode =
+  'too_short' | 'too_long' | 'too_hard' | 'too_few_questions' | 'no_hard_question';
 
 export type QuestionFailureCode =
   | 'bad_shape'
@@ -63,7 +71,14 @@ export type QuestionFailureCode =
   | 'evidence_missing'
   | 'evidence_not_sentence'
   | 'vocab_word_missing'
-  | 'duplicate_question';
+  | 'duplicate_question'
+  | 'missing_tags'
+  | 'bad_subskill'
+  | 'subskill_mismatch'
+  | 'bad_distractors'
+  | 'type_not_allowed'
+  | 'bad_choose_all_answers'
+  | 'events_not_distinct';
 
 export type CheckFailureCode = StoryFailureCode | QuestionFailureCode;
 
@@ -80,23 +95,53 @@ export type CheckResult =
       ok: true;
       words: number;
       readingGrade: number;
+      /** Multiple-choice questions that passed. */
       questions: StoryQuestion[];
+      /** Tags for each entry in `questions`, same order. null when the question had none. */
+      tags: (QuestionTags | null)[];
+      /** Choose-all and order-the-events questions that passed. */
+      hardQuestions: HardQuestion[];
       /** Questions that were left out. The story still passed. */
       dropped: CheckFailure[];
     }
   | { ok: false; failures: CheckFailure[] };
 
+export type HardQuestion = ChooseAllQuestion | OrderEventsQuestion;
+
 /** Raw question as returned by a model, before any trust. */
 export interface RawQuestion {
+  /** multiple_choice when absent. */
+  type?: unknown;
   skill?: unknown;
   word?: unknown;
   question?: unknown;
   options?: unknown;
   answerIndex?: unknown;
   evidence?: unknown;
+  subskill?: unknown;
+  distractors?: unknown;
+  /** choose_all only. */
+  answerIndexes?: unknown;
+  /** order_events only, in the correct order. */
+  events?: unknown;
 }
 
-/** A story needs at least this many valid questions to be shown. */
+/**
+ * Rules that depend on the prompt asking for them. Both stay off until the story prompt produces
+ * tags (BB-43) and hard question types (BB-44), so turning them on is one change in the caller.
+ * Tags and hard questions that are present are always checked.
+ */
+export interface CheckOptions {
+  /** Every multiple-choice question must carry a sub-skill and distractor tags. */
+  requireTags?: boolean;
+  /** From the level in `QUESTION_RULE`, at least one choose-all or order-the-events question. */
+  requireHardQuestion?: boolean;
+}
+
+/**
+ * A story needs at least this many valid multiple-choice questions to be shown. Hard question types
+ * do not count yet, because the `Story` contract holds only multiple-choice questions.
+ */
 export const MIN_QUESTIONS = 4;
 
 const OPTION_COUNT = 4;
@@ -137,12 +182,61 @@ function containsWord(normalisedPassage: string, word: string): boolean {
 }
 
 /**
+ * Checks the optional tags on a multiple-choice question: a known sub-skill whose parent is the
+ * question's skill, and one distractor entry per option with exactly one null, at the answer.
+ * Returns the tags, null when the question has none, or the failure.
+ */
+function checkTags(
+  q: RawQuestion,
+  skill: StoryQuestion['skill'],
+  answerIndex: number,
+  requireTags: boolean,
+): { tags: QuestionTags | null } | { code: QuestionFailureCode; message: string } {
+  if (q.subskill === undefined && q.distractors === undefined) {
+    if (requireTags) {
+      return { code: 'missing_tags', message: 'The question has no sub-skill or distractor tags.' };
+    }
+    return { tags: null };
+  }
+  const subskill = SubSkill.safeParse(q.subskill);
+  if (!subskill.success) {
+    return { code: 'bad_subskill', message: 'The sub-skill is not one of the allowed values.' };
+  }
+  if (SUBSKILL_PARENT[subskill.data] !== skill) {
+    return {
+      code: 'subskill_mismatch',
+      message: 'The sub-skill does not match the question skill.',
+    };
+  }
+  const distractors = QuestionTags.shape.distractors.safeParse(q.distractors);
+  const valid =
+    distractors.success &&
+    distractors.data.filter((d) => d === null).length === 1 &&
+    distractors.data[answerIndex] === null;
+  if (!valid) {
+    return {
+      code: 'bad_distractors',
+      message:
+        'The distractor tags need one entry per option, with null only for the correct option.',
+    };
+  }
+  return { tags: { subskill: subskill.data, distractors: distractors.data } };
+}
+
+/**
  * Deterministic checks on a generated story: length range, reading grade cap, valid questions,
  * distinct options, evidence is a whole sentence (or adjacent sentences) of the passage,
- * vocabulary word present on word boundaries, no repeated questions.
- * At least four valid questions must remain. Every failure is reported, not just the first.
+ * vocabulary word present on word boundaries, no repeated questions, question tags, and the rules
+ * for choose-all and order-the-events questions.
+ * At least four valid multiple-choice questions must remain. Every failure is reported, not just
+ * the first.
  */
-export function checkStory(text: string, rawQuestions: RawQuestion[], level: number): CheckResult {
+export function checkStory(
+  text: string,
+  rawQuestions: RawQuestion[],
+  level: number,
+  options: CheckOptions = {},
+): CheckResult {
   const tier = tierFor(level);
   const passage = text.trim();
   const failures: CheckFailure[] = [];
@@ -164,60 +258,147 @@ export function checkStory(text: string, rawQuestions: RawQuestion[], level: num
 
   const np = normalise(passage);
   const sentences = splitSentences(passage).map(normalise);
+  const hardAllowed = allowsHardQuestion(level);
   const seenQuestions = new Set<string>();
   const kept: StoryQuestion[] = [];
+  const tags: (QuestionTags | null)[] = [];
+  const hardQuestions: HardQuestion[] = [];
   const dropped: CheckFailure[] = [];
+
   rawQuestions.forEach((q, index) => {
     const fail = (code: QuestionFailureCode, message: string) =>
       dropped.push({ code, message, questionIndex: index });
-    const options = q.options;
-    const skill = q.skill;
-    const shapeOk =
-      (skill === 'vocabulary' || skill === 'literal' || skill === 'inferential') &&
-      isNonEmptyString(q.question) &&
-      Array.isArray(options) &&
-      options.length === OPTION_COUNT &&
-      options.every(isNonEmptyString) &&
-      Number.isInteger(q.answerIndex) &&
-      typeof q.evidence === 'string' &&
-      (skill !== 'vocabulary' || isNonEmptyString(q.word));
-    if (!shapeOk) {
+    const badShape = () =>
       fail('bad_shape', 'The question is missing a field or has the wrong number of options.');
+    const type = q.type ?? 'multiple_choice';
+    if (type !== 'multiple_choice' && type !== 'choose_all' && type !== 'order_events') {
+      badShape();
       return;
     }
+    if (type !== 'multiple_choice' && !hardAllowed) {
+      fail('type_not_allowed', 'Stories at this level use multiple-choice questions only.');
+      return;
+    }
+    const question = q.question;
+    const evidence = q.evidence;
+    if (!isNonEmptyString(question) || typeof evidence !== 'string') {
+      badShape();
+      return;
+    }
+    const events = OrderEventsQuestion.shape.events.safeParse(q.events);
+    const chooseOptions = ChooseAllQuestion.shape.options.safeParse(q.options);
+    const chooseAnswers = ChooseAllQuestion.shape.answerIndexes.safeParse(q.answerIndexes);
+    const opts = q.options;
+    const skill = q.skill;
+    const shapeOk =
+      type === 'order_events'
+        ? events.success
+        : type === 'choose_all'
+          ? chooseOptions.success && chooseAnswers.success
+          : (skill === 'vocabulary' || skill === 'literal' || skill === 'inferential') &&
+            Array.isArray(opts) &&
+            opts.length === OPTION_COUNT &&
+            opts.every(isNonEmptyString) &&
+            Number.isInteger(q.answerIndex) &&
+            (skill !== 'vocabulary' || isNonEmptyString(q.word));
+    if (!shapeOk) {
+      badShape();
+      return;
+    }
+
     const before = dropped.length;
-    const questionKey = normalise(q.question as string);
+    const questionKey = normalise(question);
     if (seenQuestions.has(questionKey)) {
       fail('duplicate_question', 'The question repeats an earlier question.');
     }
     seenQuestions.add(questionKey);
-    const opts = options as string[];
-    if (new Set(opts.map(normalise)).size !== OPTION_COUNT) {
+    const checkEvidence = () => {
+      const evidenceMatch = matchEvidence(sentences, np, evidence);
+      if (evidenceMatch === 'missing') {
+        fail('evidence_missing', 'The evidence is not in the passage word for word.');
+      } else if (evidenceMatch === 'not_sentence') {
+        fail('evidence_not_sentence', 'The evidence must be a whole sentence from the passage.');
+      }
+    };
+
+    if (type === 'order_events' && events.success) {
+      if (q.subskill !== 'sequence') {
+        fail('subskill_mismatch', 'An order-the-events question must have the sequence sub-skill.');
+      }
+      if (new Set(events.data.map(normalise)).size !== events.data.length) {
+        fail('events_not_distinct', 'The events repeat, so there is more than one right order.');
+      }
+      checkEvidence();
+      if (dropped.length > before) return;
+      hardQuestions.push({
+        type: 'order_events',
+        subskill: 'sequence',
+        question: question.trim(),
+        events: events.data.map((e) => e.trim()),
+        evidence: evidence.trim(),
+      });
+      return;
+    }
+
+    if (type === 'choose_all' && chooseOptions.success && chooseAnswers.success) {
+      const choices = chooseOptions.data;
+      const answers = chooseAnswers.data;
+      const subskill = SubSkill.safeParse(q.subskill);
+      if (!subskill.success) {
+        fail('bad_subskill', 'The sub-skill is not one of the allowed values.');
+      }
+      if (new Set(choices.map(normalise)).size !== choices.length) {
+        fail('options_not_distinct', 'The question has options that repeat.');
+      }
+      if (answers.some((a) => a >= choices.length)) {
+        fail('answer_out_of_range', 'An answer does not point at one of the options.');
+      } else if (new Set(answers).size !== answers.length || answers.length === choices.length) {
+        fail(
+          'bad_choose_all_answers',
+          'The answers must not repeat, and at least one option must be wrong.',
+        );
+      }
+      checkEvidence();
+      if (dropped.length > before || !subskill.success) return;
+      hardQuestions.push({
+        type: 'choose_all',
+        subskill: subskill.data,
+        question: question.trim(),
+        options: choices.map((o) => o.trim()),
+        answerIndexes: [...answers].sort((a, b) => a - b),
+        evidence: evidence.trim(),
+      });
+      return;
+    }
+
+    const mcOptions = opts as string[];
+    const mcSkill = skill as StoryQuestion['skill'];
+    if (new Set(mcOptions.map(normalise)).size !== OPTION_COUNT) {
       fail('options_not_distinct', 'The question has options that repeat.');
     }
     const answerIndex = q.answerIndex as number;
-    if (answerIndex < 0 || answerIndex >= OPTION_COUNT) {
+    const answerOk = answerIndex >= 0 && answerIndex < OPTION_COUNT;
+    if (!answerOk) {
       fail('answer_out_of_range', 'The answer does not point at one of the options.');
     }
-    const evidence = q.evidence as string;
-    const evidenceMatch = matchEvidence(sentences, np, evidence);
-    if (evidenceMatch === 'missing') {
-      fail('evidence_missing', 'The evidence is not in the passage word for word.');
-    } else if (evidenceMatch === 'not_sentence') {
-      fail('evidence_not_sentence', 'The evidence must be a whole sentence from the passage.');
-    }
-    if (skill === 'vocabulary' && !containsWord(np, String(q.word))) {
+    checkEvidence();
+    if (mcSkill === 'vocabulary' && !containsWord(np, String(q.word))) {
       fail('vocab_word_missing', 'The vocabulary word is not in the passage.');
     }
-    if (dropped.length > before) return;
+    const tagged = answerOk
+      ? checkTags(q, mcSkill, answerIndex, options.requireTags === true)
+      : null;
+    if (tagged && 'code' in tagged) fail(tagged.code, tagged.message);
+    if (dropped.length > before || !tagged || 'code' in tagged) return;
     kept.push({
-      skill: skill as StoryQuestion['skill'],
-      word: skill === 'vocabulary' ? String(q.word).trim() : null,
-      question: (q.question as string).trim(),
-      options: opts.map((o) => o.trim()),
+      skill: mcSkill,
+      word: mcSkill === 'vocabulary' ? String(q.word).trim() : null,
+      question: question.trim(),
+      options: mcOptions.map((o) => o.trim()),
       answerIndex,
       evidence: evidence.trim(),
     });
+    tags.push(tagged.tags);
   });
 
   if (kept.length < MIN_QUESTIONS) {
@@ -226,6 +407,12 @@ export function checkStory(text: string, rawQuestions: RawQuestion[], level: num
       message: `Only ${kept.length} valid questions; need at least ${MIN_QUESTIONS}.`,
     });
   }
+  if (options.requireHardQuestion && hardAllowed && hardQuestions.length === 0) {
+    failures.push({
+      code: 'no_hard_question',
+      message: 'Stories at this level need at least one choose-all or order-the-events question.',
+    });
+  }
   if (failures.length > 0) return { ok: false, failures: [...failures, ...dropped] };
-  return { ok: true, words, readingGrade: grade, questions: kept, dropped };
+  return { ok: true, words, readingGrade: grade, questions: kept, tags, hardQuestions, dropped };
 }
