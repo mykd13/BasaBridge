@@ -16,11 +16,14 @@
     "test": "turbo run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "i18n:audio": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/export-fixed-sentences.ts",
+    "i18n:unreviewed": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/list-unreviewed-filipino.ts",
     "prepare": "git config core.hooksPath .githooks || true"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.12.0",
+    "eslint-plugin-i18next": "6.1.5",
     "prettier": "^3.9.10",
     "turbo": "^2.11.8",
     "typescript": "^6.0.3",
