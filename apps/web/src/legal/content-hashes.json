@@ -1,0 +1,14 @@
+{
+  "privacy": {
+    "version": 1,
+    "sha256": "47ead941e174c53e2b0a026eb857ae4b8b459a12f5e369d725648a21a92a6d7e"
+  },
+  "terms": {
+    "version": 1,
+    "sha256": "550884126f2b31e9ed9776b206e75c8fecbc2151893799becc9d9359f7af4586"
+  },
+  "kidsSummary": {
+    "version": 1,
+    "sha256": "9a94bdb742a186931ae74086300f87e2f3d31ecacd15de8d61c5b7867e926a89"
+  }
+}
