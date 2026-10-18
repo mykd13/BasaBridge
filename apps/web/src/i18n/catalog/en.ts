@@ -173,6 +173,27 @@ export const en = {
       action: { standard: 'Go to sign in' },
     },
   },
+  browser: {
+    unsupported: {
+      title: { standard: 'This browser may not work well', simple: 'This browser may not work' },
+      body: {
+        standard:
+          'Reading out loud needs a newer browser. You can still sign in. For the best result, use the latest Chrome, Edge, Samsung Internet or Firefox, or Safari 16.4 or newer.',
+        simple: 'Use a newer browser to read out loud. You can still sign in.',
+      },
+    },
+  },
+  loading: {
+    page: { standard: 'Loading', lowLevel: true },
+  },
+  idle: {
+    title: { standard: 'Are you still there?', simple: 'Are you still there?' },
+    body: {
+      standard: 'You will be signed out soon to keep your account safe.',
+      simple: 'We will log you out soon.',
+    },
+    stay: { standard: 'Stay signed in', simple: 'Stay logged in', lowLevel: true },
+  },
   screens: {
     signIn: { standard: 'Sign in' },
     signUp: { standard: 'Create an account', simple: 'Make an account' },

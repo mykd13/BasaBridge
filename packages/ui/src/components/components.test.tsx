@@ -268,3 +268,19 @@ describe('stylesheet', () => {
     expect(css.slice(start)).toContain('animation: none');
   });
 });
+
+describe('small phones (BB-71)', () => {
+  const css = readFileSync(new URL('../components.css', import.meta.url), 'utf8');
+
+  it('sets a 360px minimum width', () => {
+    expect(css).toMatch(/html\s*{\s*min-inline-size:\s*360px;/);
+  });
+
+  it.each(['.bb-btn', '.bb-option', '.bb-tabs__tab'])(
+    'gives %s a 48px minimum height',
+    (selector) => {
+      const rule = css.match(/([^{}]+){\s*min-block-size:\s*48px;\s*}/)?.[1] ?? '';
+      expect(rule).toContain(selector);
+    },
+  );
+});

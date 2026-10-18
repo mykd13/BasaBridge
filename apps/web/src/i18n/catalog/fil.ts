@@ -222,6 +222,39 @@ export const fil = {
       action: { standard: 'Pumunta sa sign in', reviewed: false },
     },
   },
+  browser: {
+    unsupported: {
+      title: {
+        standard: 'Maaaring hindi gumana nang maayos ang browser na ito',
+        simple: 'Maaaring hindi gumana ang browser na ito',
+        reviewed: false,
+      },
+      body: {
+        standard:
+          'Kailangan ng mas bagong browser sa pagbasa nang malakas. Maaari ka pa ring mag-sign in. Para sa pinakamagandang resulta, gamitin ang pinakabagong Chrome, Edge, Samsung Internet o Firefox, o Safari 16.4 pataas.',
+        simple:
+          'Gumamit ng mas bagong browser para magbasa nang malakas. Maaari ka pa ring mag-sign in.',
+        reviewed: false,
+      },
+    },
+  },
+  loading: {
+    page: { standard: 'Naglo-load', lowLevel: true, reviewed: false },
+  },
+  idle: {
+    title: { standard: 'Nandiyan ka pa ba?', simple: 'Nandiyan ka pa ba?', reviewed: false },
+    body: {
+      standard: 'Malapit ka nang i-sign out para manatiling ligtas ang iyong account.',
+      simple: 'Malapit ka nang i-log out.',
+      reviewed: false,
+    },
+    stay: {
+      standard: 'Manatiling naka-sign in',
+      simple: 'Manatiling naka-log in',
+      lowLevel: true,
+      reviewed: false,
+    },
+  },
   screens: {
     signIn: { standard: 'Mag-sign in', reviewed: false },
     signUp: { standard: 'Gumawa ng account', simple: 'Mag-sign up', reviewed: false },

@@ -40,6 +40,9 @@
 }
 
 .bb-shell__switch {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 48px;
   color: var(--accent);
   font-weight: 700;
 }
@@ -97,4 +100,19 @@
   .bb-shell__main {
     padding: 2rem 1rem;
   }
+}
+
+/* Notices from BB-71. Neither one blocks the page. */
+.bb-unsupported {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 0.75rem 1rem 0;
+}
+.bb-idle {
+  position: fixed;
+  inset-inline: 1rem;
+  bottom: 1rem;
+  z-index: 20;
+  max-width: 30rem;
+  margin-inline: auto;
 }
