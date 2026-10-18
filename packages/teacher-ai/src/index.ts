@@ -2,89 +2,152 @@
  * Teacher notes written by the AI from facts that code has already worked out
  * (docs/PLAN.md section 7). Owner: Jhade (BB-20, BB-28).
  * Names, usernames and audio are never sent to the model.
- * Seed: the standard fallback activities and the output validator.
  */
-import type { ComprehensionSkill, HomeActivity } from '@basabridge/contracts';
+import { Decision } from '@basabridge/contracts';
+import { gapsFromMisses, type Lesson, recommend } from '@basabridge/learn';
+import { checkNotes } from './checks';
+import { notesModelFromEnv, type NotesModel } from './model';
+import { buildNotesPrompt, notesFacts } from './prompt';
+import {
+  type FallbackReason,
+  type LessonLink,
+  type NotesFacts,
+  NotesInput,
+  type NotesSource,
+  type TeacherNotes,
+} from './schema';
+import {
+  standardActivity,
+  standardChildMessage,
+  standardWhatHappened,
+  standardWhyFocus,
+} from './standard';
+import { type NotesStyle, say } from './wording';
 
-/** Used whenever the AI call fails or returns something that does not validate. */
-export const STANDARD_ACTIVITIES: Record<ComprehensionSkill, HomeActivity> = {
-  vocabulary: {
-    title: 'Word detective',
-    minutes: 5,
-    steps: [
-      'Pick three words from the story that felt tricky.',
-      'Ask: "What do you think it means? Which words nearby help you?"',
-      'Use each word in a new sentence about your day.',
-    ],
-    tip: 'Say the meaning in your own words before you reach for a dictionary.',
+export * from './checks';
+export * from './model';
+export * from './prompt';
+export * from './schema';
+export * from './standard';
+export * from './wording';
+
+function isTimeout(error: unknown): boolean {
+  const name = (error as { name?: unknown } | null)?.name;
+  return name === 'TimeoutError' || name === 'AbortError';
+}
+
+export interface WriteNotesOptions extends NotesStyle {
+  /** Defaults to the model named in NOTES_MODEL. null means use standard wording. */
+  model?: NotesModel | null;
+  /** The Learn lesson registry (BB-53). Only reviewed lessons are linked. */
+  lessons?: Lesson[];
+}
+
+/**
+ * The lesson for the learner's main gap, chosen by code from missed questions and tricky words.
+ * The model never picks or writes the link.
+ */
+export function lessonFor(f: NotesFacts, lessons: Lesson[]): LessonLink | null {
+  const gaps = gapsFromMisses({
+    misses: f.missed.map((m) => ({ subskill: m.subskill, distractor: m.distractor })),
+    flaggedWords: f.flaggedWords,
+    wordsRightShare:
+      f.wordsRight != null && f.wordsTotal != null ? f.wordsRight / f.wordsTotal : undefined,
+  });
+  const lesson = recommend(gaps, f.levelAfter, lessons, 1)[0];
+  return lesson ? { id: lesson.id, title: lesson.title } : null;
+}
+
+export function standardNotes(
+  f: NotesFacts,
+  lesson: LessonLink | null,
+  fallbackReason: FallbackReason,
+  style: NotesStyle = {},
+): TeacherNotes {
+  return {
+    childMessage: standardChildMessage(f, style),
+    whatHappened: standardWhatHappened(f, style),
+    whyFocus: standardWhyFocus(f, style),
+    homeActivity: standardActivity(f.focus, style),
+    lesson,
     source: 'standard',
-  },
-  literal: {
-    title: 'Find it in the text',
-    minutes: 5,
-    steps: [
-      'Reread one paragraph of the story together.',
-      'Ask a who, what or where question about it.',
-      'Have your child point to the exact words that answer it.',
-    ],
-    tip: 'Pointing at the words trains the habit of checking the text.',
-    source: 'standard',
-  },
-  inferential: {
-    title: 'Clue hunt',
-    minutes: 7,
-    steps: [
-      'Read two or three sentences together.',
-      'Ask: "What is not said, but you can tell?"',
-      'Ask: "Which words gave you that clue?" and find them.',
-    ],
-    tip: 'There is no single right answer if the child can name a clue from the text.',
-    source: 'standard',
-  },
+    fallbackReason,
+  };
+}
+
+/** How parents see where the wording came from. The AI label matches the parent screens. */
+export const NOTE_SOURCE_LABEL: Record<NotesSource, string> = {
+  ai: say('notes.source.ai'),
+  standard: say('notes.source.standard'),
 };
 
-export function standardActivity(focus: ComprehensionSkill | null): HomeActivity {
-  return STANDARD_ACTIVITIES[focus ?? 'literal'];
+/**
+ * The `decisions` row for a set of notes, so every note is stored with its source and the facts
+ * it was written from. The caller saves it with the learner id through the authorization layer.
+ */
+export function notesDecision(
+  notes: TeacherNotes,
+  input: NotesInput,
+  style: NotesStyle = {},
+): Decision {
+  const label = say(`notes.source.${notes.source}`, {}, { ...style, wording: 'standard' });
+  return Decision.parse({
+    kind: 'plan',
+    title: label,
+    summary: `${label}. ${say(
+      input.focus == null ? 'notes.decision.noFocus' : 'notes.decision.rule',
+      {},
+      { ...style, wording: 'standard' },
+    )}`,
+    evidence: {
+      source: notes.source,
+      fallbackReason: notes.fallbackReason,
+      facts: notesFacts(input),
+      notes: {
+        childMessage: notes.childMessage,
+        whatHappened: notes.whatHappened,
+        whyFocus: notes.whyFocus,
+        homeActivity: notes.homeActivity,
+      },
+      lessonId: notes.lesson?.id ?? null,
+    },
+  });
 }
 
-export interface TeacherNotes {
-  childMessage: string;
-  whatHappened: string;
-  whyFocus: string;
-  homeActivity: HomeActivity;
-  source: 'ai' | 'rule';
-}
+/**
+ * Ask the model for notes, check shape, length and tone, and fall back to standard wording on any
+ * failure. Never throws for a model problem; the caller always gets notes it can show.
+ */
+export async function writeNotes(
+  input: NotesInput,
+  options: WriteNotesOptions = {},
+): Promise<TeacherNotes> {
+  const facts = NotesInput.parse(input);
+  const lesson = lessonFor(facts, options.lessons ?? []);
+  const style: NotesStyle = { lang: options.lang, wording: options.wording };
+  const model = options.model === undefined ? notesModelFromEnv() : options.model;
+  if (!model) return standardNotes(facts, lesson, 'not_configured', style);
 
-const within = (v: unknown, max: number): v is string =>
-  typeof v === 'string' && v.trim() !== '' && v.length <= max;
+  // Built outside the try so a bug in the prompt is not mistaken for a model failure.
+  const prompt = buildNotesPrompt(facts, style);
+  let raw: unknown;
+  try {
+    raw = await model(prompt);
+  } catch (error) {
+    // Nothing is logged here: the error can echo the prompt back.
+    return standardNotes(facts, lesson, isTimeout(error) ? 'timeout' : 'call_failed', style);
+  }
 
-/** Shape and length check for model output. Anything that fails falls back to standard wording. */
-export function isValidNotes(p: unknown): boolean {
-  const n = p as Record<string, unknown> | null;
-  const h = (n?.homeActivity ?? null) as Record<string, unknown> | null;
-  return (
-    !!n &&
-    within(n.childMessage, 320) &&
-    within(n.whatHappened, 500) &&
-    within(n.whyFocus, 320) &&
-    !!h &&
-    within(h.title, 60) &&
-    Array.isArray(h.steps) &&
-    h.steps.length >= 2 &&
-    h.steps.length <= 4 &&
-    h.steps.every((s) => within(s, 240)) &&
-    within(h.tip, 240)
-  );
-}
-
-export interface NotesInput {
-  /** Counts and missed questions only. No names. */
-  focus: ComprehensionSkill | null;
-  correct: number;
-  total: number;
-}
-
-/** Implemented in BB-20: call the model, validate with isValidNotes, fall back to standard wording. */
-export async function writeNotes(_input: NotesInput): Promise<TeacherNotes> {
-  throw new Error('writeNotes is not implemented yet (BB-20)');
+  const checked = checkNotes(raw, facts);
+  if (!checked.ok) return standardNotes(facts, lesson, checked.reason, style);
+  const n = checked.notes;
+  return {
+    childMessage: n.childMessage,
+    whatHappened: n.whatHappened,
+    whyFocus: n.whyFocus,
+    homeActivity: { ...n.homeActivity, source: 'ai' },
+    lesson,
+    source: 'ai',
+    fallbackReason: null,
+  };
 }
