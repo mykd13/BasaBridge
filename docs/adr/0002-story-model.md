@@ -21,7 +21,12 @@ The team chose Gemini for story generation. Going through the AI Gateway keeps t
 - Cost per story and per learner is tracked from day one (BB-39), because pre-generating a story bank (BB-18) is what keeps latency and cost down.
 - Reading-grade caps in `packages/levels` were tuned against the Flesch-Kincaid measure, not against Gemini output. BB-16 and BB-21 must check that Gemini can actually hit each tier's range, and tune the prompt or the caps.
 
+## Model names
+
+- **Story model (BB-15): `google/gemini-3.8-flash`.** Picked on 2026-10-18 from the public AI Gateway model list (`https://ai-gateway.vercel.sh/v1/models`). It is the newest general Flash model there. Price at that date: $0.75 per million input tokens and $3.75 per million output tokens. Set it as `STORY_MODEL`. It is not written in code.
+- Not yet checked against real output: whether it hits every tier's word range and reading-grade cap. That needs a gateway key and is part of the BB-15 manual check and BB-21.
+
 ## Open
 
-- Exact model names for each role. Pick them from the AI Gateway model list when BB-15 starts and record them here.
+- The verifier model (BB-17). It must be larger than the story model. Pick it when BB-17 is wired to the gateway and record it here.
 - Whether the teacher notes model (BB-20) should also be Gemini.
