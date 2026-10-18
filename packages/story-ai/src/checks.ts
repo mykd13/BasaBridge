@@ -50,7 +50,8 @@ export function countWords(text: string): number {
   return (text.match(/[A-Za-z']+/g) ?? []).length;
 }
 
-const normalise = (s: string) =>
+/** Lowercase, straight quotes, single spaces. Shared with the eval gold-set checks. */
+export const normalise = (s: string) =>
   s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
 
 /** Why a story or one of its questions failed. Codes are stable: tests and retry feedback use them. */
