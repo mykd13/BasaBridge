@@ -13,6 +13,7 @@ import {
   nextRecheck,
   placementVoiceMode,
   startLevelForGrade,
+  startRecheck,
   type MicrophoneState,
   type PlacementState,
 } from './placement';
@@ -87,7 +88,8 @@ export function placementGate(s: PlacementSnapshot): PlacementGate {
       return { kind: 'open', offerPlacement: s.newSignIn, retakeAllowed: true };
     case 'finished': {
       if (latest.result.flags.includes('voice_missing') && s.mic === 'granted') {
-        return { kind: 'recheck', startLevel: latest.result.level };
+        // Same start as the engine uses, so the gate and the re-check agree on the first story.
+        return { kind: 'recheck', startLevel: startRecheck(latest.result).startLevel };
       }
       const days = (s.now.getTime() - latest.finishedAt.getTime()) / DAY_MS;
       return {

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { PlacementResult } from '@basabridge/contracts';
 import { PLACEMENT_RULE } from '@basabridge/levels';
-import { finishPlacement, nextPlacement, skipPlacement, startLevelForGrade } from './placement';
+import {
+  finishPlacement,
+  finishRecheck,
+  nextPlacement,
+  nextRecheck,
+  skipPlacement,
+  startLevelForGrade,
+  startRecheck,
+} from './placement';
 import {
   learnOffersAllowed,
   mainCourseLocked,
@@ -103,8 +111,20 @@ describe('under 13 without guardian approval', () => {
   it('runs a short re-check once voice is approved', () => {
     expect(silent.flags).toContain('voice_missing');
     const gate = placementGate(snapshot({ latest: finished(silent, 1, false), mic: 'granted' }));
-    expect(gate).toEqual({ kind: 'recheck', startLevel: silent.level });
+    expect(gate).toEqual({ kind: 'recheck', startLevel: startRecheck(silent).startLevel });
     expect(mainCourseLocked(gate)).toBe(true);
+  });
+
+  it('offers the re-check once, even when every re-check read was skipped', () => {
+    const state = startRecheck(silent);
+    for (let i = 0; i < PLACEMENT_RULE.recheckStories; i++) {
+      state.stories.push({ level: nextRecheck(state).level!, answers: [{ correct: true }] });
+    }
+    const gate = placementGate(
+      snapshot({ latest: finished(finishRecheck(state), 0, true), mic: 'granted' }),
+    );
+    expect(gate.kind).toBe('open');
+    expect(mainCourseLocked(gate)).toBe(false);
   });
 
   it('never re-checks a placement that had voice', () => {
