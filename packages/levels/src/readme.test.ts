@@ -1,11 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { TIERS } from './index';
+import { EVIDENCE_RULE, LISTEN_THEN_READ, PASS_RULE, PLACEMENT_RULE, TIERS } from './index';
 
 const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
 
-/** Table rows whose first cell is a level range like "1 to 10". Header and divider rows are skipped. */
-const rows = readme
+const tableRows = readme
   .split(/\r?\n/)
   .filter((line) => line.startsWith('|'))
   .map((line) =>
@@ -13,8 +12,38 @@ const rows = readme
       .split('|')
       .slice(1, -1)
       .map((cell) => cell.trim()),
-  )
-  .filter((cells) => /^\d+ to \d+$/.test(cells[0] ?? ''));
+  );
+
+/** Tier table rows: the first cell is a level range like "1 to 10". Header and divider rows are skipped. */
+const rows = tableRows.filter((cells) => /^\d+ to \d+$/.test(cells[0] ?? ''));
+
+const RULES: Record<string, unknown> = {
+  PASS_RULE,
+  EVIDENCE_RULE,
+  PLACEMENT_RULE,
+  LISTEN_THEN_READ,
+};
+
+/** Every number in the rule objects, keyed by its path, such as `EVIDENCE_RULE.up.minItems`. */
+function leaves(value: unknown, path: string, out: Map<string, number>) {
+  if (typeof value === 'number') out.set(path, value);
+  else if (value !== null && typeof value === 'object') {
+    for (const [key, inner] of Object.entries(value)) leaves(inner, `${path}.${key}`, out);
+  }
+  return out;
+}
+
+const ruleValues = new Map<string, number>();
+for (const [name, rule] of Object.entries(RULES)) leaves(rule, name, ruleValues);
+
+/** Rule table rows: the first cell is a path in backticks. The value may be a fraction like 1/24. */
+const ruleRows = tableRows
+  .map((cells) => ({ path: /^`([A-Z_]+(?:\.\w+)+)`$/.exec(cells[0] ?? '')?.[1], value: cells[1] }))
+  .filter((r): r is { path: string; value: string | undefined } => r.path !== undefined)
+  .map(({ path, value }) => {
+    const [a, b] = (value ?? '').split('/').map(Number);
+    return { path, value: b === undefined ? a : a! / b };
+  });
 
 function range(cell: string | undefined) {
   const [a, b] = (cell ?? '').split(' to ').map(Number);
@@ -39,5 +68,19 @@ describe('README tier table', () => {
       );
       expect(cells[4], `description, row ${i + 1}`).toBe(tier.description);
     });
+  });
+});
+
+describe('README rule values table', () => {
+  it('lists every number in the rules, once each', () => {
+    const paths = ruleRows.map((r) => r.path);
+    expect(new Set(paths).size, 'no duplicate rows').toBe(paths.length);
+    expect([...paths].sort()).toEqual([...ruleValues.keys()].sort());
+  });
+
+  it('matches the numbers in the rules', () => {
+    for (const { path, value } of ruleRows) {
+      expect(value, path).toBeCloseTo(ruleValues.get(path)!, 10);
+    }
   });
 });
