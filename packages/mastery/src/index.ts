@@ -10,6 +10,7 @@ export * from './ability';
 export * from './placement';
 export * from './evidence';
 export * from './retell';
+export * from './retell-agreement';
 
 /**
  * The simple estimate and level rule below are the first seed. The ability model in `ability.ts`

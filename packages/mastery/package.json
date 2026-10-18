@@ -11,6 +11,7 @@
     "@basabridge/levels": "workspace:*"
   },
   "scripts": {
+    "retell:agreement": "node scripts/retell-agreement.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests"
   }
