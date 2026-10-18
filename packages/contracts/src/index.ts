@@ -159,8 +159,27 @@ export const ReadingHelp = z.object({
   language: z.enum(['en', 'fil']).default('en'),
   /** Use the shorter, simpler instruction wording. */
   simpleWords: z.boolean().default(false),
+  /** Hear the story read slowly before a try. Offered at the lowest levels only; the rule lives in packages/levels. */
+  listenThenRead: z.boolean().default(true),
 });
 export type ReadingHelp = z.infer<typeof ReadingHelp>;
+
+/** Story audio made once per story, with a start and end time for each word, in seconds. */
+export const StoryAudio = z.object({
+  /** CDN address of the audio file. */
+  url: z.string().url(),
+  durationSec: z.number().positive(),
+  words: z
+    .array(
+      z.object({
+        word: z.string().min(1),
+        startSec: z.number().nonnegative(),
+        endSec: z.number().nonnegative(),
+      }),
+    )
+    .min(1),
+});
+export type StoryAudio = z.infer<typeof StoryAudio>;
 
 export const READING_HELP_PRESETS = {
   standard: ReadingHelp.parse({}),
@@ -198,7 +217,23 @@ export const WordResult = z.object({
 });
 export type WordResult = z.infer<typeof WordResult>;
 
+/** Conditions detected during a try (BB-70). Affected words are flagged low confidence, not errors. */
+export const TryCondition = z.enum(['overlapping_voices', 'background_speech', 'low_volume']);
+export type TryCondition = z.infer<typeof TryCondition>;
+
+/** `needs_review` tries are not used for level movement until someone confirms them. */
+export const TryReview = z.enum(['none', 'needs_review', 'confirmed']);
+export type TryReview = z.infer<typeof TryReview>;
+
+export const TryChecks = z.object({
+  conditions: z.array(TryCondition),
+  review: TryReview,
+});
+export type TryChecks = z.infer<typeof TryChecks>;
+
 export const TryAnalysis = z.object({
+  /** Absent on tries analysed before the environment checks existed. */
+  checks: TryChecks.optional(),
   completed: z.boolean(),
   /** Index of the last expected word reached. */
   lastWordIndex: z.number().int().min(-1),
