@@ -1,0 +1,773 @@
+/*
+ * Component styles for @basabridge/ui (BB-05). Import once after tokens.css:
+ *   import '@basabridge/ui/tokens.css';
+ *   import '@basabridge/ui/components.css';
+ * Colours come only from tokens. Sizes are rem at the canvas scale (16px root),
+ * so the reading-help text size scales them. Touch targets are at least --touch.
+ */
+
+.bb-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus: an ink ring with a mark halo, visible on every surface and theme. */
+:where(
+  .bb-btn,
+  .bb-iconbtn,
+  .bb-option,
+  .bb-input,
+  .bb-tabs__tab,
+  .bb-tabs__panel,
+  .bb-speaker,
+  .bb-check input,
+  .bb-ruler__text
+):focus-visible,
+.bb-seg__item:has(input:focus-visible) {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+  box-shadow: var(--focus-halo);
+}
+
+/* ---- buttons ------------------------------------------------------------ */
+
+.bb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  min-height: max(var(--touch), 3rem);
+  border: var(--border) solid transparent;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+.bb-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.bb-btn:disabled,
+.bb-btn[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.bb-btn--block {
+  width: 100%;
+}
+.bb-btn__icon {
+  display: inline-flex;
+}
+
+.bb-btn--lg {
+  min-height: 3.875rem;
+  padding: 0.875rem 2.25rem;
+  border-radius: var(--radius-lg);
+  font-size: 1.25rem;
+}
+.bb-btn--md {
+  padding: 0.625rem 1.375rem;
+  border-radius: var(--radius-md);
+  font-size: 1.0625rem;
+}
+
+.bb-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.bb-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, var(--ink));
+}
+.bb-btn--secondary {
+  background: var(--surface);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.bb-btn--brand {
+  background: var(--surface);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.bb-btn--secondary:hover:not(:disabled),
+.bb-btn--brand:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+.bb-btn--ghost {
+  background: transparent;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.bb-btn--ghost:hover:not(:disabled) {
+  color: var(--ink);
+}
+.bb-btn--danger {
+  background: var(--surface);
+  border-color: var(--bad);
+  color: var(--bad);
+}
+.bb-btn--danger:hover:not(:disabled) {
+  background: var(--bad-soft);
+}
+
+/* Icon with a short word under it (ADR 0004). */
+.bb-iconbtn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  min-width: max(var(--touch), 4rem);
+  min-height: max(var(--touch), 4rem);
+  padding: 0.375rem 0.625rem;
+  border: var(--border) solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.bb-iconbtn__icon {
+  display: inline-flex;
+}
+.bb-iconbtn__label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.bb-iconbtn--brand {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.bb-iconbtn--primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.bb-iconbtn:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+.bb-iconbtn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, var(--ink));
+}
+.bb-iconbtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ---- option cards (S8, S9) --------------------------------------------- */
+
+.bb-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.bb-option {
+  display: flex;
+  gap: 0.875rem;
+  align-items: center;
+  width: 100%;
+  min-height: 3.875rem;
+  padding: 1rem 1.25rem;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.3125rem;
+  line-height: var(--leading);
+  text-align: left;
+}
+button.bb-option {
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+button.bb-option:hover {
+  border-color: var(--accent);
+}
+.bb-option__badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.0625rem;
+}
+.bb-option--selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.bb-option--selected .bb-option__badge {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.bb-option--correct {
+  border-color: var(--good);
+  background: var(--good-soft);
+}
+.bb-option--correct .bb-option__badge {
+  background: var(--good);
+  color: var(--accent-ink);
+}
+.bb-option--wrong {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+}
+.bb-option--wrong .bb-option__badge {
+  background: var(--bad);
+  color: var(--accent-ink);
+}
+/* The canvas fades options that were not chosen. Dashed border instead of opacity keeps the text at full contrast. */
+.bb-option--dimmed {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+/* ---- progress ----------------------------------------------------------- */
+
+.bb-progress {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  background: var(--line);
+  border-radius: var(--radius-pill);
+}
+.bb-progress__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+.bb-progress--sm {
+  height: 10px;
+}
+.bb-progress--md {
+  height: 12px;
+}
+.bb-progress--lg {
+  height: 14px;
+}
+.bb-segments {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+.bb-segments__item {
+  flex: 1;
+  border-radius: var(--radius-pill);
+  background: var(--line);
+}
+.bb-fill--accent {
+  background: var(--accent);
+}
+.bb-fill--good {
+  background: var(--good);
+}
+.bb-fill--mark {
+  background: var(--mark);
+}
+
+.bb-steps {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  flex-wrap: wrap;
+}
+.bb-steps__list {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bb-steps__item {
+  background: var(--line);
+}
+.bb-steps--dots .bb-steps__item {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+.bb-steps--bars .bb-steps__item {
+  width: 44px;
+  height: 10px;
+  border-radius: 5px;
+}
+.bb-steps__item--done {
+  background: var(--accent);
+}
+.bb-steps__item--current {
+  background: var(--mark);
+  outline: 2px solid var(--ink);
+}
+.bb-steps__label {
+  color: var(--muted);
+}
+
+/* ---- level card (S2, S12, G3) ------------------------------------------ */
+
+.bb-level {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+.bb-level--card {
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+}
+.bb-level__number {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 3.5rem;
+  line-height: 1;
+  color: var(--ink);
+}
+.bb-level__suffix {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+.bb-level--hero {
+  align-items: center;
+  text-align: center;
+}
+.bb-level--hero .bb-eyebrow {
+  color: var(--accent);
+}
+.bb-level--hero .bb-level__number {
+  font-size: 7.5rem;
+  color: var(--accent);
+}
+.bb-level--hero .bb-level__suffix {
+  font-size: 1.375rem;
+}
+
+/* ---- surfaces ----------------------------------------------------------- */
+
+.bb-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  color: var(--ink);
+}
+.bb-card > p,
+.bb-level > p {
+  margin: 0;
+}
+.bb-card--strong {
+  border-width: 2px;
+}
+.bb-card--accent {
+  border: 2px solid var(--accent);
+}
+/* The canvas sets eyebrows in capitals. ADR 0004 asks for no all-capital text, so they stay in sentence case. */
+.bb-eyebrow {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.bb-eyebrow--accent {
+  color: var(--accent);
+}
+
+.bb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  align-self: flex-start;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.bb-chip__icon {
+  display: inline-flex;
+}
+.bb-chip--sm {
+  padding: 0.125rem 0.75rem;
+  font-size: 0.875rem;
+}
+.bb-chip--lg {
+  padding: 0.4375rem 1rem;
+  font-size: 1.0625rem;
+}
+.bb-chip--accent {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.bb-chip--warn {
+  background: var(--mark-soft);
+  color: var(--warn);
+}
+.bb-chip--good {
+  background: var(--good-soft);
+  color: var(--good);
+}
+.bb-chip--bad {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.bb-chip--mark {
+  background: var(--mark-soft);
+  color: var(--ink);
+}
+
+.bb-notice {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.875rem 1.125rem;
+  border-radius: 14px;
+  color: var(--ink);
+  line-height: var(--leading);
+}
+.bb-notice__icon {
+  flex: none;
+  margin-top: 0.15em;
+}
+.bb-notice__body > * {
+  margin: 0;
+}
+.bb-notice__body > * + * {
+  margin-top: 0.25rem;
+}
+.bb-notice__title {
+  font-weight: 700;
+}
+.bb-notice--warn {
+  background: var(--mark-soft);
+}
+.bb-notice--warn .bb-notice__icon {
+  color: var(--warn);
+}
+.bb-notice--accent {
+  background: var(--accent-soft);
+}
+.bb-notice--accent .bb-notice__icon {
+  color: var(--accent);
+}
+.bb-notice--good {
+  background: var(--good-soft);
+}
+.bb-notice--good .bb-notice__icon {
+  color: var(--good);
+}
+.bb-notice--bad {
+  background: var(--bad-soft);
+}
+.bb-notice--bad .bb-notice__icon {
+  color: var(--bad);
+}
+
+/* ---- tabs (P2 to P6) ---------------------------------------------------- */
+
+.bb-tabs__list {
+  display: flex;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+}
+.bb-tabs__tab {
+  min-height: var(--touch);
+  padding: 0.625rem 1rem;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.bb-tabs__tab:hover {
+  color: var(--ink);
+}
+.bb-tabs__tab--active {
+  border-bottom-color: var(--accent);
+  color: var(--ink);
+}
+.bb-tabs__panel {
+  padding-top: 1.25rem;
+}
+
+/* ---- form fields (A2, P1) ---------------------------------------------- */
+
+.bb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.bb-field__label {
+  font-weight: 700;
+}
+.bb-input {
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0.625rem 0.75rem;
+  border: var(--border) solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.bb-input--lg {
+  min-height: 3.375rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-md);
+  font-size: 1.375rem;
+  letter-spacing: 0.06em;
+}
+.bb-input[aria-invalid='true'] {
+  border-color: var(--bad);
+  border-width: 2px;
+}
+.bb-field__hint,
+.bb-field__error {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+.bb-field__hint {
+  color: var(--muted);
+}
+.bb-field__error {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.bb-check {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  min-height: var(--touch);
+  padding: 0.75rem 0;
+  cursor: pointer;
+}
+.bb-check input {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 0.1em 0 0;
+  accent-color: var(--accent);
+}
+.bb-check__text {
+  display: flex;
+  flex-direction: column;
+}
+.bb-check__label {
+  font-weight: 700;
+}
+.bb-check__desc {
+  color: var(--muted);
+}
+
+/* ---- spinner (S3) ------------------------------------------------------- */
+
+.bb-spinner {
+  display: inline-block;
+}
+.bb-spinner svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: bb-spin 1.1s linear infinite;
+}
+.bb-spinner--lg {
+  width: 72px;
+  height: 72px;
+}
+.bb-spinner--sm {
+  width: 28px;
+  height: 28px;
+}
+.bb-spinner__track,
+.bb-spinner__arc {
+  fill: none;
+  stroke-width: 7;
+}
+.bb-spinner__track {
+  stroke: var(--line);
+}
+.bb-spinner__arc {
+  stroke: var(--accent);
+  stroke-linecap: round;
+}
+@keyframes bb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- reading support (ADR 0004, I1) ------------------------------------ */
+
+.bb-speaker {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--touch);
+  height: var(--touch);
+  padding: 0;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  cursor: pointer;
+}
+.bb-speaker--lg {
+  width: 52px;
+  height: 52px;
+}
+.bb-speaker:hover,
+.bb-speaker[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.bb-seg {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.bb-seg__legend {
+  padding: 0;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+.bb-seg__items {
+  display: inline-flex;
+  flex-wrap: wrap;
+}
+.bb-seg__item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch);
+  min-width: var(--touch);
+  font-weight: 700;
+  cursor: pointer;
+}
+.bb-seg__item input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.bb-seg--pill .bb-seg__items {
+  padding: 3px;
+  border: var(--border) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+}
+.bb-seg--pill .bb-seg__item {
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+}
+.bb-seg--pill .bb-seg__item:has(input:checked) {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.bb-seg--tiles .bb-seg__items {
+  gap: 8px;
+}
+.bb-seg--tiles .bb-seg__item {
+  padding: 0 0.75rem;
+  border: var(--border) solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+}
+.bb-seg--tiles .bb-seg__item:has(input:checked) {
+  border: 2px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+/* The tile letters are a fixed picture of each size, so they use px. */
+.bb-textsize {
+  font-family: var(--font-display);
+  line-height: 1;
+}
+.bb-textsize--small {
+  font-size: 17px;
+}
+.bb-textsize--medium {
+  font-size: 20px;
+}
+.bb-textsize--large {
+  font-size: 24px;
+}
+
+.bb-ruler {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.bb-ruler__text {
+  position: relative;
+  isolation: isolate;
+  flex: 1;
+  max-width: 34ch;
+  font-size: 1.6875rem;
+  line-height: max(2, var(--leading));
+  cursor: pointer;
+}
+.bb-ruler__band {
+  position: absolute;
+  z-index: -1;
+  left: -0.5rem;
+  right: -0.5rem;
+  top: calc(var(--ruler-line, 0) * 1lh);
+  height: 1lh;
+  border-radius: 6px;
+  background: var(--mark-soft);
+  box-shadow: inset 0 -3px 0 var(--mark);
+  transition: top 150ms ease;
+}
+.bb-ruler__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* ---- reduced motion ----------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-btn,
+  .bb-option,
+  .bb-ruler__band {
+    transition: none;
+  }
+  .bb-btn:active:not(:disabled) {
+    transform: none;
+  }
+  /* The ring stands still and still shows that work is happening. */
+  .bb-spinner svg {
+    animation: none;
+  }
+}

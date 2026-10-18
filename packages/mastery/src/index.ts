@@ -6,6 +6,7 @@
 export * from './simple';
 export * from './ability';
 export * from './placement';
+export * from './evidence';
 export * from './answer-evidence';
 export * from './engine';
 export * from './decisions';
