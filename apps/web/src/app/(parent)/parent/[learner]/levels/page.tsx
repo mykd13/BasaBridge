@@ -1,5 +1,7 @@
-import { ScreenPlaceholder } from '@/components/states/ScreenPlaceholder';
+import { LevelsScreen } from '@/components/parent/LevelsScreen';
+import { loadLevels, toScreenState } from '@/server/parent/loaders';
 
-export default function Page() {
-  return <ScreenPlaceholder screen="parentLevels" boards="F4" />;
+export default async function Page({ params }: { params: Promise<{ learner: string }> }) {
+  const { learner } = await params;
+  return <LevelsScreen state={await toScreenState(() => loadLevels(learner))} />;
 }

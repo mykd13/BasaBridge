@@ -2,17 +2,43 @@
  * Evidence rules for the ability model (docs/PLAN.md section 6.1, ADR 0003).
  * Placeholders to tune with real learners. Keep every number here and nowhere else.
  */
-export const EVIDENCE_RULE = {
+import { deepFreeze } from './freeze';
+
+export const EVIDENCE_RULE = deepFreeze({
   /** Chance of a correct answer from guessing alone, by question type. */
   guess: { multiple_choice: 0.25, choose_all: 0.1, order_events: 1 / 24 },
   /** How sharply a question separates stronger from weaker readers. */
   discrimination: 1.5,
   /** Evidence weights. 1 means a normal answer. */
   weight: { rushed: 0.3, supportedTry: 0.7 },
+  /**
+   * Old evidence fades: after each finished story every stored estimate is tempered by this power,
+   * so a learner who improves is not judged on old answers for long. 1 means no fading.
+   */
+  storyDecay: 0.9,
   /** Move up when very likely above this level's difficulty. */
-  up: { probability: 0.85, margin: 0.25, minItems: 10, minPasses: 2, minWordsRight: 0.85 },
+  up: {
+    probability: 0.85,
+    margin: 0.25,
+    /** Summed answer weights from stories at or above the level. */
+    minItems: 10,
+    minPasses: 2,
+    minWordsRight: 0.85,
+    /** Counted tries that must all read at least minWordsRight, this story's included. */
+    recentTries: 2,
+  },
   /** Move down when very likely below it. */
-  down: { probability: 0.85, margin: 0.5, minItems: 8 },
+  down: {
+    probability: 0.85,
+    margin: 0.5,
+    /** Summed answer weights from stories at or above the level. */
+    minItems: 8,
+  },
+  /**
+   * The focus skill changes only when another skill's estimate is lower by more than this, so two
+   * near-equal skills do not swap every story.
+   */
+  focus: { switchMargin: 0.2 },
   /** Answers faster than this many ms, plus the per-word allowance, count as rushed. */
   rushed: { baseMs: 1200, perWordMs: 35 },
   /** Difficulty offsets by sub-skill, added to the story level's difficulty. Calibrated later (BB-45). */
@@ -27,10 +53,10 @@ export const EVIDENCE_RULE = {
     prediction: 0.4,
     conclusion: 0.5,
   },
-} as const;
+} as const);
 
 /** Placement test rules (docs/PLAN.md section 6.2). Placeholders to tune. */
-export const PLACEMENT_RULE = {
+export const PLACEMENT_RULE = deepFreeze({
   minStories: 2,
   maxStories: 4,
   /** Stop once the ability estimate is this certain. */
@@ -45,4 +71,4 @@ export const PLACEMENT_RULE = {
   /** Where to start the first placement story, by grade. */
   gradeStart: { 1: 10, 2: 20, 3: 30, 4: 42, 5: 55, 6: 68 } as Record<number, number>,
   defaultStart: 25,
-} as const;
+} as const);

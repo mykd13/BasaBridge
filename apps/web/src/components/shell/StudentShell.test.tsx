@@ -21,7 +21,7 @@ const render = (lang: Lang = 'en', wording: Wording = 'standard') =>
 
 describe('StudentShell', () => {
   it('lists the five items in canvas order', () => {
-    const nav = render().match(/<nav[\s\S]*<\/nav>/)?.[0] ?? '';
+    const nav = render().match(/<nav[\s\S]*?<\/nav>/)?.[0] ?? '';
     const labels = [
       ...nav.matchAll(/<(?:a|button)[^>]*>(?:<span[^>]*>[\s\S]*?<\/span>)?([^<]+)</g),
     ].map((m) => m[1]);

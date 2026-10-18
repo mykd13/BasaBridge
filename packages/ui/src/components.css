@@ -737,6 +737,11 @@ button.bb-option:hover {
   line-height: max(2, var(--leading));
   cursor: pointer;
 }
+.bb-readtext {
+  max-width: 34ch;
+  font-size: 1.6875rem;
+  line-height: max(2, var(--leading));
+}
 .bb-ruler__band {
   position: absolute;
   z-index: -1;
