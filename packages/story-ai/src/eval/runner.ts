@@ -8,11 +8,11 @@ import { GoldStory, type GoldCase } from './gold/schema';
 import {
   addCost,
   type CheckOutcome,
-  type Cost,
+  Cost,
+  ErrorCode,
   type EvalRun,
   type GeneratedSample,
   type LabelledSample,
-  type ErrorCode,
   UNPRICED,
   VerifierResult,
 } from './run';
@@ -51,13 +51,28 @@ export interface RunOptions {
   adapters: EvalAdapters;
 }
 
-// A thrown error can carry prompt or story text, so only a fixed code is kept.
+/** A cost that does not parse is stored as unknown, never as a made-up number. */
+const parseCost = (raw: unknown): Cost => {
+  const parsed = Cost.safeParse(raw);
+  return parsed.success ? parsed.data : UNPRICED;
+};
+
+// A thrown error can carry prompt or story text, so only a fixed code is kept. A returned failure
+// is parsed too: an adapter that returns free text in `error` is recorded as an invalid reply.
 async function safeGenerate(a: EvalAdapters, r: GenerateRequest): Promise<GenerateResult> {
+  let raw: GenerateResult;
   try {
-    return await a.generate(r);
+    raw = await a.generate(r);
   } catch {
     return { ok: false, error: 'call_failed', cost: UNPRICED };
   }
+  if (raw === null || typeof raw !== 'object') {
+    return { ok: false, error: 'invalid_reply', cost: UNPRICED };
+  }
+  const cost = parseCost(raw.cost);
+  if (raw.ok === true) return { ok: true, story: raw.story, cost };
+  const code = ErrorCode.safeParse(raw.error);
+  return { ok: false, error: code.success ? code.data : 'invalid_reply', cost };
 }
 
 const failedVerify = (error: ErrorCode): VerifyResult => ({
@@ -72,7 +87,8 @@ async function safeVerify(a: EvalAdapters, story: GoldStory): Promise<VerifyResu
     const raw = await a.verify(story);
     // Parse at the boundary: a reply with free text in `error` or bad numbers is an invalid reply.
     const parsed = VerifierResult.safeParse(raw);
-    return parsed.success ? { ...parsed.data, cost: raw.cost } : failedVerify('invalid_reply');
+    const cost = parseCost(raw?.cost);
+    return parsed.success ? { ...parsed.data, cost } : { ...failedVerify('invalid_reply'), cost };
   } catch {
     return failedVerify('call_failed');
   }

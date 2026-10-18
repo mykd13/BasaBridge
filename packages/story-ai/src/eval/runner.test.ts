@@ -216,6 +216,52 @@ describe('runEval at the adapter boundary', () => {
     expect(JSON.stringify(run)).not.toContain('provider said');
   });
 
+  it('turns a generation failure with free text in error into an invalid reply', async () => {
+    const run = await runEval({
+      ...base,
+      levels: [5],
+      perLevel: 1,
+      cases: [],
+      adapters: adapters({
+        generate: async () =>
+          ({ ok: false, error: 'provider said: Tala has a cat', cost: UNPRICED }) as never,
+      }),
+    });
+    expect(run.generated[0]!.error).toBe('invalid_reply');
+    expect(JSON.stringify(run)).not.toContain('provider said');
+  });
+
+  it('keeps a known failure code from the adapter', async () => {
+    const run = await runEval({
+      ...base,
+      levels: [5],
+      perLevel: 1,
+      cases: [],
+      adapters: adapters({
+        generate: async () => ({ ok: false, error: 'timeout', cost: UNPRICED }),
+      }),
+    });
+    expect(run.generated[0]!.error).toBe('timeout');
+  });
+
+  it('records a cost that does not parse as unknown, not as a number', async () => {
+    const badCost = { usd: -1, inputTokens: 1.5, outputTokens: 'many' } as never;
+    const run = await runEval({
+      ...base,
+      levels: [5],
+      perLevel: 1,
+      cases: [reviewed(GOLD_SET[0]!)],
+      adapters: adapters({
+        generate: async () => ({ ok: true, story, cost: badCost }),
+        verify: async () => ({ error: null, disagreed: [], flaggedUnsafe: false, cost: badCost }),
+      }),
+    });
+    expect(run.generated[0]!.cost).toEqual(UNPRICED);
+    expect(run.labelled[0]!.cost).toEqual(UNPRICED);
+    // The run must still be a valid stored run.
+    expect(EvalRun.safeParse(run).success).toBe(true);
+  });
+
   it('rejects an error string that is not a known code', () => {
     expect(ErrorCode.safeParse('call_failed').success).toBe(true);
     expect(ErrorCode.safeParse('provider said: Tala has a cat').success).toBe(false);
