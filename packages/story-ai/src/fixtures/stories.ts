@@ -398,6 +398,11 @@ export const BAD_VERSIONS: BadVersion[] = [
     },
   },
   {
+    code: 'idiom_not_allowed',
+    name: 'an idiom added to a tier 2 story',
+    story: { ...TIER_2, name: 'idiom', text: `${TIER_2.text} Time flies.` },
+  },
+  {
     code: 'too_few_questions',
     name: 'only three questions',
     story: { ...TIER_2, name: 'too few questions', questions: TIER_2.questions.slice(0, 3) },

@@ -4,6 +4,7 @@
  */
 import type { StoryQuestion } from '@basabridge/contracts';
 import { tierFor } from '@basabridge/levels';
+import { countIdioms } from './vocab/idioms';
 import { vocabularyProfile } from './vocab/profile';
 
 export function syllables(word: string): number {
@@ -56,7 +57,12 @@ const normalise = (s: string) =>
 
 /** Why a story or one of its questions failed. Codes are stable: tests and retry feedback use them. */
 export type StoryFailureCode =
-  'too_short' | 'too_long' | 'too_hard' | 'too_many_new_words' | 'too_few_questions';
+  | 'too_short'
+  | 'too_long'
+  | 'too_hard'
+  | 'too_many_new_words'
+  | 'idiom_not_allowed'
+  | 'too_few_questions';
 
 export type QuestionFailureCode =
   | 'bad_shape'
@@ -140,8 +146,7 @@ function containsWord(normalisedPassage: string, word: string): boolean {
 
 /**
  * Deterministic checks on a generated story: length range, reading grade cap, vocabulary limits
- * for the tier (BB-72), valid questions,
- * distinct options, evidence is a whole sentence (or adjacent sentences) of the passage,
+ * and no idioms where the tier does not allow them (BB-72), valid questions, distinct options, evidence is a whole sentence (or adjacent sentences) of the passage,
  * vocabulary word present on word boundaries, no repeated questions.
  * At least four valid questions must remain. Every failure is reported, not just the first.
  */
@@ -172,6 +177,13 @@ export function checkStory(text: string, rawQuestions: RawQuestion[], level: num
     failures.push({
       code: 'too_many_new_words',
       message: `The passage had ${vocab.newWords.length} new words and ${known}% known words, but may have at most ${maxNewWords} new words and needs at least ${Math.round(minKnownShare * 100)}% known words. Use simpler, more common words.`,
+    });
+  }
+  const idioms = tier.idiomsAllowed ? 0 : countIdioms(passage);
+  if (idioms > 0) {
+    failures.push({
+      code: 'idiom_not_allowed',
+      message: `The passage used ${idioms} idioms, which are not allowed at this level. Say what you mean in plain words.`,
     });
   }
 

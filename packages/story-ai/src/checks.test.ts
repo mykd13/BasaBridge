@@ -222,3 +222,29 @@ describe('stricter matching', () => {
     expect(!same.ok && same.failures.map((f) => f.code)).toContain('duplicate_question');
   });
 });
+
+describe('local content checks (BB-72)', () => {
+  const codes = (text: string, level: number) => {
+    const r = checkStory(text, [], level);
+    return r.ok ? [] : r.failures.map((f) => f.code);
+  };
+
+  it('rejects idioms only in tiers that do not allow them', () => {
+    const text = `${PASSAGE} Time flies.`;
+    expect(codes(text, 24)).toContain('idiom_not_allowed');
+    expect(codes(text, 60)).not.toContain('idiom_not_allowed');
+  });
+
+  it('allows more new words at higher tiers', () => {
+    // "checks" and "patient" are past rank 500 but within rank 1000.
+    expect(codes(PASSAGE, 5)).toContain('too_many_new_words');
+    expect(codes(PASSAGE, 24)).not.toContain('too_many_new_words');
+  });
+
+  it('reports counts and limits only, never the new words', () => {
+    const r = checkStory('Sam saw a puce kite soar aloft.', [], 5);
+    const message = r.ok ? '' : r.failures.find((f) => f.code === 'too_many_new_words')?.message;
+    expect(message).toMatch(/^The passage had 3 new words/);
+    for (const word of ['puce', 'soar', 'aloft']) expect(message).not.toContain(word);
+  });
+});
