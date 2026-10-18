@@ -6,7 +6,12 @@
  * we are sure enough. The learner starts the main course slightly below the estimate so the first
  * stories feel doable.
  */
-import type { PlacementFlag, PlacementResult, SubSkill } from '@basabridge/contracts';
+import type {
+  AbilityConfidence,
+  PlacementFlag,
+  PlacementResult,
+  SubSkill,
+} from '@basabridge/contracts';
 import { PLACEMENT_RULE } from '@basabridge/levels';
 import {
   guessFor,
@@ -19,6 +24,9 @@ import {
   type ItemEvidence,
   type Posterior,
 } from './ability';
+
+/** Typed against the contract here, since `packages/levels` does not depend on contracts. */
+const SKIP_CONFIDENCE: AbilityConfidence = PLACEMENT_RULE.skipConfidence;
 
 /** Spread of the starting belief, before any placement story. */
 const PRIOR_SD = 1.5;
@@ -156,7 +164,7 @@ export function skipPlacement(grade: number | null | undefined): PlacementResult
     level,
     theta: levelToTheta(level),
     sd: PRIOR_SD,
-    confidence: PLACEMENT_RULE.skipConfidence,
+    confidence: SKIP_CONFIDENCE,
     storiesRead: 0,
     flags: [],
     recommendedHelp: level <= 20 ? 'more' : 'standard',
@@ -188,5 +196,5 @@ export function finishRecheck(state: PlacementState): PlacementResult {
 
 /** A skipped placement has no stories behind it. `skipPlacement` is the only source of such a result. */
 export function isSkippedPlacement(r: PlacementResult): boolean {
-  return r.storiesRead === 0 && r.confidence === PLACEMENT_RULE.skipConfidence;
+  return r.storiesRead === 0 && r.confidence === SKIP_CONFIDENCE;
 }
