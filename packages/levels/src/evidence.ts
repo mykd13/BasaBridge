@@ -29,6 +29,15 @@ export const EVIDENCE_RULE = {
   },
 } as const;
 
+/**
+ * How answers are scored (BB-44). The guess rates in EVIDENCE_RULE assume all-or-nothing scoring,
+ * so partial credit would make guessing pay again. Change both together or not at all.
+ */
+export const SCORING_RULE = {
+  /** Choose-all and ordering count as correct only when every part is right. */
+  partialCredit: false,
+} as const;
+
 /** Placement test rules (docs/PLAN.md section 6.2). Placeholders to tune. */
 export const PLACEMENT_RULE = {
   minStories: 2,
