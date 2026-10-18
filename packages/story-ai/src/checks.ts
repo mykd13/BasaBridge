@@ -76,7 +76,8 @@ export type PracticeFailureCode =
   | 'bad_hint'
   | 'hint_gives_answer'
   | 'bad_explanation'
-  | 'repeats_practice';
+  | 'repeats_practice'
+  | 'not_verified';
 
 export type CheckFailureCode = StoryFailureCode | QuestionFailureCode | PracticeFailureCode;
 
