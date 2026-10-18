@@ -53,6 +53,9 @@ export function countWords(text: string): number {
 const normalise = (s: string) =>
   s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
 
+/** Lowercase, straight quotes, single spaces. Used to compare texts for repeats. */
+export const normaliseText = normalise;
+
 /** Why a story or one of its questions failed. Codes are stable: tests and retry feedback use them. */
 export type StoryFailureCode = 'too_short' | 'too_long' | 'too_hard' | 'too_few_questions';
 
@@ -65,7 +68,18 @@ export type QuestionFailureCode =
   | 'vocab_word_missing'
   | 'duplicate_question';
 
-export type CheckFailureCode = StoryFailureCode | QuestionFailureCode;
+/** Failures only Learn practice items can have (BB-54). */
+export type PracticeFailureCode =
+  | 'bad_item'
+  | 'wrong_subskill'
+  | 'bad_tags'
+  | 'bad_hint'
+  | 'hint_gives_answer'
+  | 'bad_explanation'
+  | 'repeats_practice'
+  | 'not_verified';
+
+export type CheckFailureCode = StoryFailureCode | QuestionFailureCode | PracticeFailureCode;
 
 export interface CheckFailure {
   code: CheckFailureCode;
@@ -137,33 +151,16 @@ function containsWord(normalisedPassage: string, word: string): boolean {
 }
 
 /**
- * Deterministic checks on a generated story: length range, reading grade cap, valid questions,
- * distinct options, evidence is a whole sentence (or adjacent sentences) of the passage,
- * vocabulary word present on word boundaries, no repeated questions.
- * At least four valid questions must remain. Every failure is reported, not just the first.
+ * The per-question checks on their own: valid shape, distinct options, answer in range, evidence is
+ * a whole sentence (or adjacent sentences) of the passage, vocabulary word present, no repeats.
+ * Stories and Learn practice items (BB-54) share these, so the rules live in one place.
  */
-export function checkStory(text: string, rawQuestions: RawQuestion[], level: number): CheckResult {
-  const tier = tierFor(level);
-  const passage = text.trim();
-  const failures: CheckFailure[] = [];
-
-  const words = countWords(passage);
-  if (words < tier.words.min || words > tier.words.max) {
-    failures.push({
-      code: words < tier.words.min ? 'too_short' : 'too_long',
-      message: `The passage had ${words} words but must have ${tier.words.min}-${tier.words.max}.`,
-    });
-  }
-  const grade = readingGrade(passage);
-  if (grade > tier.maxReadingGrade) {
-    failures.push({
-      code: 'too_hard',
-      message: `The passage was too hard (reading grade ${grade.toFixed(1)}, maximum ${tier.maxReadingGrade}).`,
-    });
-  }
-
-  const np = normalise(passage);
-  const sentences = splitSentences(passage).map(normalise);
+export function checkQuestions(
+  passage: string,
+  rawQuestions: RawQuestion[],
+): { kept: StoryQuestion[]; dropped: CheckFailure[] } {
+  const np = normalise(passage.trim());
+  const sentences = splitSentences(passage.trim()).map(normalise);
   const seenQuestions = new Set<string>();
   const kept: StoryQuestion[] = [];
   const dropped: CheckFailure[] = [];
@@ -219,6 +216,36 @@ export function checkStory(text: string, rawQuestions: RawQuestion[], level: num
       evidence: evidence.trim(),
     });
   });
+  return { kept, dropped };
+}
+
+/**
+ * Deterministic checks on a generated story: length range, reading grade cap, valid questions,
+ * distinct options, evidence is a whole sentence (or adjacent sentences) of the passage,
+ * vocabulary word present on word boundaries, no repeated questions.
+ * At least four valid questions must remain. Every failure is reported, not just the first.
+ */
+export function checkStory(text: string, rawQuestions: RawQuestion[], level: number): CheckResult {
+  const tier = tierFor(level);
+  const passage = text.trim();
+  const failures: CheckFailure[] = [];
+
+  const words = countWords(passage);
+  if (words < tier.words.min || words > tier.words.max) {
+    failures.push({
+      code: words < tier.words.min ? 'too_short' : 'too_long',
+      message: `The passage had ${words} words but must have ${tier.words.min}-${tier.words.max}.`,
+    });
+  }
+  const grade = readingGrade(passage);
+  if (grade > tier.maxReadingGrade) {
+    failures.push({
+      code: 'too_hard',
+      message: `The passage was too hard (reading grade ${grade.toFixed(1)}, maximum ${tier.maxReadingGrade}).`,
+    });
+  }
+
+  const { kept, dropped } = checkQuestions(passage, rawQuestions);
 
   if (kept.length < MIN_QUESTIONS) {
     failures.push({

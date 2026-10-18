@@ -27,7 +27,12 @@ function listNumbers(numbers: number[]): string {
  * Safety comes first: an unsafe passage is rejected even when every answer agrees.
  * A question the checker did not answer counts as a disagreement.
  */
-export function judgeVerification(questions: StoryQuestion[], reply: VerifierReply): Verdict {
+export function judgeVerification(
+  questions: StoryQuestion[],
+  reply: VerifierReply,
+  /** Learn practice items have one question each (BB-54). Stories use the default. */
+  minQuestions: number = MIN_QUESTIONS,
+): Verdict {
   const answerFor = new Map(reply.answers.map((a) => [a.question, a.answerIndex]));
 
   const kept: StoryQuestion[] = [];
@@ -49,10 +54,10 @@ export function judgeVerification(questions: StoryQuestion[], reply: VerifierRep
     };
   }
 
-  if (kept.length < MIN_QUESTIONS) {
+  if (kept.length < minQuestions) {
     const what =
       disagreed.length === 0
-        ? `The story had only ${kept.length} questions, and at least ${MIN_QUESTIONS} are needed.`
+        ? `The story had only ${kept.length} questions, and at least ${minQuestions} are needed.`
         : `The checker did not confirm the answer key on question${disagreed.length === 1 ? '' : 's'} ${listNumbers(disagreed)}, leaving ${kept.length}.`;
     return { ok: false, outcome: 'rejected_too_few', reason: what, disagreed, categories: [] };
   }
