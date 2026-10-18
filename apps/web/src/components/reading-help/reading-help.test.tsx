@@ -1,3 +1,4 @@
+import { READING_HELP_PRESETS } from '@basabridge/contracts';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { withIntl } from '@/i18n/test-intl';
@@ -15,7 +16,8 @@ const { ReadingHelpScreen } = await import('./ReadingHelpScreen');
 
 const text = (lang: Lang = 'en') =>
   renderToStaticMarkup(withIntl(<ReadingHelpText>Story</ReadingHelpText>, lang));
-const screen = (lang: Lang = 'en') => renderToStaticMarkup(withIntl(<ReadingHelpScreen />, lang));
+const screen = (lang: Lang = 'en') =>
+  renderToStaticMarkup(withIntl(<ReadingHelpScreen presets={READING_HELP_PRESETS} />, lang));
 
 describe('reading ruler overlay', () => {
   it('leaves the text plain when the ruler is off', () => {
@@ -60,14 +62,14 @@ describe('reading help screen', () => {
   });
 
   it('shows the more help preset and its ruler', () => {
-    state = { ...applyPreset(DEFAULT_STATE, 'more') };
+    state = { ...applyPreset(DEFAULT_STATE, 'more', READING_HELP_PRESETS) };
     const out = screen();
     expect(out).toMatch(/checked=""[^>]*value="more"/);
     expect(out).toContain('bb-ruler__band');
   });
 
   it('leaves both presets unchecked for a custom mix', () => {
-    state = { ...applyPreset(DEFAULT_STATE, 'more'), textSize: 'small' };
+    state = { ...applyPreset(DEFAULT_STATE, 'more', READING_HELP_PRESETS), textSize: 'small' };
     const out = screen();
     expect(out).not.toMatch(/checked=""[^>]*value="(standard|more)"/);
   });

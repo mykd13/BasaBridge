@@ -15,7 +15,7 @@ import { LANGS, type Lang } from '@/i18n/types';
 import {
   applyPreset,
   matchingPreset,
-  toSharedSettings,
+  type Presets,
   type PresetName,
   type ReadingHelpState,
 } from '@/lib/reading-help/settings';
@@ -29,7 +29,7 @@ const CUSTOM = 'custom';
 const ASIDE = 'aside';
 
 /** Reading help settings (canvas I1). Every change shows in the preview at once. */
-export function ReadingHelpScreen() {
+export function ReadingHelpScreen({ presets }: { presets: Presets }) {
   const t = useTranslations('readingHelp');
   const lang = useTranslations('language');
   const { state, persisted, update } = useReadingHelp();
@@ -39,7 +39,7 @@ export function ReadingHelpScreen() {
 
   function change(next: ReadingHelpState) {
     update(next);
-    saveMyReadingHelp(toSharedSettings(next)).then(
+    saveMyReadingHelp(next).then(
       () => setServerSaved(true),
       () => setServerSaved(false),
     );
@@ -49,7 +49,7 @@ export function ReadingHelpScreen() {
     change({ ...state, [key]: value });
   }
 
-  const preset = matchingPreset(state);
+  const preset = matchingPreset(state, presets);
   const presetOptions = PRESET_ORDER.map((name) => ({
     value: name,
     label: name === PRESET_ORDER[0] ? t('presetStandard') : t('presetMore'),
@@ -63,7 +63,7 @@ export function ReadingHelpScreen() {
   const spacingLabels = { normal: t('lineSpacing.normal'), wide: t('lineSpacing.wide') };
 
   const choosePreset = (value: PresetName | typeof CUSTOM) => {
-    if (value !== CUSTOM) change(applyPreset(state, value));
+    if (value !== CUSTOM) change(applyPreset(state, value, presets));
   };
   const onAudio = (e: ChangeEvent<HTMLInputElement>) => set('audioInstructions', e.target.checked);
   const onQuestions = (e: ChangeEvent<HTMLInputElement>) =>

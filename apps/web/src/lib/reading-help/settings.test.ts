@@ -10,7 +10,6 @@ import {
   saveState,
   storageKey,
   toRootAttributes,
-  toSharedSettings,
 } from './settings';
 
 function memoryStorage(initial: Record<string, string> = {}) {
@@ -21,13 +20,19 @@ function memoryStorage(initial: Record<string, string> = {}) {
   };
 }
 
+describe('defaults', () => {
+  it('match the contract defaults', () => {
+    expect(DEFAULT_STATE).toEqual({ ...READING_HELP_PRESETS.standard, highContrast: false });
+  });
+});
+
 describe('presets', () => {
   it('starts on the standard preset', () => {
-    expect(matchingPreset(DEFAULT_STATE)).toBe('standard');
+    expect(matchingPreset(DEFAULT_STATE, READING_HELP_PRESETS)).toBe('standard');
   });
 
   it('applies more help from the contract preset', () => {
-    const next = applyPreset(DEFAULT_STATE, 'more');
+    const next = applyPreset(DEFAULT_STATE, 'more', READING_HELP_PRESETS);
     expect(next).toMatchObject({
       textSize: 'large',
       lineSpacing: 'wide',
@@ -36,7 +41,7 @@ describe('presets', () => {
       audioInstructions: true,
       questionReadAloud: true,
     });
-    expect(matchingPreset(next)).toBe('more');
+    expect(matchingPreset(next, READING_HELP_PRESETS)).toBe('more');
   });
 
   it('keeps language, listen then read and contrast when a preset is chosen', () => {
@@ -46,21 +51,29 @@ describe('presets', () => {
       listenThenRead: false,
       highContrast: true,
     };
-    const next = applyPreset(mine, 'more');
+    const next = applyPreset(mine, 'more', READING_HELP_PRESETS);
     expect(next.language).toBe('fil');
     expect(next.listenThenRead).toBe(false);
     expect(next.highContrast).toBe(true);
-    expect(applyPreset(next, 'standard')).toMatchObject({ language: 'fil', textSize: 'medium' });
+    expect(applyPreset(next, 'standard', READING_HELP_PRESETS)).toMatchObject({
+      language: 'fil',
+      textSize: 'medium',
+    });
   });
 
   it('matches no preset once one control changes', () => {
     expect(
-      matchingPreset({ ...applyPreset(DEFAULT_STATE, 'more'), textSize: 'medium' }),
+      matchingPreset(
+        { ...applyPreset(DEFAULT_STATE, 'more', READING_HELP_PRESETS), textSize: 'medium' },
+        READING_HELP_PRESETS,
+      ),
     ).toBeNull();
   });
 
   it('ignores language when matching', () => {
-    expect(matchingPreset({ ...DEFAULT_STATE, language: 'fil' })).toBe('standard');
+    expect(matchingPreset({ ...DEFAULT_STATE, language: 'fil' }, READING_HELP_PRESETS)).toBe(
+      'standard',
+    );
     expect(READING_HELP_PRESETS.standard.language).toBe('en');
   });
 });
@@ -97,14 +110,6 @@ describe('settings mapping', () => {
   });
 });
 
-describe('shared settings', () => {
-  it('leaves the device-only field out', () => {
-    expect(toSharedSettings({ ...DEFAULT_STATE, highContrast: true })).not.toHaveProperty(
-      'highContrast',
-    );
-  });
-});
-
 describe('accommodations (rule 12)', () => {
   it('reports question read-aloud only when it is on', () => {
     expect(activeAccommodations(DEFAULT_STATE)).toEqual([]);
@@ -117,7 +122,7 @@ describe('accommodations (rule 12)', () => {
 describe('per-device copy', () => {
   it('round trips per learner', () => {
     const storage = memoryStorage();
-    const mine = applyPreset(DEFAULT_STATE, 'more');
+    const mine = applyPreset(DEFAULT_STATE, 'more', READING_HELP_PRESETS);
     expect(saveState(storage, 'a', { ...mine, highContrast: true })).toBe(true);
     expect(loadState(storage, 'a')).toEqual({ ...mine, highContrast: true });
     expect(loadState(storage, 'b')).toBeNull();
