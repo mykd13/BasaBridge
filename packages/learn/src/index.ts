@@ -11,9 +11,10 @@
  * - Learners never chat freely with a model. Lessons follow a fixed shape.
  */
 import type { DistractorType, SubSkill } from '@basabridge/contracts';
+import type { Band, Lesson, LessonSubject } from './lesson';
 
-export type LessonSubject = SubSkill | 'decoding' | 'word_practice';
-export type Band = 'early' | 'middle' | 'advanced';
+export * from './lesson';
+export * from './registry';
 
 export const BAND_RANGES: Record<Band, readonly [number, number]> = {
   early: [1, 30],
@@ -25,27 +26,6 @@ export function bandFor(level: number): Band {
   if (level <= BAND_RANGES.early[1]) return 'early';
   if (level <= BAND_RANGES.middle[1]) return 'middle';
   return 'advanced';
-}
-
-export type LessonStep =
-  | { kind: 'explain'; text: string }
-  | { kind: 'example'; passage: string; point: string }
-  /** Guided practice with hints and instant feedback. Items are generated and checked like stories. */
-  | { kind: 'practice'; items: number }
-  /** Fresh questions with no hints, to see whether the idea stuck. */
-  | { kind: 'check'; items: number };
-
-export interface Lesson {
-  id: string;
-  subject: LessonSubject;
-  band: Band;
-  title: string;
-  /** One sentence in the learner's words: what you will be able to do. */
-  goal: string;
-  steps: LessonStep[];
-  /** Only reviewed lessons are ever shown to learners. */
-  status: 'draft' | 'reviewed';
-  reviewedBy?: string;
 }
 
 export const LEARN_RULES = {

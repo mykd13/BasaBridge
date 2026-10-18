@@ -7,7 +7,11 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@basabridge/contracts": "workspace:*"
+    "@basabridge/contracts": "workspace:*",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
