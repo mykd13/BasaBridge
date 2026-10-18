@@ -2,6 +2,8 @@ import { EVIDENCE_RULE } from '@basabridge/levels';
 import { describe, expect, it } from 'vitest';
 import { THETA_MAX, THETA_MIN, levelToTheta, pCorrect } from './ability';
 import {
+  calibrateItem,
+  calibrationReport,
   estimateDifficulty,
   retirementCheck,
   suggestSubskillOffsets,
@@ -199,5 +201,71 @@ describe('suggestSubskillOffsets', () => {
     ];
     const keyDetail = suggestSubskillOffsets(items).find((s) => s.subskill === 'key_detail')!;
     expect(keyDetail.suggested).toBeCloseTo(-0.75, 2);
+  });
+});
+
+describe('calibrateItem', () => {
+  it('starts from the level and sub-skill and uses the guess rate of the question type', () => {
+    const answers = simulate({ n: 300, difficulty: 1, guess: 1 / 24, seed: 2 });
+    const out = calibrateItem('q-1', answers, {
+      storyLevel: 60,
+      subskill: 'sequence',
+      type: 'order_events',
+    });
+    expect(out.startDifficulty).toBeCloseTo(
+      levelToTheta(60) + EVIDENCE_RULE.subskillOffset.sequence,
+    );
+    expect(Math.abs(out.estimate!.difficulty - 1)).toBeLessThan(0.35);
+    expect(out.check.retire).toBe(false);
+  });
+
+  it('leaves the estimate empty below the minimum', () => {
+    const out = calibrateItem('q-2', [], { storyLevel: 5, subskill: 'key_detail' });
+    expect(out.estimate).toBeNull();
+    expect(out.check.enough).toBe(false);
+  });
+});
+
+describe('calibrationReport', () => {
+  const healthy = calibrateItem(
+    'q-ok',
+    simulate({ n: 120, difficulty: 0.5, guess: 0.25, seed: 4 }),
+    { storyLevel: 50, subskill: 'main_idea' },
+  );
+  const backwards = calibrateItem(
+    'q-bad',
+    simulate({ n: 120, difficulty: 0, guess: 0.25, discrimination: -1.5, seed: 8 }),
+    { storyLevel: 50, subskill: 'conclusion' },
+  );
+
+  it('lists retired questions with the reason and the numbers behind it', () => {
+    const md = calibrationReport({
+      items: [healthy, backwards],
+      offsets: suggestSubskillOffsets([]),
+    });
+    expect(md).toContain('# Item calibration report');
+    expect(md).toContain('Retired: 1.');
+    expect(md).toMatch(/\| q-bad \| 50 \| conclusion \| stronger readers do no better/);
+    expect(md).toMatch(
+      /\| q-ok \| 50 \| main_idea \| -?\d\.\d\d \| -?\d\.\d\d \| [+-]\d\.\d\d \| 120 \|/,
+    );
+  });
+
+  it('says so when nothing was retired', () => {
+    const md = calibrationReport({ items: [healthy], offsets: suggestSubskillOffsets([]) });
+    expect(md).toContain('## Retired questions\n\nNone.');
+  });
+
+  it('lists every sub-skill offset', () => {
+    const md = calibrationReport({ items: [], offsets: suggestSubskillOffsets([]) });
+    for (const s of Object.keys(EVIDENCE_RULE.subskillOffset)) expect(md).toContain(`| ${s} |`);
+  });
+
+  it('uses plain punctuation only', () => {
+    const md = calibrationReport({
+      items: [healthy, backwards],
+      offsets: suggestSubskillOffsets([]),
+    });
+    expect(md).not.toMatch(/[–—]/);
   });
 });

@@ -7,9 +7,9 @@
  *
  * Pure functions only. No AI, no I/O. Thresholds live in `EVIDENCE_RULE.calibration`. Owner: Jhade.
  */
-import type { SubSkill } from '@basabridge/contracts';
+import type { QuestionType, SubSkill } from '@basabridge/contracts';
 import { EVIDENCE_RULE } from '@basabridge/levels';
-import { THETA_MAX, THETA_MIN, levelToTheta, pCorrect } from './ability';
+import { THETA_MAX, THETA_MIN, guessFor, itemDifficulty, levelToTheta, pCorrect } from './ability';
 
 const RULE = EVIDENCE_RULE.calibration;
 const STEP = 0.01;
@@ -214,4 +214,109 @@ export function suggestSubskillOffsets(items: readonly CalibratedItem[]): Offset
       items: mine.length,
     };
   });
+}
+
+/** Everything calibration found for one question. Carries only its ID, never learner details. */
+export interface ItemCalibration {
+  questionId: string;
+  storyLevel: number;
+  subskill: SubSkill;
+  /** Difficulty from the level and sub-skill, before calibration. */
+  startDifficulty: number;
+  /** Null until the question has enough answers. */
+  estimate: DifficultyEstimate | null;
+  check: ItemCheck;
+}
+
+/** Re-estimate and check one question from its answers. */
+export function calibrateItem(
+  questionId: string,
+  responses: readonly CalibrationResponse[],
+  q: { storyLevel: number; subskill: SubSkill; type?: QuestionType },
+): ItemCalibration {
+  const startDifficulty = itemDifficulty(q.storyLevel, q.subskill);
+  const guess = guessFor(q.type);
+  return {
+    questionId,
+    storyLevel: q.storyLevel,
+    subskill: q.subskill,
+    startDifficulty,
+    estimate: estimateDifficulty(responses, { guess, prior: startDifficulty }),
+    check: retirementCheck(responses, { guess }),
+  };
+}
+
+const REASON_TEXT: Record<RetireReason, string> = {
+  too_easy: 'too easy',
+  too_hard: 'too hard',
+  negative_discrimination: 'stronger readers do no better',
+};
+
+const pct = (x: number) => `${Math.round(x * 100)}%`;
+const num = (x: number) => (x >= 0 ? `+${x.toFixed(2)}` : x.toFixed(2));
+
+/**
+ * A short Markdown report for the team after a round of learner testing: what was retired and why,
+ * how difficulties moved, and the suggested sub-skill offsets.
+ */
+export function calibrationReport(o: {
+  items: readonly ItemCalibration[];
+  offsets: readonly OffsetSuggestion[];
+}): string {
+  const judged = o.items.filter((i) => i.check.enough);
+  const retired = o.items.filter((i) => i.check.retire);
+  const changed = o.items
+    .filter((i) => i.estimate && !i.check.retire)
+    .map((i) => ({ ...i, change: (i.estimate?.difficulty ?? 0) - i.startDifficulty }))
+    .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+
+  const lines = [
+    '# Item calibration report',
+    '',
+    `Questions checked: ${o.items.length}. With at least ${RULE.minAnswers} answers: ${judged.length}. Retired: ${retired.length}.`,
+    '',
+    '## Retired questions',
+    '',
+  ];
+  if (retired.length === 0) {
+    lines.push('None.');
+  } else {
+    lines.push(
+      '| Question | Level | Sub-skill | Why | Answers | Correct | Beyond guessing | Link to ability |',
+      '| --- | --- | --- | --- | --- | --- | --- | --- |',
+      ...retired.map(
+        (i) =>
+          `| ${i.questionId} | ${i.storyLevel} | ${i.subskill} | ${i.check.reasons.map((r) => REASON_TEXT[r]).join(', ')} | ${i.check.answers} | ${pct(i.check.shareCorrect)} | ${pct(i.check.beyondGuess)} | ${i.check.correlation === null ? 'n/a' : i.check.correlation.toFixed(2)} |`,
+      ),
+    );
+  }
+
+  lines.push('', '## Difficulty changes', '');
+  if (changed.length === 0) {
+    lines.push('None yet.');
+  } else {
+    lines.push(
+      '| Question | Level | Sub-skill | Start | New | Change | Answers |',
+      '| --- | --- | --- | --- | --- | --- | --- |',
+      ...changed.map(
+        (i) =>
+          `| ${i.questionId} | ${i.storyLevel} | ${i.subskill} | ${i.startDifficulty.toFixed(2)} | ${i.estimate?.difficulty.toFixed(2)} | ${num(i.change)} | ${i.check.answers} |`,
+      ),
+    );
+  }
+
+  lines.push(
+    '',
+    '## Suggested sub-skill offsets',
+    '',
+    `Suggested only from sub-skills with at least ${RULE.minItemsPerSubskill} calibrated questions. Copy agreed values into \`EVIDENCE_RULE.subskillOffset\`.`,
+    '',
+    '| Sub-skill | Current | Suggested | Questions |',
+    '| --- | --- | --- | --- |',
+    ...o.offsets.map(
+      (s) => `| ${s.subskill} | ${num(s.current)} | ${num(s.suggested)} | ${s.items} |`,
+    ),
+    '',
+  );
+  return lines.join('\n');
 }
