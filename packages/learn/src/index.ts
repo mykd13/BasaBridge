@@ -11,8 +11,10 @@
  * - Learners never chat freely with a model. Lessons follow a fixed shape.
  */
 import type { DistractorType, SubSkill } from '@basabridge/contracts';
+import { PASS_RULE } from '@basabridge/levels';
 import type { Band, Lesson, LessonSubject } from './lesson';
 
+export * from './gaps';
 export * from './lesson';
 export * from './registry';
 
@@ -74,7 +76,7 @@ export function gapsFromMisses(input: GapInput): Gap[] {
   if (words.length > 0) {
     bySubject.set('word_practice', { subject: 'word_practice', misses: words.length, reasons: [] });
   }
-  if (input.wordsRightShare != null && input.wordsRightShare < 0.85) {
+  if (input.wordsRightShare != null && input.wordsRightShare < PASS_RULE.minWordsRight) {
     bySubject.set('decoding', { subject: 'decoding', misses: 1, reasons: [] });
   }
   return [...bySubject.values()].sort((a, b) => b.misses - a.misses);

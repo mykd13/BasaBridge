@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@basabridge/contracts": "workspace:*",
+    "@basabridge/levels": "workspace:*",
     "zod": "^4.6.7"
   },
   "devDependencies": {
