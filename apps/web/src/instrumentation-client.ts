@@ -20,6 +20,15 @@ function stripQuery(url: string | undefined): string | undefined {
   return url ? url.split(/[?#]/)[0] : undefined;
 }
 
+/** Keeps lines that end in line:column. The first lines of a stack can hold the message. */
+function frameLines(stack: string): string {
+  return stack
+    .split('\n')
+    .filter((l) => /:\d+:\d+\)?\s*$/.test(l))
+    .join('\n')
+    .slice(0, 3000);
+}
+
 function report(kind: 'error' | 'unhandledrejection', reason: unknown, source?: string) {
   if (sent >= MAX_REPORTS) return;
   sent += 1;
@@ -27,7 +36,7 @@ function report(kind: 'error' | 'unhandledrejection', reason: unknown, source?: 
   const body = JSON.stringify({
     kind,
     errorClass: err?.name ?? 'Error',
-    stack: err?.stack?.slice(0, 3000),
+    stack: err?.stack ? frameLines(err.stack) : undefined,
     source: stripQuery(source),
     route: routeTemplate(window.location.pathname),
   });

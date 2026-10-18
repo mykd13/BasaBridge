@@ -19,13 +19,25 @@ export async function attachCallsToStory(db: Db, runId: string, storyId: string)
   await db.update(aiCalls).set({ storyId }).where(eq(aiCalls.runId, runId));
 }
 
-/** Total cost in US dollars since `since`, for everyone or for one learner. */
-export async function sumCostSince(db: Db, since: Date, learnerUserId?: string): Promise<number> {
+/**
+ * Total cost in US dollars since `since`, for everyone or for one learner. A call with no
+ * recorded cost (a failed call, or speech with no price set) counts as `unknownCallUsd`, so
+ * missing prices cannot hide spend from the daily cap. Rate limited calls never reached a
+ * provider and count as nothing.
+ */
+export async function sumCostSince(
+  db: Db,
+  since: Date,
+  learnerUserId?: string,
+  unknownCallUsd = 0,
+): Promise<number> {
   const where = learnerUserId
     ? and(gte(aiCalls.at, since), eq(aiCalls.learnerUserId, learnerUserId))
     : gte(aiCalls.at, since);
   const [row] = await db
-    .select({ total: sql<number>`coalesce(sum(${aiCalls.costUsd}), 0)::float8` })
+    .select({
+      total: sql<number>`(coalesce(sum(${aiCalls.costUsd}), 0) + ${unknownCallUsd}::float8 * count(*) filter (where ${aiCalls.costUsd} is null and ${aiCalls.outcome} <> 'limited'))::float8`,
+    })
     .from(aiCalls)
     .where(where);
   return Number(row?.total ?? 0);
@@ -122,6 +134,15 @@ export async function incrementCounter(
     })
     .returning({ count: rateCounters.count });
   return row!.count;
+}
+
+/** The highest single-window count for `key` among windows starting at or after `since`. */
+export async function maxCounterSince(db: Db, key: string, since: Date): Promise<number> {
+  const [row] = await db
+    .select({ peak: sql<number>`coalesce(max(${rateCounters.count}), 0)::int` })
+    .from(rateCounters)
+    .where(and(eq(rateCounters.key, key), gte(rateCounters.windowStart, since)));
+  return Number(row?.peak ?? 0);
 }
 
 export async function readCounter(db: Db, key: string, windowStart: Date): Promise<number> {

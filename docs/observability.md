@@ -13,12 +13,12 @@ The logic lives in `packages/observability`. The data lives in two tables in `pa
 
 ## Error tracking
 
-- **Server:** `apps/web/src/instrumentation.ts` gets every uncaught error from routes, pages, server actions and middleware. It logs `request.error` with the route template (never the real path or query) and counts the error.
+- **Server:** `apps/web/src/instrumentation.ts` gets every uncaught error from routes, pages, server actions and middleware. It logs `request.error` with the route template (never the real path or query), the error class and the digest, and counts the error. The message and stack are never logged, because a validation or provider error can hold story text, a username or a transcript.
 - **Browser:** `apps/web/src/instrumentation-client.ts` reports uncaught errors and rejected promises to `POST /api/client-errors`.
   - At most 5 reports leave one page load.
   - Ids in the path become `:id`.
-  - Only the error class (`errorClass`, such as `TypeError`) and stack frames are sent. The browser's error message is never sent or logged, because it can hold text a learner typed or read. Frames lose their query strings.
-  - The route refuses requests from another origin, caps the body at 8 KB, keeps only known fields and rate limits per network address (callers with no address are split by user agent). If the limit store is down it refuses the report (503) instead of logging it unmetered.
+  - Only the error class (`errorClass`, such as `TypeError`) and stack frames (lines ending in line and column) are sent. The browser's error message is never sent or logged, because it can hold text a learner typed or read. Frames lose their query strings.
+  - The route refuses requests from another origin, caps the body at 8 KB (counted as it is read, so a missing content-length does not help), keeps only known fields and rate limits per network address (callers with no address are split by user agent). If the limit store is down it refuses the report (503) instead of logging it unmetered.
   - The route cannot require sign-in, because errors can happen before a learner signs in. The origin check and the rate limit are its guards.
 - We use no third-party error service, so no new company receives data. Search the Vercel logs for `"level":"error"`.
 
@@ -87,6 +87,9 @@ Override any policy with `RATE_LIMIT_<POLICY>=<limit>/<seconds>`, for example `R
   - `learner_budget`: this learner's spend reached `AI_LEARNER_DAILY_BUDGET_USD`
   - `rate_limit`: a story generation limit was hit
 - On `bank`, serve `pickBankStory(db, level, excludeIds)`. If that is empty too, fail visibly. `pickBankStory` reads the shared story bank only (`source = 'bank'`), not learner data. The caller fetches the learner's read stories through the authorization layer (BB-10) and passes them as `excludeIds`.
+- A call with no recorded cost (a failed call, or speech with no `SPEECH_USD_PER_MINUTE`) counts as `AI_UNKNOWN_CALL_USD` (default 0.01) toward both caps, so missing prices cannot hide spend. Rate limited calls count as nothing.
+- The check reads the spend, then lets the call go. Requests that arrive at the same moment can overshoot a cap slightly. The story rate limits keep that overshoot small.
+- `budgetFromEnv` also returns `learnerNewDailyUsd` (`AI_NEW_LEARNER_DAILY_BUDGET_USD`) for the BB-63 caps in `apps/web/src/server/limits/caps.ts`, which decide the tier and the notice. `storySourceFor` is the BB-39 check for story generation and does not look at tiers.
 - A database error also returns `bank`, so an outage can never run up cost.
 - The budget day starts at midnight in the Philippines.
 - BB-63 adds the learner-facing "come back tomorrow" message on top of `learner_budget`.
@@ -95,13 +98,13 @@ Override any policy with `RATE_LIMIT_<POLICY>=<limit>/<seconds>`, for example `R
 
 Vercel cron calls `GET /api/cron/alerts` with `Authorization: Bearer $CRON_SECRET`. It checks:
 
-| Alert                | Fires when                                                       | Setting                         |
-| -------------------- | ---------------------------------------------------------------- | ------------------------------- |
-| `server_error_spike` | 25 or more server errors in the last full 5 minutes              | `ALERT_SERVER_ERRORS_PER_5_MIN` |
-| `client_error_spike` | 50 or more browser errors in the last full 5 minutes             | `ALERT_CLIENT_ERRORS_PER_5_MIN` |
-| `high_cost`          | today's spend passes `AI_BUDGET_ALERT_SHARE` of the daily budget | `AI_BUDGET_ALERT_SHARE`         |
-| `budget_exhausted`   | today's spend reaches the daily budget                           | `AI_DAILY_BUDGET_USD`           |
-| `speech_failures`    | 20% or more of at least 10 speech calls failed in 15 minutes     | `ALERT_SPEECH_FAILURE_RATE`     |
+| Alert                | Fires when                                                           | Setting                         |
+| -------------------- | -------------------------------------------------------------------- | ------------------------------- |
+| `server_error_spike` | 25 or more server errors in one 5 minute bucket                      | `ALERT_SERVER_ERRORS_PER_5_MIN` |
+| `client_error_spike` | 50 or more browser errors in one 5 minute bucket                     | `ALERT_CLIENT_ERRORS_PER_5_MIN` |
+| `high_cost`          | today's spend passes `AI_BUDGET_ALERT_SHARE` of the daily budget     | `AI_BUDGET_ALERT_SHARE`         |
+| `budget_exhausted`   | today's spend reaches the daily budget                               | `AI_DAILY_BUDGET_USD`           |
+| `speech_failures`    | 20% or more of at least 10 speech calls failed in the look-back span | `ALERT_SPEECH_FAILURE_RATE`     |
 
 - Each alert writes an `alert` level log line with event `alert.<kind>`.
 - When `ALERT_WEBHOOK_URL` is set, all alerts from one check are posted together as `{ text, alerts }`. Slack-style incoming webhooks accept this.
@@ -109,4 +112,4 @@ Vercel cron calls `GET /api/cron/alerts` with `Authorization: Bearer $CRON_SECRE
 
 ## Setup on Vercel
 
-Set `CRON_SECRET`, `OPS_TOKEN`, `AI_DAILY_BUDGET_USD`, `AI_LEARNER_DAILY_BUDGET_USD` and, if wanted, `ALERT_WEBHOOK_URL` in every environment. `apps/web/vercel.json` runs the alert check once a day (01:00 UTC), which Vercel Hobby accepts. The budget alerts (`high_cost`, `budget_exhausted`) work at that rate. The spike alerts look at the last full 5 minutes, so at a daily rate they only see the moment the check runs. On a Vercel Pro plan, set the schedule to `*/5 * * * *` so the spike and speech alerts do their job. A schedule more often than daily makes a Hobby deploy fail.
+Set `CRON_SECRET`, `OPS_TOKEN`, `AI_DAILY_BUDGET_USD`, `AI_LEARNER_DAILY_BUDGET_USD` and, if wanted, `ALERT_WEBHOOK_URL` in every environment. `apps/web/vercel.json` runs the alert check once a day at 15:00 UTC (23:00 in the Philippines), which Vercel Hobby accepts and which puts the check at the end of the budget day. Each check looks back over `ALERT_LOOKBACK_MINUTES` (default 1440, one day, matching the daily schedule). Spike alerts compare the busiest 5 minute bucket in that span with the threshold, and the speech check covers the same span, so a spike at any time of day is seen. On a Vercel Pro plan, set the schedule to `*/5 * * * *` and `ALERT_LOOKBACK_MINUTES=5` to be told within minutes. A schedule more often than daily makes a Hobby deploy fail.

@@ -12,7 +12,13 @@ import {
   thresholdsFromEnv,
   windowStart,
 } from '@basabridge/observability';
-import { callOutcomesSince, costReport, pruneOps, readCounter, sumCostSince } from '@basabridge/db';
+import {
+  callOutcomesSince,
+  costReport,
+  maxCounterSince,
+  pruneOps,
+  sumCostSince,
+} from '@basabridge/db';
 import { getDb } from './db';
 import {
   createAlertCheckHandler,
@@ -40,14 +46,17 @@ export const alertCheckHandler = createAlertCheckHandler({
   gather: async (now) => {
     const db = getDb();
     const budget = budgetFromEnv(process.env);
-    // The last complete bucket, so a check early in a bucket does not miss a spike.
-    const current = windowStart(now, ERROR_BUCKET_SECONDS);
-    const previous = new Date(current.getTime() - ERROR_BUCKET_SECONDS * 1000);
-    const speechSince = new Date(now.getTime() - thresholds.speechWindowMinutes * 60_000);
+    // Look back over the whole span since the last check (the cron interval), so a spike at any
+    // time in it is seen. The busiest 5 minute bucket is the value compared with the threshold.
+    const lookback = new Date(now.getTime() - thresholds.lookbackMinutes * 60_000);
+    const errorsSince = windowStart(lookback, ERROR_BUCKET_SECONDS);
+    const speechSince = new Date(
+      now.getTime() - Math.max(thresholds.speechWindowMinutes, thresholds.lookbackMinutes) * 60_000,
+    );
     const [serverErrors, clientErrors, spentTodayUsd, speech] = await Promise.all([
-      readCounter(db, ERROR_COUNTER_KEYS.server, previous),
-      readCounter(db, ERROR_COUNTER_KEYS.client, previous),
-      sumCostSince(db, budgetDayStart(now)),
+      maxCounterSince(db, ERROR_COUNTER_KEYS.server, errorsSince),
+      maxCounterSince(db, ERROR_COUNTER_KEYS.client, errorsSince),
+      sumCostSince(db, budgetDayStart(now), undefined, budget.unknownCallUsd),
       callOutcomesSince(db, 'speech', speechSince),
     ]);
     return {

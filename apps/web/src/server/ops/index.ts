@@ -76,14 +76,15 @@ export async function storySourceFor(learnerUserId: string): Promise<StorySource
   try {
     const db = getDb();
     const since = budgetDayStart(new Date());
+    const config = budgetFromEnv(process.env);
     const [spent, learnerSpent] = await Promise.all([
-      sumCostSince(db, since),
-      sumCostSince(db, since, learnerUserId),
+      sumCostSince(db, since, undefined, config.unknownCallUsd),
+      sumCostSince(db, since, learnerUserId, config.unknownCallUsd),
     ]);
     const choice = chooseStorySource({
       spentTodayUsd: spent,
       learnerSpentTodayUsd: learnerSpent,
-      config: budgetFromEnv(process.env),
+      config,
     });
     if (choice.source === 'bank') {
       log.warn('budget.hit', { reason: choice.reason, learnerUserId });

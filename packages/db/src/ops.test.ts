@@ -14,6 +14,7 @@ import {
   pickBankStory,
   pruneOps,
   readCounter,
+  maxCounterSince,
   sumCostSince,
 } from './ops';
 import { createUser, deleteUser, insertStory, type Db } from './queries';
@@ -63,6 +64,12 @@ describe('ai_calls', () => {
     expect(await sumCostSince(db, T0)).toBeCloseTo(0.75);
     expect(await sumCostSince(db, T0, learnerId)).toBeCloseTo(0.5);
     expect(await sumCostSince(db, at(10))).toBe(0);
+  });
+
+  it('counts calls with no recorded cost at the unknown call price', async () => {
+    // Three calls above in this window: two priced, one error with no cost.
+    expect(await sumCostSince(db, T0, undefined, 0.1)).toBeCloseTo(0.85);
+    expect(await sumCostSince(db, T0, learnerId, 0.1)).toBeCloseTo(0.5);
   });
 
   it('records cost per story through the run id', async () => {
@@ -152,6 +159,16 @@ describe('rate_counters', () => {
     expect(await incrementCounter(db, 'k1', at(1), exp)).toBe(1);
     expect(await readCounter(db, 'k1', w)).toBe(5);
     expect(await readCounter(db, 'missing', w)).toBe(0);
+  });
+
+  it('finds the peak window since a time', async () => {
+    const exp = at(600);
+    await incrementCounter(db, 'peak', at(0), exp);
+    for (let i = 0; i < 3; i++) await incrementCounter(db, 'peak', at(5), exp);
+    await incrementCounter(db, 'peak', at(10), exp);
+    expect(await maxCounterSince(db, 'peak', at(0))).toBe(3);
+    expect(await maxCounterSince(db, 'peak', at(10))).toBe(1);
+    expect(await maxCounterSince(db, 'none', at(0))).toBe(0);
   });
 
   it('prunes expired counters and old calls', async () => {

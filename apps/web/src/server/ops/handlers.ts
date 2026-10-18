@@ -29,8 +29,8 @@ export function createClientErrorHandler(deps: ClientErrorDeps) {
     if (!isSameOrigin(request)) return new Response(null, { status: 403 });
     const declared = Number(request.headers.get('content-length') ?? 0);
     if (declared > CLIENT_ERROR_MAX_BYTES) return new Response(null, { status: 413 });
-    const raw = await request.text();
-    if (raw.length > CLIENT_ERROR_MAX_BYTES) return new Response(null, { status: 413 });
+    const raw = await readLimited(request, CLIENT_ERROR_MAX_BYTES);
+    if (raw === null) return new Response(null, { status: 413 });
 
     const report = parseClientError(raw);
     if (!report) return new Response(null, { status: 400 });
@@ -55,6 +55,25 @@ export function createClientErrorHandler(deps: ClientErrorDeps) {
   };
 }
 
+/** Reads the body but stops at `maxBytes`, even when content-length is missing or wrong. */
+async function readLimited(request: Request, maxBytes: number): Promise<string | null> {
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
 export interface ClientErrorReport {
   kind: 'error' | 'unhandledrejection';
   /** The error class, such as TypeError. The browser message is never kept: it can hold learner text. */
@@ -72,7 +91,12 @@ function sanitizeFrames(stack: string): string | null {
   const frames = stack
     .split('\n')
     .map((l) => l.trim())
-    .filter((l) => /^at\s|@/.test(l))
+    // A real frame ends in line:column and names a script, so a message line is not kept.
+    .filter(
+      (l) =>
+        /(^at\s.+|^[^\s@]*@\S+):\d+:\d+\)?$/.test(l) &&
+        /(https?:\/\/|file:|\/|\.m?[jt]sx?)/.test(l),
+    )
     .map((l) => scrubString(l.replace(/[?#][^\s)]*/g, '')))
     .join('\n')
     .slice(0, FRAME_MAX);

@@ -21,6 +21,11 @@ export interface AlertThresholds {
   speechMinCalls: number;
   /** Minutes of speech calls to look back over. */
   speechWindowMinutes: number;
+  /**
+   * How far back one check looks, in minutes. Set it to the cron interval: 1440 for a daily
+   * check, 5 for a 5 minute check. Error spikes use the busiest 5 minute bucket in this span.
+   */
+  lookbackMinutes: number;
 }
 
 export const DEFAULT_THRESHOLDS: AlertThresholds = {
@@ -29,6 +34,7 @@ export const DEFAULT_THRESHOLDS: AlertThresholds = {
   speechFailureRate: 0.2,
   speechMinCalls: 10,
   speechWindowMinutes: 15,
+  lookbackMinutes: 1440,
 };
 
 export function thresholdsFromEnv(env: Env): AlertThresholds {
@@ -51,11 +57,16 @@ export function thresholdsFromEnv(env: Env): AlertThresholds {
     speechFailureRate: rate <= 1 ? rate : DEFAULT_THRESHOLDS.speechFailureRate,
     speechMinCalls: DEFAULT_THRESHOLDS.speechMinCalls,
     speechWindowMinutes: DEFAULT_THRESHOLDS.speechWindowMinutes,
+    lookbackMinutes: positiveNumber(
+      env,
+      'ALERT_LOOKBACK_MINUTES',
+      DEFAULT_THRESHOLDS.lookbackMinutes,
+    ),
   };
 }
 
 export interface AlertInputs {
-  /** Errors in the last complete bucket. */
+  /** Errors in the busiest 5 minute bucket of the look-back span. */
   serverErrors: number;
   clientErrors: number;
   spentTodayUsd: number;

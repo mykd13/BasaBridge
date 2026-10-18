@@ -13,6 +13,10 @@ export interface BudgetConfig {
   globalDailyUsd: number;
   /** US dollars per day for one learner. BB-63 builds its friendly message on this cap. */
   learnerDailyUsd: number;
+  /** The lower per learner cap for the new tier (BB-63 caps). */
+  learnerNewDailyUsd: number;
+  /** Counted for a call with no recorded cost, so failed or unpriced calls cannot hide spend. */
+  unknownCallUsd: number;
   /** Share of the global budget that raises a high cost alert, 0..1. */
   alertShare: number;
 }
@@ -20,6 +24,8 @@ export interface BudgetConfig {
 export const DEFAULT_BUDGET: BudgetConfig = {
   globalDailyUsd: 10,
   learnerDailyUsd: 0.5,
+  learnerNewDailyUsd: 0.1,
+  unknownCallUsd: 0.01,
   alertShare: 0.8,
 };
 
@@ -33,6 +39,12 @@ export function budgetFromEnv(env: Env): BudgetConfig {
       'AI_LEARNER_DAILY_BUDGET_USD',
       DEFAULT_BUDGET.learnerDailyUsd,
     ),
+    learnerNewDailyUsd: positiveNumber(
+      env,
+      'AI_NEW_LEARNER_DAILY_BUDGET_USD',
+      DEFAULT_BUDGET.learnerNewDailyUsd,
+    ),
+    unknownCallUsd: positiveNumber(env, 'AI_UNKNOWN_CALL_USD', DEFAULT_BUDGET.unknownCallUsd),
     alertShare: share <= 1 ? share : DEFAULT_BUDGET.alertShare,
   };
 }

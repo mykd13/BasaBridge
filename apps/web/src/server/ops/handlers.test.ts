@@ -265,3 +265,37 @@ describe('cost report', () => {
       expect((await handler(authed(`http://x/api/ops/cost-report${q}`))).status).toBe(400);
   });
 });
+
+describe('client error body limit and frames', () => {
+  const handler = createClientErrorHandler({
+    log: createLogger({ service: 't', sink: memorySink() }),
+    allow: async () => true,
+    countError: async () => {},
+  });
+
+  it('refuses a big body even with no content-length', async () => {
+    const big = JSON.stringify({ kind: 'error', stack: 'x'.repeat(CLIENT_ERROR_MAX_BYTES * 2) });
+    const stream = new ReadableStream({
+      start(c) {
+        c.enqueue(new TextEncoder().encode(big));
+        c.close();
+      },
+    });
+    const req = new Request('http://x/api/client-errors', {
+      method: 'POST',
+      body: stream,
+      duplex: 'half',
+    } as RequestInit);
+    expect((await handler(req)).status).toBe(413);
+  });
+
+  it('keeps real frames and drops message lines that only look like frames', () => {
+    const stack = [
+      'Error: at the door: 5:30',
+      '    at Foo (https://x/_next/a.js:10:5)',
+      'bar@https://x/_next/b.js:3:4',
+    ].join('\n');
+    const r = parseClientError(JSON.stringify({ kind: 'error', stack }));
+    expect(r?.stack).toBe('at Foo (https://x/_next/a.js:10:5)\nbar@https://x/_next/b.js:3:4');
+  });
+});

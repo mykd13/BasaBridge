@@ -93,7 +93,7 @@ describe('policiesFromEnv', () => {
 });
 
 describe('daily budget', () => {
-  const config = { globalDailyUsd: 10, learnerDailyUsd: 0.5, alertShare: 0.8 };
+  const config = { ...DEFAULT_BUDGET, globalDailyUsd: 10, learnerDailyUsd: 0.5, alertShare: 0.8 };
 
   it('generates while under both caps', () => {
     expect(chooseStorySource({ spentTodayUsd: 9.99, learnerSpentTodayUsd: 0.49, config })).toEqual({
@@ -115,6 +115,15 @@ describe('daily budget', () => {
     });
   });
 
+  it('reads the new tier cap and the unknown call price from the environment', () => {
+    const c = budgetFromEnv({
+      AI_NEW_LEARNER_DAILY_BUDGET_USD: '0.2',
+      AI_UNKNOWN_CALL_USD: '0.05',
+    });
+    expect(c.learnerNewDailyUsd).toBe(0.2);
+    expect(c.unknownCallUsd).toBe(0.05);
+  });
+
   it('reads the caps from the environment with safe defaults', () => {
     expect(budgetFromEnv({})).toEqual(DEFAULT_BUDGET);
     expect(
@@ -123,7 +132,7 @@ describe('daily budget', () => {
         AI_LEARNER_DAILY_BUDGET_USD: '-1',
         AI_BUDGET_ALERT_SHARE: '3',
       }),
-    ).toEqual({ globalDailyUsd: 25, learnerDailyUsd: 0.5, alertShare: 0.8 });
+    ).toEqual({ ...DEFAULT_BUDGET, globalDailyUsd: 25 });
   });
 
   it('starts the day at midnight in the Philippines', () => {
