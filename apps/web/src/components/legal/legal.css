@@ -1,0 +1,105 @@
+/* Legal pages and links (BB-69). Colours and radii come from the @basabridge/ui tokens. */
+
+.bb-legal {
+  max-width: 44rem;
+  margin: 0 auto;
+  font-size: 1.125rem;
+  line-height: var(--leading-body);
+}
+.bb-legal h1 {
+  font-size: 2rem;
+  margin-block: 0 1.25rem;
+}
+.bb-legal h2 {
+  font-size: 1.375rem;
+  margin-block: 2rem 0.5rem;
+}
+.bb-legal h3 {
+  font-size: 1.125rem;
+  margin-block: 0 0.5rem;
+}
+.bb-legal p,
+.bb-legal ul {
+  margin-block: 0.5rem;
+}
+.bb-legal a {
+  color: var(--accent);
+  text-underline-offset: 0.2em;
+}
+.bb-legal a:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+  box-shadow: var(--focus-halo);
+}
+.bb-legal__note,
+.bb-legal__paragraph {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+.bb-legal__note > :first-child,
+.bb-legal__paragraph > p {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.bb-legal__paragraph > .bb-speaker {
+  flex: none;
+}
+.bb-legal__providers {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+.bb-legal__provider {
+  padding: 1rem;
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.bb-legal__provider dt {
+  font-weight: 700;
+  margin-top: 0.5rem;
+}
+.bb-legal__provider dd {
+  margin: 0;
+  color: var(--muted);
+}
+.bb-legal__tag {
+  margin-inline-start: 0.5rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--mark-soft);
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.bb-legal__version {
+  margin-top: 2rem;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+.bb-legal__contact {
+  margin-top: 0.25rem;
+}
+
+.bb-legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 1.25rem;
+  padding: 1rem;
+  border-top: 1px solid var(--line);
+}
+.bb-legal-links a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--touch);
+  color: var(--accent);
+  font-weight: 700;
+}
+.bb-legal-links a:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+  box-shadow: var(--focus-halo);
+}

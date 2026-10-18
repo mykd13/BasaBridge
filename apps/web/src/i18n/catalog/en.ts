@@ -196,6 +196,73 @@ export const en = {
       },
     },
   },
+  legal: {
+    links: {
+      privacy: { standard: 'Privacy notice', simple: 'Privacy' },
+      terms: { standard: 'Terms of use', simple: 'Rules' },
+      kids: { standard: 'Privacy for kids', simple: 'Privacy for kids' },
+    },
+    nav: { standard: 'Legal', simple: 'Privacy and rules' },
+    version: { standard: 'Version {version}' },
+    contact: { standard: 'Questions about privacy? Write to <mail>{email}</mail>.' },
+    contactMissing: { standard: 'The privacy contact address is not set yet.' },
+    providers: {
+      name: { standard: 'Service' },
+      purpose: { standard: 'What it does' },
+      sees: { standard: 'What it sees' },
+      neverSees: { standard: 'What it never sees' },
+      undecided: { standard: 'Not chosen yet' },
+      caption: { standard: 'Services that handle data for BasaBridge' },
+    },
+    speak: {
+      listen: { standard: 'Listen to this paragraph', simple: 'Listen' },
+      stop: { standard: 'Stop listening', simple: 'Stop' },
+    },
+    update: {
+      title: { standard: 'We updated our privacy notice or terms' },
+      body: {
+        standard: 'Please read what changed. You can use BasaBridge again after you agree.',
+      },
+      later: {
+        standard:
+          'Agreeing to the new version is not ready yet. It arrives with the consent records.',
+      },
+    },
+    kids: {
+      draft: {
+        standard:
+          'Draft. Awaiting qualified review. A grown-up who knows the law will check this page.',
+        spoken: true,
+      },
+      what1: { standard: 'BasaBridge helps you read stories.', spoken: true },
+      what2: { standard: 'You read out loud, and a computer checks the words.', spoken: true },
+      keep1: { standard: 'We keep your username.', spoken: true },
+      keep2: { standard: 'We keep how you read and how you answered.', spoken: true },
+      voice1: { standard: 'We use your voice to check your reading.', spoken: true },
+      voice2: { standard: 'Then we throw it away, unless you choose to keep it.', spoken: true },
+      voice3: {
+        standard: 'If you keep it, we delete it after 30 days. Parents never hear it.',
+        spoken: true,
+      },
+      helpers1: { standard: 'Some computer helpers work with BasaBridge.', spoken: true },
+      helpers2: { standard: 'We never send your name or username to a helper.', spoken: true },
+      helpers3: {
+        standard: 'Your voice goes only to the helper that listens to your reading.',
+        spoken: true,
+      },
+      grownup1: {
+        standard: 'If you are under 13, a grown-up must say yes before you use the microphone.',
+        spoken: true,
+      },
+      grownup2: { standard: 'You can still read quietly and answer questions.', spoken: true },
+      share1: { standard: 'You choose what a parent can see.', spoken: true },
+      share2: { standard: 'You can stop sharing at any time.', spoken: true },
+      ask1: {
+        standard: 'Have a question? Ask a grown-up to write to the address on this page.',
+        spoken: true,
+      },
+    },
+  },
   progress: {
     level: { standard: 'My level', simple: 'My level' },
     levelOf: { standard: 'of {max}' },
