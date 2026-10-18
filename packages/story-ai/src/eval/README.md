@@ -79,5 +79,6 @@ The sets are small, and 80% was picked for a set of this size. The gold set has 
 
 ## Part 2
 
-- Real adapters that call `generateStory` (BB-15) and `verifyStory` (BB-17), with cost read from the AI Gateway response.
+- Real adapters that call `generateStory` (BB-15) and `verifyStory` (BB-17), with cost read from the AI Gateway response. BB-15 (PR 42) runs the checks and retries inside `generateStory`, so an adapter built on it sees only the story after retries. Part 2 must decide whether the check pass rate measures the first try or the final story, and record the number of tries per story.
+- Live mode stays opt-in: an explicit flag that is off by default, a printed cost estimate before the first call, and no path from `pnpm test` or CI. CI never needs `AI_GATEWAY_API_KEY`.
 - A first reviewed baseline, and a check that runs the gate on prompt or model changes (BB-73).

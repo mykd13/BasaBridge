@@ -1,5 +1,5 @@
 /**
- * The gold and safety sets are test data. App code and the package entry point must never import
+ * The gold and safety sets are test data. App code, other packages and the entry point must never import
  * them, so no passage can reach a learner screen or a seed (AGENTS.md golden rule 8).
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -37,6 +37,15 @@ describe('eval isolation', () => {
     const offenders = sourceFiles(join(repoRoot, 'apps')).filter((f) =>
       importsEval(readFileSync(f, 'utf8')),
     );
+    expect(offenders).toEqual([]);
+  });
+
+  it('no other package imports the eval folder, so it cannot reach a seed', () => {
+    const packages = join(repoRoot, 'packages');
+    const offenders = readdirSync(packages)
+      .filter((name) => name !== 'story-ai' && statSync(join(packages, name)).isDirectory())
+      .flatMap((name) => sourceFiles(join(packages, name)))
+      .filter((f) => importsEval(readFileSync(f, 'utf8')));
     expect(offenders).toEqual([]);
   });
 
