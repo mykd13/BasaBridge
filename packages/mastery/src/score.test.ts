@@ -5,7 +5,7 @@ import { itemDifficulty, prior, summarise, updatePosterior } from './ability';
 import {
   answerEvidence,
   answerKey,
-  scoreAnswer,
+  scoreResponse,
   scoreChooseAll,
   scoreMultipleChoice,
   scoreOrderEvents,
@@ -156,32 +156,32 @@ describe('scoreOrderEvents', () => {
   });
 });
 
-describe('scoreAnswer', () => {
+describe('scoreResponse', () => {
   it('scores each question type with its own rule', () => {
-    expect(scoreAnswer(mc, { type: 'multiple_choice', chosen: 1 }).correct).toBe(true);
-    expect(scoreAnswer(chooseAll, { type: 'choose_all', chosen: [0, 2] }).correct).toBe(true);
-    expect(scoreAnswer(order, { type: 'order_events', order: [0, 1, 2, 3] }).correct).toBe(true);
+    expect(scoreResponse(mc, { type: 'multiple_choice', chosen: 1 }).correct).toBe(true);
+    expect(scoreResponse(chooseAll, { type: 'choose_all', chosen: [0, 2] }).correct).toBe(true);
+    expect(scoreResponse(order, { type: 'order_events', order: [0, 1, 2, 3] }).correct).toBe(true);
   });
 
   it('reports the question type on every score', () => {
-    expect(scoreAnswer(mc, { type: 'multiple_choice', chosen: 0 }).type).toBe('multiple_choice');
-    expect(scoreAnswer(chooseAll, { type: 'choose_all', chosen: [1] }).type).toBe('choose_all');
-    expect(scoreAnswer(order, { type: 'order_events', order: [1, 0, 2, 3] }).type).toBe(
+    expect(scoreResponse(mc, { type: 'multiple_choice', chosen: 0 }).type).toBe('multiple_choice');
+    expect(scoreResponse(chooseAll, { type: 'choose_all', chosen: [1] }).type).toBe('choose_all');
+    expect(scoreResponse(order, { type: 'order_events', order: [1, 0, 2, 3] }).type).toBe(
       'order_events',
     );
   });
 
   it('rejects a response of the wrong type', () => {
-    expect(scoreAnswer(mc, { type: 'choose_all', chosen: [1] })).toMatchObject({
+    expect(scoreResponse(mc, { type: 'choose_all', chosen: [1] })).toMatchObject({
       valid: false,
       reason: 'type_mismatch',
     });
-    expect(scoreAnswer(order, { type: 'choose_all', chosen: [0, 1, 2, 3] })).toMatchObject({
+    expect(scoreResponse(order, { type: 'choose_all', chosen: [0, 1, 2, 3] })).toMatchObject({
       valid: false,
       reason: 'type_mismatch',
       partsTotal: 4,
     });
-    expect(scoreAnswer(chooseAll, { type: 'multiple_choice', chosen: 0 })).toMatchObject({
+    expect(scoreResponse(chooseAll, { type: 'multiple_choice', chosen: 0 })).toMatchObject({
       valid: false,
       reason: 'type_mismatch',
     });
@@ -198,7 +198,7 @@ describe('scoreAnswer', () => {
     ] as unknown as AnswerResponse[];
     for (const r of odd) {
       for (const q of [mc, chooseAll, order]) {
-        const s = scoreAnswer(q, r);
+        const s = scoreResponse(q, r);
         expect(s.correct).toBe(false);
       }
     }
@@ -208,7 +208,7 @@ describe('scoreAnswer', () => {
 describe('answerEvidence', () => {
   const base = { storyLevel: 40, rushed: false, supportedTry: false };
   const evidenceFor = (question: ScorableQuestion, response: AnswerResponse) => {
-    const e = answerEvidence({ ...base, question, score: scoreAnswer(question, response) });
+    const e = answerEvidence({ ...base, question, score: scoreResponse(question, response) });
     if (!e) throw new Error('expected evidence');
     return e;
   };
@@ -221,7 +221,7 @@ describe('answerEvidence', () => {
     ];
     for (const [question, response] of cases) {
       const e = evidenceFor(question, response);
-      expect(e.guess).toBe(EVIDENCE_RULE.guess[scoreAnswer(question, response).type]);
+      expect(e.guess).toBe(EVIDENCE_RULE.guess[scoreResponse(question, response).type]);
       expect(e.correct).toBe(true);
     }
   });
@@ -243,8 +243,8 @@ describe('answerEvidence', () => {
   });
 
   it('treats a nearly right answer exactly like any other wrong answer', () => {
-    const near = scoreAnswer(order, { type: 'order_events', order: [0, 1, 3, 2] });
-    const far = scoreAnswer(order, { type: 'order_events', order: [3, 2, 1, 0] });
+    const near = scoreResponse(order, { type: 'order_events', order: [0, 1, 3, 2] });
+    const far = scoreResponse(order, { type: 'order_events', order: [3, 2, 1, 0] });
     expect(near.partsRight).toBeGreaterThan(far.partsRight);
     expect(answerEvidence({ ...base, question: order, score: near })).toEqual(
       answerEvidence({ ...base, question: order, score: far }),
@@ -252,7 +252,7 @@ describe('answerEvidence', () => {
   });
 
   it('weights rushed and supported answers with the shared evidence rule', () => {
-    const score = scoreAnswer(mc, { type: 'multiple_choice', chosen: 1 });
+    const score = scoreResponse(mc, { type: 'multiple_choice', chosen: 1 });
     const e = answerEvidence({ ...base, rushed: true, supportedTry: true, question: mc, score });
     expect(e?.weight).toBeCloseTo(
       EVIDENCE_RULE.weight.rushed * EVIDENCE_RULE.weight.supportedTry,
@@ -272,7 +272,7 @@ describe('invalid input', () => {
       [order, { type: 'order_events', order: [0, 1] }],
     ];
     for (const [question, response] of bad) {
-      const score = scoreAnswer(question, response);
+      const score = scoreResponse(question, response);
       expect(score.valid).toBe(false);
       expect(answerEvidence({ ...base, question, score })).toBeNull();
     }
@@ -281,7 +281,7 @@ describe('invalid input', () => {
   it('does not throw for a null or undefined response', () => {
     for (const r of [null, undefined]) {
       for (const q of [mc, chooseAll, order]) {
-        const score = scoreAnswer(q, r as unknown as AnswerResponse);
+        const score = scoreResponse(q, r as unknown as AnswerResponse);
         expect(score).toMatchObject({ valid: false, correct: false, reason: 'type_mismatch' });
       }
     }
@@ -300,7 +300,7 @@ describe('invalid input', () => {
       answerEvidence({
         ...base,
         question: q,
-        score: scoreAnswer(q, {
+        score: scoreResponse(q, {
           type: 'order_events',
           order: Array.from({ length: n }, (_, i) => i),
         }),

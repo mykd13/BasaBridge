@@ -170,7 +170,7 @@ export function scoreOrderEvents(q: OrderEventsQuestion, order: readonly number[
   return scoreChosen(answerKey(q), order);
 }
 
-export function scoreAnswer(q: ScorableQuestion, r: AnswerResponse): AnswerScore {
+export function scoreResponse(q: ScorableQuestion, r: AnswerResponse): AnswerScore {
   const key = answerKey(q);
   // A missing or malformed response is data from outside, so it must not throw.
   if (typeof r !== 'object' || r === null || r.type !== key.type) {
