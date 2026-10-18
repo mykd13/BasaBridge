@@ -668,6 +668,136 @@ export const fil = {
       },
     },
   },
+  legal: {
+    links: {
+      privacy: { standard: 'Abiso sa privacy', simple: 'Privacy', reviewed: false },
+      terms: { standard: 'Mga tuntunin sa paggamit', simple: 'Mga patakaran', reviewed: false },
+      kids: {
+        standard: 'Privacy para sa mga bata',
+        simple: 'Privacy para sa mga bata',
+        reviewed: false,
+      },
+    },
+    nav: { standard: 'Legal', simple: 'Privacy at mga patakaran', reviewed: false },
+    version: { standard: 'Bersyon {version}', reviewed: false },
+    contact: {
+      standard: 'May tanong tungkol sa privacy? Sumulat sa <mail>{email}</mail>.',
+      reviewed: false,
+    },
+    contactMissing: {
+      standard: 'Hindi pa naitatakda ang email address para sa privacy.',
+      reviewed: false,
+    },
+    providers: {
+      name: { standard: 'Serbisyo', reviewed: false },
+      purpose: { standard: 'Ano ang ginagawa nito', reviewed: false },
+      sees: { standard: 'Ano ang nakikita nito', reviewed: false },
+      neverSees: { standard: 'Ano ang hindi nito nakikita', reviewed: false },
+      undecided: { standard: 'Hindi pa napipili', reviewed: false },
+      caption: {
+        standard: 'Mga serbisyong humahawak ng datos para sa BasaBridge',
+        reviewed: false,
+      },
+    },
+    speak: {
+      listen: { standard: 'Pakinggan ang talatang ito', simple: 'Pakinggan', reviewed: false },
+      stop: { standard: 'Itigil ang pakikinig', simple: 'Itigil', reviewed: false },
+    },
+    update: {
+      title: { standard: 'Binago namin ang abiso sa privacy o ang mga tuntunin', reviewed: false },
+      body: {
+        standard:
+          'Pakibasa ang mga nagbago. Magagamit mo muli ang BasaBridge pagkatapos mong pumayag.',
+        reviewed: false,
+      },
+      later: {
+        standard:
+          'Hindi pa handa ang pagpayag sa bagong bersyon. Darating ito kasama ng mga tala ng pahintulot.',
+        reviewed: false,
+      },
+    },
+    kids: {
+      draft: {
+        standard:
+          'Draft pa lang ito. Naghihintay ng kwalipikadong pagsusuri. Susuriin ito ng nakatatandang marunong sa batas.',
+        spoken: true,
+        reviewed: false,
+      },
+      what1: {
+        standard: 'Tinutulungan ka ng BasaBridge na magbasa ng mga kuwento.',
+        spoken: true,
+        reviewed: false,
+      },
+      what2: {
+        standard: 'Nagbabasa ka nang malakas, at sinusuri ng computer ang mga salita.',
+        spoken: true,
+        reviewed: false,
+      },
+      keep1: { standard: 'Itinatago namin ang iyong username.', spoken: true, reviewed: false },
+      keep2: {
+        standard: 'Itinatago namin kung paano ka nagbasa at kung paano ka sumagot.',
+        spoken: true,
+        reviewed: false,
+      },
+      voice1: {
+        standard: 'Ginagamit namin ang boses mo para suriin ang pagbasa mo.',
+        spoken: true,
+        reviewed: false,
+      },
+      voice2: {
+        standard: 'Pagkatapos, itinatapon namin ito, maliban kung pipiliin mong itago.',
+        spoken: true,
+        reviewed: false,
+      },
+      voice3: {
+        standard:
+          'Kung itatago, buburahin namin ito pagkalipas ng 30 araw. Hindi ito naririnig ng mga magulang.',
+        spoken: true,
+        reviewed: false,
+      },
+      helpers1: {
+        standard: 'May ilang computer na katulong na gumagana kasama ng BasaBridge.',
+        spoken: true,
+        reviewed: false,
+      },
+      helpers2: {
+        standard: 'Hindi namin ipinapadala sa katulong ang pangalan o username mo.',
+        spoken: true,
+        reviewed: false,
+      },
+      helpers3: {
+        standard: 'Ang boses mo ay napupunta lamang sa katulong na nakikinig sa pagbasa mo.',
+        spoken: true,
+        reviewed: false,
+      },
+      grownup1: {
+        standard:
+          'Kung wala ka pang 13 taong gulang, kailangang pumayag muna ang nakatatanda bago mo gamitin ang mikropono.',
+        spoken: true,
+        reviewed: false,
+      },
+      grownup2: {
+        standard: 'Makakabasa ka pa rin nang tahimik at makakasagot sa mga tanong.',
+        spoken: true,
+        reviewed: false,
+      },
+      share1: {
+        standard: 'Ikaw ang pipili kung ano ang makikita ng magulang.',
+        spoken: true,
+        reviewed: false,
+      },
+      share2: {
+        standard: 'Maaari kang tumigil sa pagbabahagi anumang oras.',
+        spoken: true,
+        reviewed: false,
+      },
+      ask1: {
+        standard: 'May tanong? Magpasulat sa nakatatanda sa address na nasa pahinang ito.',
+        spoken: true,
+        reviewed: false,
+      },
+    },
+  },
   progress: {
     level: { standard: 'Aking antas', simple: 'Aking antas', reviewed: false },
     levelOf: { standard: 'sa {max}', reviewed: false },
