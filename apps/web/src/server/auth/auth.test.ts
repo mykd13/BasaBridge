@@ -178,7 +178,40 @@ describe('sign-in, sessions and sign-out', () => {
   });
 });
 
+describe('migrations on a database that already has users', () => {
+  it('backfills name and email so the new constraints hold', async () => {
+    const client = new PGlite();
+    const files = readdirSync(migrations)
+      .filter((f) => f.endsWith('.sql'))
+      .sort();
+    const run = async (file: string) => {
+      const sql = readFileSync(join(migrations, file), 'utf8');
+      for (const stmt of sql.split('--> statement-breakpoint')) await client.exec(stmt);
+    };
+    await run(files[0]!);
+    await client.exec(
+      `INSERT INTO users (role, username, password_hash) VALUES ('student', 'old_user', 'x')`,
+    );
+    for (const file of files.slice(1)) await run(file);
+    const { rows } = await client.query<{ name: string; email: string }>(
+      'SELECT name, email FROM users',
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.name).toBe('old_user');
+    expect(rows[0]!.email).toMatch(/@students\.basabridge\.invalid$/);
+  });
+});
+
 describe('lockout and rate limit', () => {
+  it('stores a fixed size hash for an unknown, very long identifier', async () => {
+    const t = await setup();
+    const long = 'x'.repeat(5000);
+    await expect(signIn(t.auth, long, 'nope nope nope')).rejects.toThrow();
+    const rows = await t.db.select().from(schema.signInFailures);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.identifier).toMatch(/^name:[0-9a-f]{64}$/);
+  });
+
   it('locks a username after repeated failures, even with the right password', async () => {
     const t = await setup();
     await signUpStudent(t.auth, t.db, { username: 'mika', password: 'correct horse' });

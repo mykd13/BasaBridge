@@ -49,7 +49,7 @@ Use **Better Auth** with the Drizzle adapter, the `username` plugin and email an
 - No step runs migrations on Vercel yet (deferred from BB-3). Without one the auth tables do not exist, and sign-up and sign-in fail.
 - `BETTER_AUTH_URL` must be set in all three Vercel environments (add it to the BB-2 checklist). `AUTH_SECRET` needs at least 32 characters.
 - Production uses a mailer that throws, so a reset request fails loudly until a provider is wired in (BB-64).
-- Decide whether child sessions keep the IP address and user agent before the pilot (BB-41).
+- Child sessions currently keep the IP address and user agent that Better Auth stores in `sessions`. They are not read by any code and never shown. BB-41 must decide before the pilot whether to drop the columns or keep them with a retention period.
 
 ## Open
 

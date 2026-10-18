@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { and, eq, gt, lt, or, sql } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import { signInFailures, users } from '@basabridge/db/schema';
@@ -8,13 +9,17 @@ export type Db = PgDatabase<PgQueryResultHKT, typeof Schema>;
 
 const windowStart = () => new Date(Date.now() - authConfig.lockoutWindowMinutes * 60_000);
 
+/** No username or email is longer than this, so anything past it is not a real identifier. */
+const MAX_IDENTIFIER_LENGTH = 320;
+
 export function normalizeIdentifier(raw: string): string {
-  return raw.trim().toLowerCase();
+  return raw.slice(0, MAX_IDENTIFIER_LENGTH).trim().toLowerCase();
 }
 
 /**
  * One counter per account, whichever sign-in route is used. A known username or email maps to
- * the user id. Unknown names are counted under the text itself so guessing is still limited.
+ * the user id. Unknown names are counted under a hash of the text, so the key has a fixed size
+ * and the table never holds text a stranger typed.
  */
 export async function lockoutKey(db: Db, raw: string): Promise<string> {
   const id = normalizeIdentifier(raw);
@@ -23,7 +28,8 @@ export async function lockoutKey(db: Db, raw: string): Promise<string> {
     .from(users)
     .where(or(eq(users.email, id), sql`lower(${users.username}) = ${id}`))
     .limit(1);
-  return user ? `user:${user.id}` : `name:${id}`;
+  if (user) return `user:${user.id}`;
+  return `name:${createHash('sha256').update(id).digest('hex')}`;
 }
 
 /**

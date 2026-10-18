@@ -49,9 +49,12 @@ CREATE TABLE "verifications" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+UPDATE "users" SET "email" = "id"::text || '@students.basabridge.invalid' WHERE "email" IS NULL;--> statement-breakpoint
 ALTER TABLE "users" ALTER COLUMN "email" SET NOT NULL;--> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN "display_username" text;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "name" text NOT NULL;--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN "name" text;--> statement-breakpoint
+UPDATE "users" SET "name" = "username" WHERE "name" IS NULL;--> statement-breakpoint
+ALTER TABLE "users" ALTER COLUMN "name" SET NOT NULL;--> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN "email_real" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN "email_verified" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN "image" text;--> statement-breakpoint
