@@ -1,4 +1,8 @@
 import type { NextConfig } from 'next';
+import createNextIntlPlugin from 'next-intl/plugin';
+
+// Locale comes from the request (cookie or browser), not the URL. See src/i18n/request.ts.
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const config: NextConfig = {
   // Workspace packages ship TypeScript source, so Next compiles them.
@@ -15,4 +19,4 @@ const config: NextConfig = {
   ],
 };
 
-export default config;
+export default withNextIntl(config);

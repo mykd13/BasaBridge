@@ -37,4 +37,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - name: List Filipino keys that still need a native speaker review
+        run: pnpm i18n:unreviewed
+        continue-on-error: true
       - run: pnpm build
