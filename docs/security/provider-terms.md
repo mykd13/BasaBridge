@@ -39,6 +39,8 @@ Note for the reader: Google's terms usually differ between the free tier and pai
 | Do the terms allow children's voices?              | Not yet verified |                      |
 | Where is audio processed?                          | Not yet verified |                      |
 
+Note for the reader: the bake-off candidates' answers, with links and the date read (2026-10-17), are in `packages/speech/bakeoff/vendors.json`, and the per-company table for the consent text is in `packages/speech/bakeoff/PROTOCOL.md`. They cover the bake-off itself. This table is filled for the chosen provider when the speech provider ADR lands, after reading its current production terms again.
+
 ## Email provider (guardian approval, password reset)
 
 | Question                                     | Answer           | Source and date read |

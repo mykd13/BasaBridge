@@ -254,9 +254,15 @@ importers:
         specifier: workspace:*
         version: link:../contracts
     devDependencies:
+      '@basabridge/levels':
+        specifier: workspace:*
+        version: link:../levels
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
 
   packages/story-ai:
     dependencies:

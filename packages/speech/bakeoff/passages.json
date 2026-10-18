@@ -1,0 +1,46 @@
+[
+  { "id": "P01", "level": 5, "text": "The cat sat on the mat. It is a big cat." },
+  { "id": "P02", "level": 5, "text": "Ben has a red ball. He kicks it to Mia." },
+  { "id": "P03", "level": 5, "text": "Lola cooks rice in a pot. The rice is hot." },
+  { "id": "P04", "level": 5, "text": "We play in the rain. Our feet get wet and cold." },
+  {
+    "id": "P05",
+    "level": 20,
+    "text": "Ana walked to the market with her father. They bought fish, mangoes and a bag of rice. On the way home, it started to rain. Ana held the umbrella high so the fish would stay dry."
+  },
+  {
+    "id": "P06",
+    "level": 20,
+    "text": "The class planted seeds in small cups. Every morning, Paolo checked the soil and added a little water. After five days, a tiny green leaf pushed up. Paolo smiled. His seed was finally growing."
+  },
+  {
+    "id": "P07",
+    "level": 20,
+    "text": "A jeepney stopped near the school gate. Students climbed in and found their seats. The driver waited until everyone was ready. Then the jeepney moved slowly through the busy street, past shops and a church."
+  },
+  {
+    "id": "P08",
+    "level": 20,
+    "text": "Felix wanted to fix his old bicycle. The chain was loose and the front wheel was flat. His older sister showed him how to pump the tire. Together they cleaned the chain until it shone."
+  },
+  {
+    "id": "P09",
+    "level": 40,
+    "text": "Every year, the river near our village rises during the rainy season. Last August, the water reached the steps of the health center. My grandmother remembered an older flood, so she told everyone to move the rice sacks to higher shelves. Because people listened, very little food was ruined, and the families shared what they had until the roads were clear again."
+  },
+  {
+    "id": "P10",
+    "level": 40,
+    "text": "Coral reefs are sometimes called the rainforests of the sea. Thousands of fish, crabs and sea turtles depend on them for food and shelter. When the water becomes too warm, the coral can lose its color and slowly die. Scientists and fishermen in the Visayas are working together to protect these reefs by limiting fishing in certain areas."
+  },
+  {
+    "id": "P11",
+    "level": 40,
+    "text": "Marisol was nervous about her first science fair. She had tested three kinds of soil to see which one helped beans grow fastest. The night before, she practiced explaining her results to her brother, who kept asking difficult questions. The next morning, when a judge asked her the very same questions, Marisol answered calmly and even laughed at her own small mistake."
+  },
+  {
+    "id": "P12",
+    "level": 40,
+    "text": "Long before smartphones, people in the islands sent news by boat, by letter or simply by word of mouth. A message could take weeks to travel from one province to another. Today, a video filmed in a small town can reach the whole country within minutes. This speed is useful during typhoons, but it also means that false stories can spread just as quickly as true ones, so readers must think carefully before they share."
+  }
+]

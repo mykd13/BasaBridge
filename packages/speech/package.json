@@ -11,11 +11,16 @@
   "dependencies": {
     "@basabridge/contracts": "workspace:*"
   },
-  "scripts": {
-    "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run --passWithNoTests"
-  },
   "devDependencies": {
-    "@types/node": "^26.6.5"
+    "@basabridge/levels": "workspace:*",
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json && tsc -p bakeoff/tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "bakeoff": "tsx --env-file-if-exists=../../.env.local bakeoff/run.ts",
+    "bakeoff:templates": "tsx --env-file-if-exists=../../.env.local bakeoff/run.ts templates",
+    "bakeoff:labels": "tsx --env-file-if-exists=../../.env.local bakeoff/run.ts labels"
   }
 }
