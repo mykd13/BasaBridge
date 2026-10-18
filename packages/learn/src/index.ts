@@ -13,5 +13,6 @@
 export * from './core';
 export * from './gaps';
 export * from './lesson';
+export * from './recheck';
 export * from './registry';
 export * from './status';
