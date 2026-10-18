@@ -160,6 +160,8 @@ The README tests check that both tables in this file match the data.
 
 These are placeholders until the reading specialist reviews them (BB-74).
 
+They also stay placeholders until the validity study compares them with an outside reading test (BB-77, [docs/research/validity-study.md](../../docs/research/validity-study.md)). Its report says for each item below whether the data supported it, changed it, or could not test it. A number changes only through "How to tune" above, with the study data that supports it.
+
 - [ ] The 6 tier boundaries: levels 10, 30, 55, 75 and 90 end a tier
 - [ ] Story length in words for each tier
 - [ ] Max reading grade for each tier
