@@ -19,19 +19,27 @@ function sign(payload: string, secret: string): string {
   return createHmac('sha256', secret).update(payload).digest('base64url');
 }
 
+const MIN_SECRET = 32;
+
 function requireSecret(secret: string): void {
-  if (secret.length < 32) throw new Error('Unsubscribe secret must be at least 32 characters');
+  if (secret.length < MIN_SECRET)
+    throw new Error('Unsubscribe secret must be at least 32 characters');
 }
 
 export function createUnsubscribeToken(claim: UnsubscribeClaim, secret: string): string {
   requireSecret(secret);
+  if (!claim.userId || claim.userId.includes(':')) throw new Error('Invalid user id for a token');
   const payload = Buffer.from(`${claim.userId}:${claim.kind}`).toString('base64url');
   return `${payload}.${sign(payload, secret)}`;
 }
 
-/** Returns the claim for a valid token, or null for anything tampered or malformed. */
+/**
+ * Returns the claim for a valid token, or null for anything tampered or malformed. A missing or
+ * short secret also returns null, so a misconfigured route refuses the request instead of
+ * throwing a stack trace at a visitor. Creating a token still throws, to fail loudly in the job.
+ */
 export function verifyUnsubscribeToken(token: string, secret: string): UnsubscribeClaim | null {
-  requireSecret(secret);
+  if (secret.length < MIN_SECRET) return null;
   const [payload, mac, extra] = token.split('.');
   if (!payload || !mac || extra !== undefined) return null;
 

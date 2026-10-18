@@ -36,4 +36,15 @@ describe('unsubscribe tokens', () => {
   it('refuses a short secret', () => {
     expect(() => createUnsubscribeToken(claim, 'short')).toThrow();
   });
+
+  it('returns null, not an error, when verifying with a short or empty secret', () => {
+    const token = createUnsubscribeToken(claim, secret);
+    expect(verifyUnsubscribeToken(token, 'short')).toBeNull();
+    expect(verifyUnsubscribeToken(token, '')).toBeNull();
+  });
+
+  it('refuses a user id that would not survive a round trip', () => {
+    expect(() => createUnsubscribeToken({ ...claim, userId: 'a:b' }, secret)).toThrow();
+    expect(() => createUnsubscribeToken({ ...claim, userId: '' }, secret)).toThrow();
+  });
 });
