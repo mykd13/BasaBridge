@@ -8,7 +8,6 @@
  * Until the i18n catalog exists (BB-58) the JSON list is the source.
  * Needs TTS_API_KEY and TTS_REGION (see example.env). Node 24 runs the TypeScript imports directly.
  */
-/* global process, console */
 import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { azureTtsProvider } from '../packages/speech/src/tts.ts';

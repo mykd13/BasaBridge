@@ -94,13 +94,13 @@ export function SayIt({ words, lang, wording }: { words: string[]; lang: Lang; w
 
   if (!word) {
     return (
-      <main className={styles.main}>
+      <div className={styles.main}>
         <h1 className={styles.eyebrow}>{t.emptyTitle}</h1>
         <p className={styles.note}>{t.emptyBody}</p>
         <Link href="/learn" className={styles.primary}>
           {t.back}
         </Link>
-      </main>
+      </div>
     );
   }
 
@@ -110,16 +110,15 @@ export function SayIt({ words, lang, wording }: { words: string[]; lang: Lang; w
 
   return (
     <>
-      <header className={styles.header}>
-        <div className={styles.brand}>{t.brand}</div>
+      <div className={styles.bar}>
         <div className={styles.headerRight}>
           <span className={styles.muted}>{t.progress(state.index + 1, words.length)}</span>
           <Link href="/learn" className={styles.leave}>
             {t.leave}
           </Link>
         </div>
-      </header>
-      <main className={styles.main}>
+      </div>
+      <div className={styles.main}>
         <h1 className={styles.eyebrow}>{t.title}</h1>
         <div className={styles.word} lang="en">
           {word}
@@ -179,7 +178,7 @@ export function SayIt({ words, lang, wording }: { words: string[]; lang: Lang; w
           </Link>
         )}
         <p className={styles.note}>{t.note}</p>
-      </main>
+      </div>
     </>
   );
 }

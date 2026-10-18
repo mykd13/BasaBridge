@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import '@basabridge/ui/tokens.css';
 import '@basabridge/ui/components.css';
 import './globals.css';
+import { UnsupportedBrowser } from '@/components/UnsupportedBrowser';
 import { atkinson, lexend } from './fonts';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -18,6 +19,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang={locale} className={`${lexend.variable} ${atkinson.variable}`}>
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>
+          <UnsupportedBrowser />
           {children}
         </NextIntlClientProvider>
       </body>
