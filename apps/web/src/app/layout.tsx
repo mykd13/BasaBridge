@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import '@basabridge/ui/tokens.css';
 import '@basabridge/ui/components.css';
 import './globals.css';
+import '../features/learn/learn.css';
 import { atkinson, lexend } from './fonts';
 
 export async function generateMetadata(): Promise<Metadata> {
