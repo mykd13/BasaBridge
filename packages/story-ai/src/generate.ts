@@ -8,24 +8,24 @@ import {
 import { tierFor } from '@basabridge/levels';
 import { generateText, type LanguageModel, NoObjectGeneratedError, Output } from 'ai';
 import { z } from 'zod';
+import { type CheckFailure, checkStory } from './checks';
 import { loadStoryConfig } from './config';
-import { checkStory } from './checks';
-import { fail, type StoryError, type StoryOutcome, type Usage } from './errors';
+import type { StoryError, StoryOutcome, Usage } from './errors';
 import { skillMix } from './mix';
 import { buildStoryPrompt } from './prompt';
-import { failureFeedback } from './retry';
-import { isRecentTitle, pickTopic } from './topics';
+import { MAX_STORY_TRIES, runWithChecks } from './retry';
+import { isRecentTitle, isTopicSeed, pickTopic } from './topics';
 import { addCall } from './usage';
 
 export interface GenerateStoryInput {
   level: number;
   /** Extra questions on this skill, chosen by code from the mastery estimates. */
   focus: ComprehensionSkill | null;
-  /** Titles to avoid repeating. */
+  /** Titles to avoid repeating. Checked in code only; never sent to the model. */
   recentTitles: string[];
-  /** Topic seed chosen by the caller (the story bank). Picked from TOPIC_SEEDS when missing. */
+  /** One of TOPIC_SEEDS, chosen by the caller (the story bank). Picked here when missing. */
   topic?: string;
-  /** Topics used lately, most recent first. Used only when `topic` is missing. */
+  /** Topics used lately, most recent first. Used only when `topic` is missing. Never sent. */
   recentTopics?: string[];
 }
 
@@ -34,7 +34,7 @@ export interface GenerateStoryOptions {
   env?: Record<string, string | undefined>;
   /** Replaces the gateway model, for tests. The config is still checked. */
   model?: LanguageModel;
-  /** Model calls allowed when the output is invalid or fails the checks. Default 3. */
+  /** Model calls allowed when the output is invalid or fails the checks. Default MAX_STORY_TRIES. */
   maxAttempts?: number;
   random?: () => number;
 }
@@ -47,17 +47,45 @@ export const GeneratedStory = z.object({
 });
 export type GeneratedStory = z.infer<typeof GeneratedStory>;
 
-type Attempt = { ok: true; story: Story } | { ok: false; error: StoryError };
+/**
+ * A failure on one model answer. The check codes come from checkStory; the others are found
+ * here. Messages are fixed wording with counts only, so they are safe to send back as feedback.
+ */
+export interface GenerationFailure extends Omit<CheckFailure, 'code'> {
+  code: CheckFailure['code'] | 'reply_not_story' | 'no_title' | 'repeat_title' | 'shape_mismatch';
+}
 
-/** Runs the deterministic checks and the shared schema on one model answer. */
-export function acceptStory(out: GeneratedStory, level: number, recentTitles: string[]): Attempt {
+/** Failures that mean the reply was malformed, reported as invalid_output. */
+const OUTPUT_CODES: ReadonlySet<GenerationFailure['code']> = new Set([
+  'reply_not_story',
+  'no_title',
+  'shape_mismatch',
+]);
+
+const failed = (code: GenerationFailure['code'], message: string) => ({
+  ok: false as const,
+  failures: [{ code, message }],
+});
+
+export type Accepted = { ok: true; story: Story } | { ok: false; failures: GenerationFailure[] };
+
+/**
+ * Runs the deterministic checks and the shared schema on one model answer. `null` means the
+ * reply was not in the GeneratedStory shape.
+ */
+export function acceptStory(
+  out: GeneratedStory | null,
+  level: number,
+  recentTitles: string[],
+): Accepted {
+  if (out === null) return failed('reply_not_story', 'The reply did not match the story shape.');
   const title = out.title.trim();
-  if (title === '') return fail('invalid_output', 'The story had no title.');
+  if (title === '') return failed('no_title', 'The story had no title.');
   if (isRecentTitle(title, recentTitles)) {
-    return fail('checks_failed', 'The title repeats a recent story. Use a new title.');
+    return failed('repeat_title', 'The title repeats a recent story. Use a new title.');
   }
   const checked = checkStory(out.text, out.questions, level);
-  if (!checked.ok) return fail('checks_failed', failureFeedback(checked.failures));
+  if (!checked.ok) return { ok: false, failures: checked.failures };
   const parsed = StorySchema.safeParse({
     title,
     text: out.text.trim(),
@@ -66,16 +94,21 @@ export function acceptStory(out: GeneratedStory, level: number, recentTitles: st
     readingGrade: checked.readingGrade,
     questions: checked.questions,
   });
-  if (!parsed.success) return fail('invalid_output', 'The story did not match the Story shape.');
+  if (!parsed.success) return failed('shape_mismatch', 'The story did not match the Story shape.');
   return { ok: true, story: parsed.data };
 }
 
+/** Thrown inside an attempt when the provider call fails. Holds only the error's class name. */
+class ModelCallFailed extends Error {}
+
 /**
  * Generates one story through the AI Gateway (docs/PLAN.md section 7, ADR 0002): builds the
- * prompt from the level, a topic and a skill mix chosen by code, asks for JSON in the
- * GeneratedStory shape, then runs the checks. Invalid output or a failed check is retried with the
- * reason, up to `maxAttempts` calls. A config error or a failed call stops at once.
- * Never throws and never returns a partial story. Usage covers every call made.
+ * prompt from the level, a topic seed and a skill mix chosen by code, asks for JSON in the
+ * GeneratedStory shape, then runs the checks. runWithChecks retries invalid output or a failed
+ * check with feedback built from failure codes and counts, up to `maxAttempts` calls.
+ * A config error or a failed call stops at once. SDK retries are off, so every call made is a
+ * counted attempt with its tokens and cost in `usage`; the story bank retries later instead.
+ * Never throws and never returns a partial story.
  */
 export async function generateStory(
   input: GenerateStoryInput,
@@ -87,50 +120,62 @@ export async function generateStory(
   if (!Level.safeParse(input.level).success) {
     return stop({ kind: 'config', reason: 'The level must be a whole number from 1 to 100.' });
   }
+  // Model-bound input (golden rule 2): the topic is the only caller text in the prompt, so it
+  // must be a known seed.
+  if (input.topic !== undefined && !isTopicSeed(input.topic)) {
+    return stop({ kind: 'config', reason: 'The topic must be one of TOPIC_SEEDS.' });
+  }
   const config = loadStoryConfig(options.env);
   if (!config.ok) return stop(config.error);
 
   const tier = tierFor(input.level);
-  const topic = input.topic?.trim() || pickTopic(input.recentTopics ?? [], options.random);
+  const topic = input.topic ?? pickTopic(input.recentTopics ?? [], options.random);
   const mix = skillMix(input.focus);
-  const maxAttempts = Math.max(1, Math.floor(options.maxAttempts ?? 3));
 
-  let last: StoryError = { kind: 'invalid_output', reason: 'No attempt was made.' };
-  for (let i = 0; i < maxAttempts; i++) {
+  const attempt = async (retryReason?: string): Promise<GeneratedStory | null> => {
     const { system, prompt } = buildStoryPrompt({
       level: input.level,
       tier,
       topic,
       mix,
-      recentTitles: input.recentTitles,
-      ...(i > 0 ? { retryReason: last.reason } : {}),
+      ...(retryReason ? { retryReason } : {}),
     });
-
-    let out: GeneratedStory;
     try {
       const result = await generateText({
         model: options.model ?? config.config.model,
         system,
         prompt,
         output: Output.object({ schema: GeneratedStory, name: 'story' }),
+        maxRetries: 0,
       });
       usage = addCall(usage, result);
-      out = result.output;
+      return result.output;
     } catch (err) {
       if (NoObjectGeneratedError.isInstance(err)) {
         usage = addCall(usage, { usage: err.usage });
-        last = { kind: 'invalid_output', reason: 'The reply did not match the story shape.' };
-        continue;
+        return null;
       }
       usage = addCall(usage, {});
       // The SDK message can name the model or the HTTP status, never the prompt or the key.
-      const name = err instanceof Error ? err.name : 'Error';
-      return stop({ kind: 'model_call', reason: `The model call failed (${name}).` });
+      throw new ModelCallFailed(err instanceof Error ? err.name : 'Error');
     }
+  };
 
-    const attempt = acceptStory(out, input.level, input.recentTitles);
-    if (attempt.ok) return { ok: true, story: attempt.story, usage };
-    last = attempt.error;
+  try {
+    const run = await runWithChecks({
+      attempt,
+      check: (out) => acceptStory(out, input.level, input.recentTitles),
+      maxTries: options.maxAttempts ?? MAX_STORY_TRIES,
+    });
+    if (run.ok) return { ok: true, story: run.checked.story, usage };
+    const kind = run.failures.every((f) => OUTPUT_CODES.has(f.code))
+      ? 'invalid_output'
+      : 'checks_failed';
+    return stop({ kind, reason: run.failures.map((f) => f.message).join(' ') });
+  } catch (err) {
+    if (err instanceof ModelCallFailed) {
+      return stop({ kind: 'model_call', reason: `The model call failed (${err.message}).` });
+    }
+    throw err;
   }
-  return stop(last);
 }

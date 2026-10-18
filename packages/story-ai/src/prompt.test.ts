@@ -17,7 +17,6 @@ function input(level: number, over: Partial<StoryPromptInput> = {}): StoryPrompt
     tier: tierFor(level),
     topic: 'a mango tree at home',
     mix: MIX,
-    recentTitles: ['The Lost Coin', 'Rain Day'],
     ...over,
   };
 }
@@ -41,11 +40,9 @@ describe('buildStoryPrompt', () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
-  it('includes the topic, recent titles and any retry reason', () => {
+  it('includes the topic and any retry feedback', () => {
     const { prompt } = buildStoryPrompt(input(24, { retryReason: 'The passage had 3 words.' }));
     expect(prompt).toContain('a mango tree at home');
-    expect(prompt).toContain('"The Lost Coin"');
-    expect(prompt).toContain('"Rain Day"');
     expect(prompt).toContain('The passage had 3 words.');
   });
 
@@ -76,7 +73,6 @@ describe('buildStoryPrompt', () => {
     expect(prompt.split('\n')).toEqual([
       'Write a story for reading level 24.',
       'Topic: a mango tree at home.',
-      'Do not use any of these titles: "The Lost Coin", "Rain Day".',
     ]);
   });
 });

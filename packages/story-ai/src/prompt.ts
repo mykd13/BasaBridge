@@ -2,8 +2,10 @@ import type { ComprehensionSkill } from '@basabridge/contracts';
 import type { Tier } from '@basabridge/levels';
 
 /**
- * Everything the story model may see. It is a closed list on purpose: levels, tier numbers, a
- * topic, a skill mix and recent titles. No names, usernames, emails or audio (golden rule 2).
+ * Everything the story model may see. It is a closed list on purpose: the level, tier numbers, a
+ * topic from TOPIC_SEEDS, a skill mix and fixed retry feedback. No free text from a caller reaches
+ * the model, so no name, username, email or audio can (golden rule 2). Recent titles are not sent:
+ * code rejects a repeated title and the retry asks for a new one.
  * Model-facing change: keep this list short and review additions with James.
  */
 export interface StoryPromptInput {
@@ -11,8 +13,7 @@ export interface StoryPromptInput {
   tier: Pick<Tier, 'words' | 'maxReadingGrade' | 'description'>;
   topic: string;
   mix: ComprehensionSkill[];
-  recentTitles: string[];
-  /** Why the last try failed. Lets BB-17 plug in a retry. */
+  /** Feedback from failureFeedback: fixed wording, codes and counts only, never model text. */
   retryReason?: string;
 }
 
@@ -29,7 +30,7 @@ const SKILL_RULE: Record<ComprehensionSkill, string> = {
  * input object, so an extra field cannot reach the model.
  */
 export function buildStoryPrompt(input: StoryPromptInput): { system: string; prompt: string } {
-  const { level, tier, topic, mix, recentTitles, retryReason } = input;
+  const { level, tier, topic, mix, retryReason } = input;
 
   const questionLines = mix.map((skill, i) => `${i + 1}. ${SKILL_RULE[skill]}.`);
 
@@ -55,14 +56,8 @@ export function buildStoryPrompt(input: StoryPromptInput): { system: string; pro
     '- Set "skill" to vocabulary, literal or inferential to match the question.',
   ].join('\n');
 
-  const lines = [
-    `Write a story for reading level ${level}.`,
-    `Topic: ${topic}.`,
-    recentTitles.length > 0
-      ? `Do not use any of these titles: ${recentTitles.map((t) => `"${t}"`).join(', ')}.`
-      : 'There are no recent titles to avoid.',
-  ];
-  if (retryReason) lines.push(`The last attempt failed this check: ${retryReason} Fix that.`);
+  const lines = [`Write a story for reading level ${level}.`, `Topic: ${topic}.`];
+  if (retryReason) lines.push(retryReason);
 
   return { system, prompt: lines.join('\n') };
 }

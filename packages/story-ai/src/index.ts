@@ -7,9 +7,14 @@ export * from './checks';
 export * from './retry';
 
 // Generation (BB-15). The independent verifier (BB-17) runs after it.
-export { generateStory, GeneratedStory } from './generate';
-export type { GenerateStoryInput, GenerateStoryOptions } from './generate';
+export { acceptStory, generateStory, GeneratedStory } from './generate';
+export type {
+  Accepted,
+  GenerateStoryInput,
+  GenerateStoryOptions,
+  GenerationFailure,
+} from './generate';
 export type { StoryError, StoryErrorKind, StoryOutcome, Usage } from './errors';
 export { loadStoryConfig } from './config';
 export { skillMix } from './mix';
-export { isRecentTitle, pickTopic, TOPIC_SEEDS } from './topics';
+export { isRecentTitle, isTopicSeed, pickTopic, TOPIC_SEEDS } from './topics';

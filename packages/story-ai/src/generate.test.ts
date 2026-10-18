@@ -1,4 +1,5 @@
 import { Story } from '@basabridge/contracts';
+import { APICallError } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { generateStory, type GenerateStoryInput } from './generate';
@@ -163,9 +164,9 @@ describe('generateStory', () => {
     expect(out.usage.inputTokens).toBe(220);
     expect(out.usage.outputTokens).toBe(320);
     expect(out.usage.costUsd).toBeCloseTo(0.003);
-    expect(JSON.stringify(model.doGenerateCalls[1]!.prompt)).toContain(
-      'The last attempt failed this check: The reply did not match the story shape.',
-    );
+    const retry = JSON.stringify(model.doGenerateCalls[1]!.prompt);
+    expect(retry).toContain('The last try failed these checks.');
+    expect(retry).toContain('- The reply did not match the story shape.');
   });
 
   it('retries a failed check with its reason', async () => {
@@ -174,6 +175,37 @@ describe('generateStory', () => {
     const out = await generateStory(input, { env: ENV, model });
     expect(out.ok).toBe(true);
     expect(JSON.stringify(model.doGenerateCalls[1]!.prompt)).toContain('The passage had 4 words');
+  });
+
+  it('fails with invalid_output when every attempt is malformed', async () => {
+    const model = mockModel([{ json: 'not json' }]);
+    const out = await generateStory(input, { env: ENV, model });
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.error).toEqual({
+      kind: 'invalid_output',
+      reason: 'The reply did not match the story shape.',
+    });
+    expect(out.usage.attempts).toBe(3);
+  });
+
+  it('turns SDK retries off, so every provider call is a counted attempt', async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        throw new APICallError({
+          message: 'busy',
+          url: 'https://gateway.example',
+          requestBodyValues: {},
+          statusCode: 503,
+          isRetryable: true,
+        });
+      },
+    });
+    const out = await generateStory(input, { env: ENV, model });
+    expect(model.doGenerateCalls).toHaveLength(1);
+    expect(out.usage.attempts).toBe(1);
+    expect(out.ok).toBe(false);
+    if (!out.ok) expect(out.error.kind).toBe('model_call');
   });
 
   it('fails with checks_failed after the last attempt, never a partial story', async () => {
@@ -225,6 +257,42 @@ describe('generateStory', () => {
     for (const value of [...planted, 'test-key']) {
       expect(sent).not.toContain(value);
     }
+  });
+
+  it('accepts only a topic from TOPIC_SEEDS, before any call', async () => {
+    const model = mockModel([{ json: goodStory() }]);
+    const out = await generateStory(
+      { ...input, topic: 'a story about Maria Santos' },
+      { env: ENV, model },
+    );
+    expect(out).toEqual({
+      ok: false,
+      error: { kind: 'config', reason: 'The topic must be one of TOPIC_SEEDS.' },
+      usage: { attempts: 0 },
+    });
+    expect(model.doGenerateCalls).toHaveLength(0);
+  });
+
+  // Golden rule 2: plant learner data in the two caller text fields, topic and recent titles.
+  it('never sends learner data planted in the topic or recent titles', async () => {
+    const planted = ['Maria Santos', 'maria123', 'maria@example.com', 'lrn_7f3a9c'];
+    for (const value of planted) {
+      const model = mockModel([{ json: goodStory() }]);
+      await generateStory({ ...input, topic: value }, { env: ENV, model });
+      await generateStory({ ...input, recentTitles: [value] }, { env: ENV, model });
+      for (const call of model.doGenerateCalls) {
+        expect(JSON.stringify(call)).not.toContain(value);
+      }
+    }
+  });
+
+  it('checks a repeated title in code and asks for a new one without naming it', async () => {
+    const model = mockModel([{ json: goodStory({ title: 'Rain Day' }) }, { json: goodStory() }]);
+    const out = await generateStory({ ...input, recentTitles: ['Rain Day'] }, { env: ENV, model });
+    expect(out.ok).toBe(true);
+    const retry = JSON.stringify(model.doGenerateCalls[1]!.prompt);
+    expect(retry).toContain('The title repeats a recent story. Use a new title.');
+    expect(retry).not.toContain('Rain Day');
   });
 
   it('takes only the allowed input fields, so a new field fails this test', () => {

@@ -70,3 +70,8 @@ export function isRecentTitle(title: string, recentTitles: string[]): boolean {
   const t = normaliseTitle(title);
   return t !== '' && recentTitles.some((r) => normaliseTitle(r) === t);
 }
+
+/** True when `topic` is one of TOPIC_SEEDS. Only seeds reach the model, never free text. */
+export function isTopicSeed(topic: string): boolean {
+  return TOPIC_SEEDS.includes(topic);
+}
