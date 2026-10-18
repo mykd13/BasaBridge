@@ -1,9 +1,15 @@
 /**
  * Story generation with checks (docs/PLAN.md section 7). Owner: Jhade (BB-15 to BB-18).
- * Seed: the deterministic checks ported from the early prototype. Generation and the verifier are stubs.
+ * Seed: the deterministic checks ported from the early prototype, with comprehension tags (BB-43).
+ * Generation and the verifier call are stubs.
  */
-import type { Story, StoryQuestion } from '@basabridge/contracts';
+import type { Story } from '@basabridge/contracts';
 import { tierFor } from '@basabridge/levels';
+import type { StoryPromptInput } from './prompt';
+import { TaggedQuestion, tagProblem } from './tags';
+
+export * from './prompt';
+export * from './tags';
 
 export function syllables(word: string): number {
   let w = word.toLowerCase().replace(/[^a-z]/g, '');
@@ -30,23 +36,27 @@ const normalise = (s: string) =>
   s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
 
 export type CheckResult =
-  | { ok: true; words: number; readingGrade: number; questions: StoryQuestion[]; dropped: number }
+  | { ok: true; words: number; readingGrade: number; questions: TaggedQuestion[]; dropped: number }
   | { ok: false; reason: string };
 
 /** Raw question as returned by a model, before any trust. */
 export interface RawQuestion {
   skill?: unknown;
+  subskill?: unknown;
   word?: unknown;
   question?: unknown;
   options?: unknown;
   answerIndex?: unknown;
+  distractors?: unknown;
   evidence?: unknown;
 }
 
+const trimmed = (v: unknown) => (typeof v === 'string' ? v.trim() : v);
+
 /**
  * Deterministic checks on a generated story: length range, reading grade cap, valid questions,
- * distinct options, evidence sentence present verbatim, vocabulary word present.
- * At least four valid questions must remain.
+ * distinct options, evidence sentence present verbatim, vocabulary word present, and valid tags
+ * that agree with the question (ADR 0003). At least four valid questions must remain.
  */
 export function checkStory(text: string, rawQuestions: RawQuestion[], level: number): CheckResult {
   const tier = tierFor(level);
@@ -66,35 +76,25 @@ export function checkStory(text: string, rawQuestions: RawQuestion[], level: num
     };
   }
   const np = normalise(passage);
-  const kept: StoryQuestion[] = [];
-  for (const q of rawQuestions) {
-    const skill = q.skill;
-    const options = q.options;
-    const valid =
-      (skill === 'vocabulary' || skill === 'literal' || skill === 'inferential') &&
-      typeof q.question === 'string' &&
-      q.question.trim() !== '' &&
-      Array.isArray(options) &&
-      options.length === 4 &&
-      options.every((o) => typeof o === 'string' && o.trim() !== '') &&
-      new Set(options.map((o) => normalise(String(o)))).size === 4 &&
-      Number.isInteger(q.answerIndex) &&
-      (q.answerIndex as number) >= 0 &&
-      (q.answerIndex as number) <= 3 &&
-      typeof q.evidence === 'string';
-    if (!valid) continue;
-    const evidence = q.evidence as string;
-    if (!np.includes(normalise(evidence))) continue;
-    if (skill === 'vocabulary' && !(typeof q.word === 'string' && np.includes(normalise(q.word))))
-      continue;
-    kept.push({
-      skill: skill as StoryQuestion['skill'],
-      word: skill === 'vocabulary' ? String(q.word).trim() : null,
-      question: (q.question as string).trim(),
-      options: (options as string[]).map((o) => o.trim()),
-      answerIndex: q.answerIndex as number,
-      evidence: evidence.trim(),
+  const kept: TaggedQuestion[] = [];
+  for (const raw of rawQuestions) {
+    const parsed = TaggedQuestion.safeParse({
+      skill: raw.skill,
+      subskill: raw.subskill,
+      word: raw.skill === 'vocabulary' ? (trimmed(raw.word) ?? null) : null,
+      question: trimmed(raw.question),
+      options: Array.isArray(raw.options) ? raw.options.map(trimmed) : raw.options,
+      answerIndex: raw.answerIndex,
+      distractors: raw.distractors,
+      evidence: trimmed(raw.evidence),
     });
+    if (!parsed.success) continue;
+    const q = parsed.data;
+    if (new Set(q.options.map(normalise)).size !== 4) continue;
+    if (!np.includes(normalise(q.evidence))) continue;
+    if (tagProblem(q) !== null) continue;
+    if (q.skill === 'vocabulary' && !np.includes(normalise(q.word!))) continue;
+    kept.push(q);
   }
   if (kept.length < 4) {
     return { ok: false, reason: `Only ${kept.length} valid questions; need at least 4.` };
@@ -108,13 +108,7 @@ export function checkStory(text: string, rawQuestions: RawQuestion[], level: num
   };
 }
 
-export interface GenerateStoryInput {
-  level: number;
-  /** Extra questions on this skill, chosen by code from the mastery estimates. */
-  focus: StoryQuestion['skill'] | null;
-  /** Titles to avoid repeating. */
-  recentTitles: string[];
-}
+export type GenerateStoryInput = StoryPromptInput;
 
 /** Implemented in BB-15 to BB-17: generate, run checkStory, run the independent verifier, retry. */
 export async function generateStory(_input: GenerateStoryInput): Promise<Story> {

@@ -6,10 +6,12 @@ const PASSAGE =
 
 const q = (over: Record<string, unknown> = {}) => ({
   skill: 'literal',
+  subskill: 'key_detail',
   word: null,
   question: 'Where does Lia check every morning?',
   options: ['The tree', 'The river', 'The school', 'The market'],
   answerIndex: 0,
+  distractors: [null, 'not_stated', 'not_stated', 'unrelated'],
   evidence: 'Every morning, Lia checks the tree.',
   ...over,
 });
@@ -56,6 +58,7 @@ describe('checkStory at level 24 (25 to 50 words)', () => {
   it('needs the vocabulary word to appear in the passage', () => {
     const vocab = q({
       skill: 'vocabulary',
+      subskill: 'word_in_context',
       word: 'patient',
       question: 'What does the word "patient" mean?',
       evidence: '"We must be patient," he says.',
@@ -64,5 +67,49 @@ describe('checkStory at level 24 (25 to 50 words)', () => {
     expect(checkStory(PASSAGE, [{ ...vocab, word: 'spaceship' }, q(), q(), q()], 24).ok).toBe(
       false,
     );
+  });
+
+  it('keeps the tags on every kept question', () => {
+    const r = checkStory(PASSAGE, four, 24);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      for (const kept of r.questions) {
+        expect(kept.subskill).toBe('key_detail');
+        expect(kept.distractors).toEqual([null, 'not_stated', 'not_stated', 'unrelated']);
+      }
+    }
+  });
+
+  it.each([
+    ['a missing sub-skill', { subskill: undefined }],
+    ['an invalid sub-skill', { subskill: 'guessing' }],
+    ['missing distractor types', { distractors: undefined }],
+    ['an invalid distractor type', { distractors: [null, 'silly', 'opposite', 'unrelated'] }],
+    ['too few distractor entries', { distractors: [null, 'opposite', 'unrelated'] }],
+    ['a sub-skill from another skill', { subskill: 'prediction' }],
+    [
+      'a label on the correct option',
+      { distractors: ['opposite', 'opposite', 'opposite', 'unrelated'] },
+    ],
+    ['a wrong option with no label', { distractors: [null, null, 'opposite', 'unrelated'] }],
+  ])('drops a question with %s', (_, over) => {
+    const r = checkStory(PASSAGE, [q(), q(), q(), q(), q(over)], 24);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.questions).toHaveLength(4);
+      expect(r.dropped).toBe(1);
+    }
+  });
+
+  it('drops a vocabulary question without a word', () => {
+    const vocab = q({
+      skill: 'vocabulary',
+      subskill: 'word_parts',
+      word: null,
+      question: 'What does the word "patient" mean?',
+      evidence: '"We must be patient," he says.',
+    });
+    const r = checkStory(PASSAGE, [vocab, q(), q(), q()], 24);
+    expect(r.ok).toBe(false);
   });
 });
