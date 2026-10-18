@@ -182,6 +182,11 @@ describe('scoreAnswer', () => {
 
 describe('answerEvidence', () => {
   const base = { storyLevel: 40, rushed: false, supportedTry: false };
+  const evidenceFor = (question: ScorableQuestion, response: AnswerResponse) => {
+    const e = answerEvidence({ ...base, question, score: scoreAnswer(question, response) });
+    if (!e) throw new Error('expected evidence');
+    return e;
+  };
 
   it('uses the guess rate in EVIDENCE_RULE for each question type', () => {
     const cases: [ScorableQuestion, AnswerResponse][] = [
@@ -190,23 +195,21 @@ describe('answerEvidence', () => {
       [order, { type: 'order_events', order: [0, 1, 2, 3] }],
     ];
     for (const [question, response] of cases) {
-      const score = scoreAnswer(question, response);
-      const e = answerEvidence({ ...base, question, score });
-      expect(e.guess).toBe(EVIDENCE_RULE.guess[score.type]);
+      const e = evidenceFor(question, response);
+      expect(e.guess).toBe(EVIDENCE_RULE.guess[scoreAnswer(question, response).type]);
       expect(e.correct).toBe(true);
     }
   });
 
   it('uses the sub-skill for difficulty when the question has one', () => {
-    const score = scoreAnswer(chooseAll, { type: 'choose_all', chosen: [0, 2] });
-    const e = answerEvidence({ ...base, question: chooseAll, score });
+    const e = evidenceFor(chooseAll, { type: 'choose_all', chosen: [0, 2] });
     expect(e.difficulty).toBeCloseTo(itemDifficulty(40, 'key_detail'), 10);
   });
 
   it('moves the estimate up more for a right ordering answer than a right multiple-choice one', () => {
     const start = prior(0, 1);
     const meanAfter = (question: ScorableQuestion, response: AnswerResponse) => {
-      const e = answerEvidence({ ...base, question, score: scoreAnswer(question, response) });
+      const e = evidenceFor(question, response);
       return summarise(updatePosterior(start, { ...e, difficulty: 0 })).mean;
     };
     const fromOrder = meanAfter(order, { type: 'order_events', order: [0, 1, 2, 3] });
@@ -226,9 +229,59 @@ describe('answerEvidence', () => {
   it('weights rushed and supported answers with the shared evidence rule', () => {
     const score = scoreAnswer(mc, { type: 'multiple_choice', chosen: 1 });
     const e = answerEvidence({ ...base, rushed: true, supportedTry: true, question: mc, score });
-    expect(e.weight).toBeCloseTo(
+    expect(e?.weight).toBeCloseTo(
       EVIDENCE_RULE.weight.rushed * EVIDENCE_RULE.weight.supportedTry,
       10,
     );
+  });
+});
+
+describe('invalid input', () => {
+  const base = { storyLevel: 40, rushed: false, supportedTry: false };
+
+  it('gives no evidence for an invalid answer, so it cannot lower the estimate', () => {
+    const bad: [ScorableQuestion, AnswerResponse][] = [
+      [mc, { type: 'multiple_choice', chosen: 9 }],
+      [mc, { type: 'choose_all', chosen: [0] }],
+      [chooseAll, { type: 'choose_all', chosen: [] }],
+      [order, { type: 'order_events', order: [0, 1] }],
+    ];
+    for (const [question, response] of bad) {
+      const score = scoreAnswer(question, response);
+      expect(score.valid).toBe(false);
+      expect(answerEvidence({ ...base, question, score })).toBeNull();
+    }
+  });
+
+  it('does not throw for a null or undefined response', () => {
+    for (const r of [null, undefined]) {
+      for (const q of [mc, chooseAll, order]) {
+        const score = scoreAnswer(q, r as unknown as AnswerResponse);
+        expect(score).toMatchObject({ valid: false, correct: false, reason: 'type_mismatch' });
+      }
+    }
+  });
+
+  it('refuses a choose-all question whose key points past the options', () => {
+    const broken: ChooseAllQuestion = { ...chooseAll, answerIndexes: [0, 7] };
+    const score = scoreChooseAll(broken, [0, 1]);
+    expect(score).toMatchObject({ valid: false, correct: false, reason: 'malformed_question' });
+  });
+
+  it('derives the ordering guess rate from the number of events', () => {
+    const three: OrderEventsQuestion = { ...order, events: ['A', 'B', 'C'] };
+    const five: OrderEventsQuestion = { ...order, events: ['A', 'B', 'C', 'D', 'E'] };
+    const guess = (q: OrderEventsQuestion, n: number) =>
+      answerEvidence({
+        ...base,
+        question: q,
+        score: scoreAnswer(q, {
+          type: 'order_events',
+          order: Array.from({ length: n }, (_, i) => i),
+        }),
+      })?.guess;
+    expect(guess(three, 3)).toBeCloseTo(1 / 6, 10);
+    expect(guess(order, 4)).toBeCloseTo(EVIDENCE_RULE.guess.order_events, 10);
+    expect(guess(five, 5)).toBeCloseTo(1 / 120, 10);
   });
 });

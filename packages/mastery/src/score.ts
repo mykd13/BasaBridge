@@ -5,7 +5,8 @@
  * all-or-nothing (`SCORING_RULE` in packages/levels), because the guess rates in `EVIDENCE_RULE`
  * assume it. Parts right are reported for feedback only and never reach the ability model.
  *
- * Pure functions only. Never throws: an invalid response scores as wrong with a reason.
+ * Pure functions only. Never throws: an invalid or missing response is reported as invalid with a
+ * reason, and an invalid answer gives no evidence at all (see `answerEvidence`).
  */
 import type {
   ChooseAllQuestion,
@@ -30,7 +31,14 @@ export type AnswerResponse =
   | { type: 'order_events'; order: number[] };
 
 export type InvalidReason =
-  'type_mismatch' | 'not_an_integer' | 'out_of_range' | 'duplicate' | 'empty' | 'not_a_full_order';
+  | 'type_mismatch'
+  | 'not_an_integer'
+  | 'out_of_range'
+  | 'duplicate'
+  | 'empty'
+  | 'not_a_full_order'
+  /** The stored question is broken (for example an answer index with no option). */
+  | 'malformed_question';
 
 export interface AnswerScore {
   type: QuestionType;
@@ -40,6 +48,12 @@ export interface AnswerScore {
   /** For feedback only. Never used by the ability model. */
   partsRight: number;
   partsTotal: number;
+}
+
+function factorial(n: number): number {
+  let f = 1;
+  for (let i = 2; i <= n; i++) f *= i;
+  return f;
 }
 
 export function questionType(q: ScorableQuestion): QuestionType {
@@ -91,6 +105,10 @@ export function scoreChooseAll(q: ChooseAllQuestion, chosen: number[]): AnswerSc
   if (problem) return invalid(type, problem, total);
   const picked = new Set(chosen);
   const truth = new Set(q.answerIndexes);
+  // A key that points past the options cannot be scored fairly: the answer would never be right.
+  if (!q.answerIndexes.every((i) => Number.isInteger(i) && i >= 0 && i < total)) {
+    return invalid(type, 'malformed_question', total);
+  }
   let right = 0;
   for (let i = 0; i < total; i++) if (picked.has(i) === truth.has(i)) right++;
   return scored(type, right, total);
@@ -108,6 +126,12 @@ export function scoreOrderEvents(q: OrderEventsQuestion, order: number[]): Answe
 }
 
 export function scoreAnswer(q: ScorableQuestion, r: AnswerResponse): AnswerScore {
+  // A missing or malformed response is data from outside, so it must not throw.
+  if (typeof r !== 'object' || r === null) {
+    const total =
+      q.type === 'choose_all' ? q.options.length : q.type === 'order_events' ? q.events.length : 1;
+    return invalid(questionType(q), 'type_mismatch', total);
+  }
   if (q.type === 'choose_all') {
     return r.type === 'choose_all'
       ? scoreChooseAll(q, r.chosen)
@@ -124,9 +148,10 @@ export function scoreAnswer(q: ScorableQuestion, r: AnswerResponse): AnswerScore
 }
 
 /**
- * Turn a scored answer into evidence for the ability model. The guess rate comes from the question
- * type, so a right ordering answer counts for far more than a right multiple-choice answer. Only
- * `correct` is used: parts right never reach the model.
+ * Turn a scored answer into evidence for the ability model, or null when the answer was invalid.
+ * An invalid answer (wrong type, out of range, a broken question) is refused, so it never lowers
+ * the estimate. The guess rate comes from the question type; for ordering it follows the number of
+ * events, one chance in n factorial. Only `correct` is used: parts right never reach the model.
  */
 export function answerEvidence(o: {
   question: ScorableQuestion;
@@ -134,11 +159,16 @@ export function answerEvidence(o: {
   storyLevel: number;
   rushed: boolean;
   supportedTry: boolean;
-}): ItemEvidence {
+}): ItemEvidence | null {
+  if (!o.score.valid) return null;
   const subskill = 'subskill' in o.question ? o.question.subskill : undefined;
+  const guess =
+    o.question.type === 'order_events'
+      ? 1 / factorial(o.question.events.length)
+      : guessFor(o.score.type);
   return {
     difficulty: itemDifficulty(o.storyLevel, subskill),
-    guess: guessFor(o.score.type),
+    guess,
     correct: o.score.correct,
     weight: evidenceWeight({ rushed: o.rushed, supportedTry: o.supportedTry }),
   };
