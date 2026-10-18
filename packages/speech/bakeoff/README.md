@@ -88,6 +88,7 @@ Set `BAKEOFF_DEBUG=1` to print vendor error bodies while fixing an adapter. Leav
 - **Confidence quality:** AUROC of confidence for telling wrong words from right ones, and the false and missed error rates when low-confidence words are flagged instead of counted.
 - **Latency:** p50 and p95. For batch, request to final words. For streaming, last audio chunk to final words.
 - **Built-in assessment:** for providers that mark miscues themselves, their flags against the human verdicts.
+- **With the app's alignment engine:** false and missed error rates when `alignWords` from `src/align.ts` (BB-25) marks the provider's words instead of the bake-off alignment. This is what a learner would see. It is reported next to the main numbers and does not change the decision rule. Providers without real per-word confidence are scored as if every word were confident, so the engine never flags their placeholder numbers.
 
 Intervals come from resampling readers, since one child's recordings are not independent.
 

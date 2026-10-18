@@ -176,6 +176,37 @@ describe('scoreRecording', () => {
     const s = scoreRecording(passage, truth, [], ['ok', 'miscue', 'miscue', 'ok', 'ok', 'ok']);
     expect(s.assessment).toEqual({ falseErrors: 1, readWords: 5, missedErrors: 0, miscueWords: 1 });
   });
+
+  it('also scores with the app alignment engine, which agrees on confident words', () => {
+    const truth = [
+      row(0, 'the', 'correct', 'the'),
+      row(1, 'cat', 'correct', 'cat'),
+      row(2, 'sat', 'substitution', 'sit'),
+      row(3, 'on', 'correct', 'on'),
+      row(4, 'the', 'omission', ''),
+      row(5, 'mat', 'correct', 'mat'),
+    ];
+    const s = scoreRecording(passage, truth, [
+      heard('The'),
+      heard('cap'),
+      heard('sat'),
+      heard('on'),
+      heard('mat.'),
+    ]);
+    expect(s.engine).toEqual(s.errors);
+  });
+
+  it('lets the engine flag an unsure word only when the provider has real confidence', () => {
+    const garden = ['we', 'played', 'in', 'the', 'garden'];
+    const truth = garden.map((w, i) => row(i, w, 'correct', w));
+    const words = [heard('we'), heard('played'), heard('in'), heard('the'), heard('garten', 0.2)];
+    // The bake-off alignment counts "garten" as a substitution whatever its confidence.
+    expect(scoreRecording(garden, truth, words).errors.falseErrors).toBe(1);
+    // The engine flags it as unsure instead of an error.
+    expect(scoreRecording(garden, truth, words).engine!.falseErrors).toBe(0);
+    // Without real confidence the 0.2 is a placeholder, so the engine counts it.
+    expect(scoreRecording(garden, truth, words, undefined, false).engine!.falseErrors).toBe(1);
+  });
 });
 
 describe('passages', () => {
@@ -372,6 +403,10 @@ describe('report', () => {
     expect(tier).not.toContain('| google plain batch |');
     expect(md).toContain('### azure-pa biased batch');
     expect(md).toContain('| deepgram plain batch | 5 |');
+    // The engine table lists every run with results, and a dead run with none.
+    const engine = md.slice(md.indexOf("## With the app's alignment engine"));
+    expect(engine).toContain('| deepgram plain batch | 6 |');
+    expect(engine).toContain('| google plain batch | 0 | n/a | n/a |');
   });
 
   it('shows n/a for confidence when a provider has no real word confidence', () => {

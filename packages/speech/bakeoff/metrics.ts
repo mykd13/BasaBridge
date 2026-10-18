@@ -1,4 +1,5 @@
 /** Per-recording scores. Aggregation and the report live in report.ts. */
+import { alignWords } from '../src/align.ts';
 import { alignToReference, editAlign, toTokens } from './align.ts';
 import { verdictOf } from './types.ts';
 import type { AssessedWord, HeardWord, TruthRow } from './types.ts';
@@ -25,6 +26,11 @@ export interface RecordingScore {
   errors: ErrorCounts;
   /** Same, when substitutions below each threshold are flagged rather than counted. */
   flagged: Record<number, ErrorCounts>;
+  /**
+   * Provider words marked by the app's own alignment engine (BB-25), which is what a learner
+   * would see. Null if the engine did not return one result per passage word.
+   */
+  engine: ErrorCounts | null;
   /** The provider's own miscue verdicts, when it does reading assessment. */
   assessment: ErrorCounts | null;
   /** Absolute start and end differences in ms, for words with human timestamps. */
@@ -66,11 +72,28 @@ function countErrors(
   return c;
 }
 
+/**
+ * Run the BB-25 engine and count its verdicts. A provider without real per-word confidence gets
+ * confidence 1 on every word, so the engine never flags its placeholder numbers as unsure.
+ */
+function engineErrors(
+  passageWords: string[],
+  verdicts: ReturnType<typeof referenceVerdicts>,
+  heard: HeardWord[],
+  hasWordConfidence: boolean,
+): ErrorCounts | null {
+  const words = hasWordConfidence ? heard : heard.map((w) => ({ ...w, confidence: 1 }));
+  const perPassageWord = alignWords(passageWords, words).filter((r) => r.expected !== null);
+  if (perPassageWord.length !== passageWords.length) return null;
+  return countErrors(verdicts, (i) => perPassageWord[i]!.outcome !== 'correct');
+}
+
 export function scoreRecording(
   passageWords: string[],
   rows: TruthRow[],
   heard: HeardWord[],
   assessment?: AssessedWord[],
+  hasWordConfidence = true,
 ): RecordingScore {
   const tokens = toTokens(heard);
   const heardTexts = tokens.map((t) => t.text);
@@ -117,6 +140,7 @@ export function scoreRecording(
     wordRefLength: edit.refLength,
     errors,
     flagged,
+    engine: engineErrors(passageWords, verdicts, heard, hasWordConfidence),
     assessment: assessed,
     startErrorsMs,
     endErrorsMs,

@@ -157,7 +157,13 @@ export function buildReport(
     run.items.push({
       recording,
       result,
-      score: scoreRecording(words, rows, result.words, result.assessment),
+      score: scoreRecording(
+        words,
+        rows,
+        result.words,
+        result.assessment,
+        result.hasWordConfidence !== false,
+      ),
     });
   }
   const runs = [...runMap.values()].sort((a, b) => a.key.localeCompare(b.key));
@@ -405,6 +411,29 @@ export function buildReport(
     }
     out.push('');
   }
+
+  out.push("## With the app's alignment engine");
+  out.push('');
+  out.push(
+    "The same provider words marked by the app's alignment engine (BB-25) instead of the bake-off's simple alignment, on that run's recordings. This is closer to what a learner would see, because the engine also flags unsure words and matches contractions and spoken numbers. The decision rule uses the tables above; this one shows how much the engine changes the picture. Runs without real per-word confidence are scored as if every word were confident.",
+  );
+  out.push('');
+  out.push('| Run | Recordings | False error rate | Missed error rate |');
+  out.push('| --- | --- | --- | --- |');
+  for (const run of runs) {
+    const items = run.items.filter((s) => s.score.engine !== null);
+    const c = sumCounts(items.map((s) => s.score.engine!));
+    const ferCi = clusterBootstrapRatio(
+      byReader(items, (s) => [s.engine!.falseErrors, s.engine!.readWords]),
+    );
+    const merCi = clusterBootstrapRatio(
+      byReader(items, (s) => [s.engine!.missedErrors, s.engine!.miscueWords]),
+    );
+    out.push(
+      `| ${run.key} | ${items.length} | ${pct(ratio(c.falseErrors, c.readWords))}${ci(ferCi)} | ${pct(ratio(c.missedErrors, c.miscueWords))}${ci(merCi)} |`,
+    );
+  }
+  out.push('');
 
   out.push('## Flagging low-confidence words');
   out.push('');
