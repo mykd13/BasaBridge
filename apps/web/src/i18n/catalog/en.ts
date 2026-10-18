@@ -12,8 +12,10 @@ export const en = {
   },
   home: {
     levelOne: {
-      standard: 'Level {level} stories are {min} to {max} words.',
+      standard: 'Level {level} stories are {min} to {max} words with {tries}.',
     },
+    tries: { standard: '{count, plural, one {# try} other {# tries}}' },
+    triesUnlimited: { standard: 'unlimited tries' },
   },
   skip: {
     toContent: { standard: 'Skip to main content', simple: 'Skip to the page' },
