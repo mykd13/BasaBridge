@@ -1,0 +1,74 @@
+.bb-account {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 34rem;
+  margin: 0 auto;
+}
+.bb-account--wide {
+  max-width: 60rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+@media (min-width: 52rem) {
+  .bb-account--wide {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+.bb-account__panel,
+.bb-account__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.bb-account__hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.bb-account__hero h2 {
+  font-size: 2rem;
+}
+.bb-account__hero ul {
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.5rem;
+}
+.bb-account__muted {
+  color: var(--muted);
+}
+.bb-account__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.bb-account__link:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.bb-account__code {
+  font-family: ui-monospace, monospace;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.bb-account__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.bb-account__list {
+  display: grid;
+  gap: 0.75rem;
+}
+.bb-account dl {
+  display: grid;
+  gap: 0.25rem;
+}
+.bb-account dt {
+  font-weight: 700;
+}

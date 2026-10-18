@@ -53,6 +53,20 @@ export const signUpStudent = (input: StudentSignUp) =>
 export async function getCurrentUser() {
   const session = await getAuth().api.getSession({ headers: await headers() });
   if (!session) return null;
-  const u = session.user as { id: string; role: 'student' | 'parent'; emailReal?: boolean };
-  return { id: u.id, role: u.role, canResetPassword: Boolean(u.emailReal) };
+  const u = session.user as {
+    id: string;
+    role: 'student' | 'parent';
+    emailReal?: boolean;
+    email: string;
+    username?: string | null;
+  };
+  const emailReal = Boolean(u.emailReal);
+  return {
+    id: u.id,
+    role: u.role,
+    canResetPassword: emailReal,
+    username: u.username ?? null,
+    /** Only a real address. The reserved placeholder for students without email stays hidden. */
+    email: emailReal ? u.email : null,
+  };
 }

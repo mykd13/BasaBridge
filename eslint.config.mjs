@@ -63,6 +63,8 @@ export default tseslint.config(
               'screen',
               'boards',
               'data-testid',
+              'autoComplete',
+              'autoCapitalize',
               'htmlFor',
               'target',
               'rel',
