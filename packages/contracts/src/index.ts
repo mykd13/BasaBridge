@@ -159,8 +159,27 @@ export const ReadingHelp = z.object({
   language: z.enum(['en', 'fil']).default('en'),
   /** Use the shorter, simpler instruction wording. */
   simpleWords: z.boolean().default(false),
+  /** Hear the story read slowly before a try. Offered at the lowest levels only; the rule lives in packages/levels. */
+  listenThenRead: z.boolean().default(true),
 });
 export type ReadingHelp = z.infer<typeof ReadingHelp>;
+
+/** Story audio made once per story, with a start and end time for each word, in seconds. */
+export const StoryAudio = z.object({
+  /** CDN address of the audio file. */
+  url: z.string().url(),
+  durationSec: z.number().positive(),
+  words: z
+    .array(
+      z.object({
+        word: z.string().min(1),
+        startSec: z.number().nonnegative(),
+        endSec: z.number().nonnegative(),
+      }),
+    )
+    .min(1),
+});
+export type StoryAudio = z.infer<typeof StoryAudio>;
 
 export const READING_HELP_PRESETS = {
   standard: ReadingHelp.parse({}),
