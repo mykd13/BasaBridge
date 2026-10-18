@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { tierFor } from '@basabridge/levels';
 import { checkStory, type CheckFailureCode } from '../checks';
+import { failureFeedback } from '../retry';
 import { BAD_VERSIONS, GOOD_STORIES, TAGGED_STORY, type StoryFixture } from './stories';
 
 /** Every failure code, marked story-level or not. The type makes a new code fail to compile here. */
@@ -72,6 +73,31 @@ describe('bad fixtures', () => {
         expect(r.ok).toBe(true);
         expect(r.ok && r.dropped.map((f) => f.code)).toEqual([bad.code]);
         expect(r.ok && r.dropped[0]?.questionIndex).toBeDefined();
+      }
+    },
+  );
+});
+
+describe('retry feedback for every bad fixture', () => {
+  it.each(BAD_VERSIONS.map((b) => [b.code, b] as const))(
+    '%s feedback never repeats passage or question text',
+    (_code, bad) => {
+      const r = check(bad.story);
+      const failures = r.ok ? r.dropped : r.failures;
+      const text = failureFeedback(failures).toLowerCase();
+      expect(text).not.toBe('');
+      const leaks: unknown[] = [
+        ...bad.story.text.split(/(?<=[.!?])\s+/),
+        ...bad.story.questions.flatMap((q) => [
+          q.question,
+          q.word,
+          q.evidence,
+          ...(Array.isArray(q.options) ? q.options : []),
+        ]),
+      ];
+      for (const piece of leaks) {
+        if (typeof piece !== 'string' || piece.trim().length < 4) continue;
+        expect(text, piece).not.toContain(piece.trim().toLowerCase());
       }
     },
   );
