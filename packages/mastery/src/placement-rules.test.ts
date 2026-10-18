@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { thetaToLevel } from './ability';
 import { PlacementResult } from '@basabridge/contracts';
 import { PLACEMENT_RULE } from '@basabridge/levels';
 import {
@@ -83,7 +84,7 @@ describe('voice re-check', () => {
     const s = startRecheckSession(silent);
     expect(s.kind).toBe('recheck');
     expect(s.voice).toBe(true);
-    expect(s.startLevel).toBe(silent.level);
+    expect(s.startLevel).toBe(thetaToLevel(silent.theta));
     expect(nextForSession(s).level).toBe(s.startLevel);
   });
 
