@@ -1,6 +1,8 @@
 /**
  * Prints one user's consents and audit trail as JSON (BB-11).
  * Run with `pnpm --filter @basabridge/db audit:user <user id>` and DATABASE_URL set.
+ * Operator only: it runs from a shell with DATABASE_URL, is not exported from the package index,
+ * and nothing in the web app imports it. It is not reachable by a student or a parent.
  * Output holds ids, kinds, versions, actions and times only. No names, emails or audio.
  */
 import { listAuditFor, listConsents } from './audit';

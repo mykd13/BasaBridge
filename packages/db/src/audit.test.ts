@@ -27,6 +27,16 @@ describe('audit log', () => {
     expect((await listAuditFor(db, target.id)).map((a) => a.action)).toEqual(['link_created']);
   });
 
+  it('refuses a name or free text as actor or target, even from raw SQL', async () => {
+    const u = await createUser(db, { role: 'student', username: 'audit-ids', passwordHash: 'x' });
+    await expect(
+      insertAudit(db, { actorUserId: u.id, action: 'link_created', target: 'Maria Santos' }),
+    ).rejects.toThrow();
+    await expect(
+      client.query(`insert into audit_log (action, target) values ('link_created', 'maria')`),
+    ).rejects.toThrow('audit_log_ids_only');
+  });
+
   it('refuses updates, deletes and truncate, even from raw SQL', async () => {
     await expect(client.query(`update audit_log set action = 'changed'`)).rejects.toThrow(
       'append-only',

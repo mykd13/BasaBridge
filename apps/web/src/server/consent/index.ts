@@ -4,8 +4,22 @@
  * Consent text lives with the privacy notice (BB-69) and is a locked area (Rhett and James).
  * This file holds only the current version number of each consent. Bump a version when its text
  * changes; every learner who agreed to an older version is then asked again.
+ *
+ * Authorization (AGENTS.md rule 4): consents are never shared with a parent and are never read or
+ * written for another person, so these functions act only on the subject they are given: the
+ * signed-in user, or the user just created at sign-up. There is no way to pass someone else's id
+ * from a page, because pages cannot import the database (BB-10). Withdrawal, and the guardian
+ * check for under-13 learners, belong to BB-8.
  */
-import { createDbFromEnv, insertAudit, insertConsent, listConsents, type Db } from '@basabridge/db';
+import {
+  AUDIT_ACTIONS,
+  createDbFromEnv,
+  insertAudit,
+  insertConsent,
+  listConsents,
+  type AuditAction,
+  type Db,
+} from '@basabridge/db';
 
 export const CONSENT_VERSIONS = {
   /** Recording the learner's voice to check their reading. */
@@ -16,18 +30,7 @@ export const CONSENT_VERSIONS = {
 
 export type ConsentKind = keyof typeof CONSENT_VERSIONS;
 
-/** Every action that must leave an audit entry. Free text is not accepted. */
-export const AUDIT_ACTIONS = [
-  'guardian_approved',
-  'guardian_declined',
-  'guardian_expired',
-  'link_created',
-  'link_revoked',
-  'data_exported',
-  'account_deleted',
-] as const;
-
-export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+export { AUDIT_ACTIONS, type AuditAction };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -37,7 +40,7 @@ export interface ConsentStore {
   insertConsent: (values: { userId: string; kind: string; version: number }) => Promise<unknown>;
   insertAudit: (values: {
     actorUserId: string | null;
-    action: string;
+    action: AuditAction;
     target: string | null;
   }) => Promise<unknown>;
 }
@@ -57,25 +60,30 @@ function assertId(value: string, field: string): void {
   if (!UUID.test(value)) throw new Error(`${field} must be an id`);
 }
 
-/** Records that the user agreed to the current version of a consent. */
+/** The person consents belong to. Always the signed-in user, never a learner picked by id. */
+export interface ConsentSubject {
+  id: string;
+}
+
+/** Records that the subject agreed to the current version of a consent. */
 export async function recordConsent(
-  userId: string,
+  subject: ConsentSubject,
   kind: ConsentKind,
   store: ConsentStore = dbStore(),
 ): Promise<void> {
-  assertId(userId, 'userId');
-  if (!(kind in CONSENT_VERSIONS)) throw new Error(`Unknown consent: ${String(kind)}`);
-  await store.insertConsent({ userId, kind, version: CONSENT_VERSIONS[kind] });
+  assertId(subject.id, 'userId');
+  if (!Object.hasOwn(CONSENT_VERSIONS, kind)) throw new Error(`Unknown consent: ${String(kind)}`);
+  await store.insertConsent({ userId: subject.id, kind, version: CONSENT_VERSIONS[kind] });
 }
 
 /** The consents to ask for: never given, or given for an older version of the text. */
 export async function consentsNeeded(
-  userId: string,
+  subject: ConsentSubject,
   store: ConsentStore = dbStore(),
 ): Promise<ConsentKind[]> {
-  assertId(userId, 'userId');
+  assertId(subject.id, 'userId');
   const latest = new Map<string, number>();
-  for (const row of await store.listConsents(userId)) {
+  for (const row of await store.listConsents(subject.id)) {
     latest.set(row.kind, Math.max(row.version, latest.get(row.kind) ?? 0));
   }
   return (Object.keys(CONSENT_VERSIONS) as ConsentKind[]).filter(

@@ -18,31 +18,38 @@ function fakeStore() {
 describe('consent', () => {
   it('asks for every consent before any is given', async () => {
     const { store } = fakeStore();
-    expect(await consentsNeeded(userId, store)).toEqual(Object.keys(CONSENT_VERSIONS));
+    expect(await consentsNeeded({ id: userId }, store)).toEqual(Object.keys(CONSENT_VERSIONS));
   });
 
   it('records the current version and stops asking', async () => {
     const { store, consents } = fakeStore();
-    await recordConsent(userId, 'microphone', store);
-    await recordConsent(userId, 'stored_results', store);
+    await recordConsent({ id: userId }, 'microphone', store);
+    await recordConsent({ id: userId }, 'stored_results', store);
     expect(consents).toEqual([
       { userId, kind: 'microphone', version: CONSENT_VERSIONS.microphone },
       { userId, kind: 'stored_results', version: CONSENT_VERSIONS.stored_results },
     ]);
-    expect(await consentsNeeded(userId, store)).toEqual([]);
+    expect(await consentsNeeded({ id: userId }, store)).toEqual([]);
   });
 
   it('asks again when the stored version is older than the current text', async () => {
     const { store, consents } = fakeStore();
     consents.push({ userId, kind: 'microphone', version: CONSENT_VERSIONS.microphone - 1 });
     consents.push({ userId, kind: 'stored_results', version: CONSENT_VERSIONS.stored_results });
-    expect(await consentsNeeded(userId, store)).toEqual(['microphone']);
+    expect(await consentsNeeded({ id: userId }, store)).toEqual(['microphone']);
   });
 
   it('refuses an unknown consent or a user that is not an id', async () => {
     const { store } = fakeStore();
-    await expect(recordConsent(userId, 'cookies' as never, store)).rejects.toThrow('Unknown');
-    await expect(recordConsent('maria', 'microphone', store)).rejects.toThrow('must be an id');
+    await expect(recordConsent({ id: userId }, 'cookies' as never, store)).rejects.toThrow(
+      'Unknown',
+    );
+    for (const key of ['constructor', 'toString', '__proto__']) {
+      await expect(recordConsent({ id: userId }, key as never, store)).rejects.toThrow('Unknown');
+    }
+    await expect(recordConsent({ id: 'maria' }, 'microphone', store)).rejects.toThrow(
+      'must be an id',
+    );
   });
 });
 
