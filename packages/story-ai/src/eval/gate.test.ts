@@ -158,7 +158,26 @@ describe('gate absolute floors with no baseline', () => {
     };
     const run = healthyRun({ generated: [genSample(err), genSample({ index: 1 })] });
     expect(gate(run, null).failures).toContain(
-      '1 verifier calls failed on generated stories. At most 0 are allowed.',
+      '1 verifier calls failed (0 on labelled cases, 1 on generated stories). At most 0 are allowed.',
+    );
+  });
+
+  it('counts verifier errors on both sides against one limit', () => {
+    const run = healthyRun({
+      generated: [
+        genSample({
+          verifier: { error: 'call_failed' as const, disagreed: [], flaggedUnsafe: false },
+        }),
+        genSample({ index: 1 }),
+      ],
+    });
+    run.labelled[0] = {
+      ...run.labelled[0]!,
+      verifier: { error: 'timeout', disagreed: [], flaggedUnsafe: false },
+    };
+    // Each side alone is within a limit of 1, together they are not.
+    expect(gateWith(run, null, { ...SMALL, maxVerifierErrors: 1 }).failures).toContain(
+      '2 verifier calls failed (1 on labelled cases, 1 on generated stories). At most 1 are allowed.',
     );
   });
 
@@ -169,7 +188,7 @@ describe('gate absolute floors with no baseline', () => {
       verifier: { error: 'timeout', disagreed: [], flaggedUnsafe: false },
     };
     expect(gate(run, null).failures).toContain(
-      '1 verifier calls failed on labelled cases. At most 0 are allowed.',
+      '1 verifier calls failed (1 on labelled cases, 0 on generated stories). At most 0 are allowed.',
     );
   });
 

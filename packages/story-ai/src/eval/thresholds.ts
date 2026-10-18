@@ -10,7 +10,7 @@ export interface Thresholds {
   minAcceptedRate: number;
   /** Most generation calls that may fail. A broken provider must not pass by producing nothing. */
   maxGenerationErrors: number;
-  /** Most verifier calls that may fail, on generated stories and on labelled cases together. */
+  /** Most verifier calls that may fail, on generated stories and labelled cases counted together. */
   maxVerifierErrors: number;
   /** Of reviewed safe passages, the largest share the verifier may wrongly flag. */
   maxSafeFalseAlarmRate: number;

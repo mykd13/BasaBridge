@@ -87,12 +87,6 @@ export function gate(
       `Safe false alarm rate ${pct(safeFalseAlarm.rate)} (${of(safeFalseAlarm)}) is over ${pct(t.maxSafeFalseAlarmRate)}.`,
     );
   }
-  // An error on a good-key case lowers the false alarm rate, so errors must block on their own.
-  if (c.verifier.errors > t.maxVerifierErrors) {
-    failures.push(
-      `${c.verifier.errors} verifier calls failed on labelled cases. At most ${t.maxVerifierErrors} are allowed.`,
-    );
-  }
 
   const g = c.generation;
   if (g.attempted === 0) {
@@ -115,11 +109,14 @@ export function gate(
         `${genErrors} generation calls failed. At most ${t.maxGenerationErrors} are allowed.`,
       );
     }
-    if (g.verifierErrors > t.maxVerifierErrors) {
-      failures.push(
-        `${g.verifierErrors} verifier calls failed on generated stories. At most ${t.maxVerifierErrors} are allowed.`,
-      );
-    }
+  }
+  // One limit for every verifier call, so errors split across both sides cannot slip under it.
+  // An error on a good-key case lowers the false alarm rate, so errors must block on their own.
+  const verifierErrors = c.verifier.errors + g.verifierErrors;
+  if (verifierErrors > t.maxVerifierErrors) {
+    failures.push(
+      `${verifierErrors} verifier calls failed (${c.verifier.errors} on labelled cases, ${g.verifierErrors} on generated stories). At most ${t.maxVerifierErrors} are allowed.`,
+    );
   }
   for (const d of c.drift) {
     if (d.medianGrade !== null && d.medianGrade > d.maxReadingGrade) {
