@@ -19,6 +19,7 @@ export const AUDIT_ACTIONS = [
   'link_revoked',
   'data_exported',
   'account_deleted',
+  'consent_given',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
