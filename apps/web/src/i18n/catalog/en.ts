@@ -196,6 +196,395 @@ export const en = {
       },
     },
   },
+  parent: {
+    nav: {
+      label: { standard: 'Sections for this child' },
+      progress: { standard: 'Progress' },
+      readings: { standard: 'Readings' },
+      levels: { standard: 'Levels and tries' },
+      decisions: { standard: 'AI decisions' },
+      privacy: { standard: 'Data and privacy' },
+    },
+    titles: {
+      progress: { standard: 'Progress' },
+      readings: { standard: 'Readings and AI analysis' },
+      levels: { standard: 'Levels and tries' },
+      decisions: { standard: 'AI decisions' },
+      privacy: { standard: 'Linked children and privacy' },
+    },
+    sections: {
+      progress: { standard: 'Progress' },
+      readings: { standard: 'Readings' },
+      levels: { standard: 'Level history' },
+      decisions: { standard: 'AI decisions' },
+    },
+    summary: {
+      grade: { standard: 'Grade {grade}' },
+      level: { standard: 'Level {level} of {max}' },
+      readings: { standard: '{count, plural, one {# reading} other {# readings}}' },
+      sharedSince: {
+        standard: 'Shared since {date}. Your child controls what you see.',
+      },
+    },
+    states: {
+      emptyTitle: { standard: 'Nothing to show yet' },
+      empty: {
+        progress: {
+          standard: 'Progress appears here after your child reads a story out loud and answers.',
+        },
+        readings: { standard: 'Each reading appears here after your child finishes a story.' },
+        levels: { standard: 'Level changes appear here as your child reads stories.' },
+        decisions: { standard: 'Decisions appear here after your child reads a story.' },
+        privacy: { standard: 'No children are linked to your account yet.' },
+      },
+      notSharedTitle: { standard: '{section} is not shared with you' },
+      notSharedBody: {
+        standard:
+          'Your child has not shared this with you. You see only what they choose to share.',
+      },
+      notSharedStep: {
+        standard:
+          'To see it, ask your child to open Share with a parent in their account and turn this section on.',
+      },
+      errorTitle: { standard: 'We could not load this page' },
+      errorBody: { standard: 'Something went wrong on our side. Please try again.' },
+      retry: { standard: 'Try again' },
+    },
+    skills: {
+      decoding: {
+        name: { standard: 'Decoding' },
+        about: { standard: 'Sounding out words accurately' },
+      },
+      fluency: {
+        name: { standard: 'Fluency' },
+        about: { standard: 'Reading smoothly at a steady pace' },
+      },
+      vocabulary: {
+        name: { standard: 'Vocabulary' },
+        about: { standard: 'Knowing what words mean in context' },
+      },
+      literal: {
+        name: { standard: 'Literal comprehension' },
+        about: { standard: 'Finding what the text says directly' },
+      },
+      inferential: {
+        name: { standard: 'Inferential comprehension' },
+        about: { standard: 'Working out what the text suggests' },
+      },
+    },
+    confidence: {
+      none: { standard: 'No evidence yet' },
+      early: { standard: 'Early signs' },
+      building: { standard: 'Building a picture' },
+      steady: { standard: 'Steady evidence' },
+    },
+    progress: {
+      level: {
+        eyebrow: { standard: 'Level' },
+        of: { standard: 'of {max}' },
+        progressLabel: { standard: 'Stories passed at this level' },
+        progressText: {
+          standard: '{passes} of {needed} stories passed toward Level {next}',
+        },
+        top: { standard: 'This is the top level.' },
+      },
+      tries: {
+        title: { standard: 'Tries per story' },
+        unlimited: { standard: 'Unlimited' },
+        next: { standard: 'Changes to {tries} at Level {level}.' },
+      },
+      averageTries: {
+        title: { standard: 'Tries used on average' },
+        note: {
+          standard: 'Across the last {count, plural, one {# story} other {# stories}}',
+        },
+        none: { standard: 'No stories yet' },
+      },
+      skills: {
+        title: { standard: 'Reading skills' },
+        intro: {
+          standard:
+            'Estimates come only from what your child read and answered, weighted toward recent readings.',
+        },
+        wordsRight: { standard: '{right} of {total} words read right' },
+        correct: { standard: '{right} of {total} correct' },
+        pace: { standard: 'words read right per minute' },
+        up: { standard: 'Up {delta} since the last reading' },
+        down: { standard: 'Down {delta} since the last reading' },
+      },
+      patterns: {
+        title: { standard: 'Reading patterns the AI Teacher found' },
+        intro: {
+          standard: 'From word-by-word comparison of your child’s voice to the text.',
+        },
+        none: { standard: 'No patterns found yet. They appear when the same thing repeats.' },
+        counts: {
+          standard:
+            'Seen {count, plural, one {# time} other {# times}} in {tries, plural, one {# reading} other {# readings}}.',
+        },
+        dropped_ending: { standard: 'Often leaves off word endings such as “-{key}”.' },
+        letter_pattern: { standard: 'Slows down on words with “{key}”.' },
+        repeated_substitution: { standard: 'Often reads “{from}” as “{to}”.' },
+        missing_pause: { standard: 'Reads straight through full stops without pausing.' },
+        confidence: {
+          low: { standard: 'Low confidence' },
+          medium: { standard: 'Medium confidence' },
+          high: { standard: 'High confidence' },
+        },
+        mishear: {
+          standard:
+            'Speech recognition can mishear some voices and accents. Check the word list under Readings.',
+        },
+      },
+      plan: {
+        title: { standard: 'Current plan' },
+        last: {
+          standard:
+            'This reading: {correct} of {total} questions correct and {percent}% of words read right.',
+        },
+        lastNoVoice: {
+          standard: 'This reading: {correct} of {total} questions correct. No voice result.',
+        },
+        next: { standard: 'The next story will be new text.' },
+        focus: {
+          standard:
+            'Focus: {skill}. It is the lowest measured comprehension skill so far ({right} of {total} correct).',
+        },
+        focusNone: {
+          standard: 'No focus yet. It is chosen once there are enough answers.',
+        },
+        rule: {
+          standard:
+            'The focus is chosen by rule, from the lowest estimate. The AI Teacher does not choose it.',
+        },
+      },
+      notes: {
+        title: { standard: 'Home activity' },
+        notReady: {
+          standard: 'The AI Teacher’s notes are not ready yet. This is the standard activity.',
+        },
+        ai: { standard: 'Written by the AI Teacher' },
+        standardActivity: { standard: 'Standard activity' },
+        minutes: { standard: '{minutes, plural, one {# minute} other {# minutes}}' },
+        tip: { standard: 'Tip: {tip}' },
+      },
+      limits: {
+        title: { standard: 'What this does and does not tell you.' },
+        body: {
+          standard:
+            'Each reading has about five questions and one voice sample, so early numbers can move a lot. This supports reading practice. It is not a diagnosis, a grade, or a replacement for school, and a few readings cannot show lasting learning gains.',
+        },
+      },
+    },
+    readings: {
+      list: { standard: 'Readings' },
+      when: { standard: '{date}' },
+      level: { standard: 'Level {level}' },
+      result: {
+        standard: '{correct} of {total} questions · {percent}% of words read right',
+      },
+      resultNoVoice: { standard: '{correct} of {total} questions · no voice result' },
+      tries: {
+        title: { standard: 'Tries on this story' },
+        number: { standard: 'Try' },
+        done: { standard: 'Read to the end' },
+        words: { standard: 'Words right' },
+        pace: { standard: 'Pace' },
+        yes: { standard: 'Yes' },
+        no: { standard: 'No' },
+        counted: { standard: '{number} (counted)' },
+        wordsCell: { standard: '{right} of {total} ({percent}%)' },
+        paceCell: { standard: '{wpm} words a minute' },
+        scroll: { standard: 'Tries table' },
+      },
+      words: {
+        title: { standard: 'Words to check on the counted try' },
+        said: { standard: 'Text said' },
+        heard: { standard: 'Heard' },
+        sure: { standard: 'How sure' },
+        none: { standard: 'No words to check on this try.' },
+        nothing: { standard: 'nothing' },
+        marked: { standard: 'Marked as heard wrongly' },
+        high: { standard: 'High' },
+        medium: { standard: 'Medium' },
+        low: { standard: 'Low, audio unclear' },
+        scroll: { standard: 'Words to check' },
+      },
+      analysis: {
+        title: { standard: 'AI Teacher’s analysis' },
+        based: {
+          standard:
+            'Based on {count, plural, one {# word-level difference} other {# word-level differences}} between the voice and the text.',
+        },
+        ai: { standard: 'Written by the AI Teacher' },
+        standardWording: { standard: 'Standard wording' },
+        none: { standard: 'There is no analysis for this reading yet.' },
+      },
+      questions: {
+        title: { standard: 'Questions' },
+        correct: { standard: 'Correct' },
+        missed: { standard: 'Missed' },
+        chose: { standard: 'Chose: {chosen}' },
+        answer: { standard: 'Answer: {answer}' },
+        evidence: { standard: 'From the story: “{evidence}”' },
+      },
+    },
+    levels: {
+      intro: {
+        standard:
+          'There are {max} levels. As the level rises, stories get longer and harder, and tries per story go down.',
+      },
+      table: {
+        title: { standard: 'How levels work' },
+        levels: { standard: 'Levels' },
+        length: { standard: 'Story length' },
+        words: { standard: 'Words and sentences' },
+        tries: { standard: 'Tries per story' },
+        range: { standard: '{from} to {to}' },
+        wordsRange: { standard: '{min} to {max} words' },
+        here: { standard: 'Your child is here, Level {level}' },
+        scroll: { standard: 'Levels, story length and tries' },
+      },
+      tier: {
+        one: { standard: 'Everyday words and very short sentences' },
+        two: { standard: 'Everyday words, a few new ones explained by the story' },
+        three: { standard: 'Sentences joined with “and”, “but” and “because”, some topic words' },
+        four: { standard: 'Varied sentences, several topic words' },
+        five: { standard: 'Longer sentences, subject words, details to connect' },
+        six: { standard: 'Advanced vocabulary and figurative language' },
+      },
+      history: {
+        title: { standard: 'Level history' },
+        placement: { standard: 'Started at Level {to}' },
+        up: { standard: 'Moved up from Level {from} to Level {to}' },
+        down: { standard: 'Moved down from Level {from} to Level {to}' },
+        list: { standard: 'Level changes, newest first' },
+      },
+      tries: {
+        title: { standard: 'How tries work' },
+        one: {
+          standard:
+            'A try is one read-aloud of the story. After each try the AI Teacher shows what to fix, and your child can read again if tries are left.',
+        },
+        two: {
+          standard:
+            'When the tries are used up, one try counts toward the result, your child answers the questions, and then gets a new story at the same difficulty.',
+        },
+      },
+      pass: {
+        title: { standard: 'How a level is passed' },
+        story: {
+          standard:
+            'A story passes when your child reads at least {words}% of the words right on the counted try and answers at least {correct} of {total} questions correctly.',
+        },
+        move: {
+          standard:
+            'Passing {passes} stories at a level counts toward moving up, and the answers must also show your child is ready. A very weak result ({share}% of questions right or fewer) can move a level down by one so stories stay readable.',
+        },
+        evidence: {
+          standard:
+            'A level moves only on evidence from stories read at the current level. Practice in Learn never changes a level.',
+        },
+        tune: {
+          standard:
+            'These numbers are the starting rules. They can be tuned as real results come in.',
+        },
+      },
+    },
+    decisions: {
+      intro: {
+        standard:
+          'You are the human check on these. Counts and levels are worked out in code, not guessed.',
+      },
+      list: { standard: 'Decisions, newest first' },
+      kinds: {
+        story: { standard: 'Story' },
+        level: { standard: 'Level' },
+        plan: { standard: 'Plan' },
+        analysis: { standard: 'Reading analysis' },
+        tries: { standard: 'Tries' },
+      },
+      basedOn: { standard: 'Based on {title}' },
+      messages: {
+        analysis: {
+          title: { standard: 'Story answers counted' },
+          body: {
+            standard:
+              '{answers, plural, one {# answer was} other {# answers were}} counted, {reduced} counted for less.',
+          },
+        },
+        levelUp: {
+          title: { standard: 'Moved up to Level {level}' },
+          body: {
+            standard:
+              'Stories at this level showed enough evidence. The rule moved the level, not the AI.',
+          },
+        },
+        levelDown: {
+          title: { standard: 'Moved down to Level {level}' },
+          body: {
+            standard: 'This level looked too hard for now. The rule moved the level, not the AI.',
+          },
+        },
+        focus: {
+          title: { standard: 'Focus skill is now {skill}' },
+          body: {
+            standard:
+              'It has the lowest estimate of the three comprehension skills. A rule chose it.',
+          },
+        },
+      },
+    },
+    privacy: {
+      children: {
+        title: { standard: 'Linked children' },
+        sharing: { standard: 'Sharing: {sections}' },
+        sharingNone: { standard: 'Not sharing anything yet' },
+        linked: { standard: 'Linked {date}' },
+        given_by_parent: { standard: 'Microphone approval: given by you' },
+        not_needed: { standard: 'Microphone approval: not needed' },
+        pending: { standard: 'Microphone approval: waiting for you' },
+        link: { standard: 'Link a child' },
+        own: {
+          standard:
+            'Your child owns their account. You can stop viewing at any time. Your child can also stop sharing.',
+        },
+      },
+      voice: {
+        title: { standard: 'Voice and audio' },
+        one: {
+          standard:
+            'While your child reads aloud, their voice is turned into text and compared with the story. The audio is then discarded.',
+        },
+        two: {
+          standard:
+            'Keeping recordings is your child’s choice in their own account. Parents never see or hear recordings.',
+        },
+      },
+      data: {
+        title: { standard: 'Privacy' },
+        whoLabel: { standard: 'Who can see results.' },
+        who: { standard: 'Your child and, because they shared it, you. Nobody else.' },
+        aiLabel: { standard: 'What the AI model sees.' },
+        ai: {
+          standard:
+            'Reading levels, story text, question text and word-level differences. Never your child’s name, username or audio.',
+        },
+        ownLabel: { standard: 'Your own data.' },
+        own: {
+          standard:
+            'Your parent account holds only your name, email and which children you are linked to.',
+        },
+      },
+      actionsNotReady: {
+        title: { standard: 'Some account tools are not ready yet' },
+        body: {
+          standard:
+            'Stopping viewing, downloading your parent data and deleting your parent account will appear here when they are ready.',
+        },
+      },
+    },
+  },
   legal: {
     links: {
       privacy: { standard: 'Privacy notice', simple: 'Privacy' },

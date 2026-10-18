@@ -1,5 +1,7 @@
-import { ScreenPlaceholder } from '@/components/states/ScreenPlaceholder';
+import { DecisionsScreen } from '@/components/parent/DecisionsScreen';
+import { loadDecisions, toScreenState } from '@/server/parent/loaders';
 
-export default function Page() {
-  return <ScreenPlaceholder screen="parentDecisions" boards="F5" />;
+export default async function Page({ params }: { params: Promise<{ learner: string }> }) {
+  const { learner } = await params;
+  return <DecisionsScreen state={await toScreenState(() => loadDecisions(learner))} />;
 }

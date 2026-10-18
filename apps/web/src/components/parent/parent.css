@@ -1,0 +1,188 @@
+/* Parent screens F2 to F6. Colours, radii and spacing come from the @basabridge/ui tokens. */
+
+.bb-parent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  max-width: 65rem;
+  margin: 0 auto;
+}
+
+.bb-parent__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.bb-parent__title {
+  font-size: 1.875rem;
+}
+.bb-parent__summary,
+.bb-parent__muted {
+  color: var(--muted);
+}
+
+.bb-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 auto 1.5rem;
+  max-width: 65rem;
+}
+.bb-subnav__item {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0 1.125rem;
+  border: var(--border) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+.bb-subnav__item[aria-current='page'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+
+.bb-parent__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.bb-parent__section > h2 {
+  font-size: 1.375rem;
+}
+
+.bb-parent__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+}
+.bb-parent__stat {
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.bb-parent__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bb-parent__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+.bb-parent__steps {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.bb-parent__scroll {
+  overflow-x: auto;
+}
+.bb-parent__scroll:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+.bb-parent__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.bb-parent__table caption {
+  text-align: left;
+  font-weight: 700;
+  padding-bottom: 0.5rem;
+}
+.bb-parent__table th,
+.bb-parent__table td {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.bb-parent__table tr[data-current='true'] {
+  background: var(--accent-soft);
+}
+
+.bb-reading {
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.bb-reading > summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-height: var(--touch);
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+}
+.bb-reading > summary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+.bb-reading__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1875rem;
+}
+.bb-reading__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0 1.25rem 1.25rem;
+}
+
+@media (max-width: 40rem) {
+  .bb-parent__title {
+    font-size: 1.625rem;
+  }
+}
+
+.bb-parent p,
+.bb-parent__section > h2,
+.bb-parent__section > h3 {
+  margin: 0;
+}
+
+/* On a phone each table row becomes a small card, with the column name before each value. */
+@media (max-width: 40rem) {
+  .bb-parent__table {
+    min-width: 0;
+  }
+  .bb-parent__table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .bb-parent__table,
+  .bb-parent__table tbody,
+  .bb-parent__table tr,
+  .bb-parent__table th,
+  .bb-parent__table td {
+    display: block;
+  }
+  .bb-parent__table tr {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .bb-parent__table th,
+  .bb-parent__table td {
+    border: 0;
+    padding: 0.25rem 0.75rem;
+  }
+  .bb-parent__table td[data-label]::before {
+    content: attr(data-label) ': ';
+    font-weight: 700;
+  }
+}
