@@ -186,6 +186,46 @@ export const en = {
       },
     },
   },
+  progress: {
+    level: { standard: 'My level', simple: 'My level' },
+    levelOf: { standard: 'of {max}' },
+    levelBar: { standard: 'Progress to the next level', simple: 'Steps to the next level' },
+    toNext: {
+      standard:
+        '{count, plural, one {# more story to reach Level {level}} other {# more stories to reach Level {level}}}',
+      simple:
+        '{count, plural, one {# more story to Level {level}} other {# more stories to Level {level}}}',
+    },
+    topLevel: { standard: 'You are at the top level.', simple: 'You are at the top.' },
+    focus: { standard: 'What to work on next', simple: 'Work on this next' },
+    focusNone: {
+      standard: 'Read a few more stories and we will pick a skill for you.',
+      simple: 'Read more stories to get a skill.',
+    },
+    recent: { standard: 'Recent stories', simple: 'My stories' },
+    recentNone: {
+      standard: 'Your stories will show up here after you finish one.',
+      simple: 'Finished stories show up here.',
+    },
+    score: { standard: '{correct} of {total}' },
+    scoreLabel: {
+      standard: '{correct} of {total} questions right',
+      simple: '{correct} of {total} right',
+    },
+    empty: {
+      title: { standard: 'No stories yet', simple: 'No stories yet' },
+      body: {
+        standard: 'Read your first story and your progress will show up here.',
+        simple: 'Read a story to see your steps here.',
+      },
+      action: { standard: 'Go to Home', simple: 'Go Home' },
+    },
+    skills: {
+      vocabulary: { standard: 'Word meanings' },
+      literal: { standard: 'Finding facts' },
+      inferential: { standard: 'Reading between the lines' },
+    },
+  },
   language: {
     label: { standard: 'Language', simple: 'Language' },
     en: { standard: 'English' },
