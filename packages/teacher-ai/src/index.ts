@@ -22,19 +22,21 @@ import {
   standardWhatHappened,
   standardWhyFocus,
 } from './standard';
+import { type NotesStyle, say } from './wording';
 
 export * from './checks';
 export * from './model';
 export * from './prompt';
 export * from './schema';
 export * from './standard';
+export * from './wording';
 
 function isTimeout(error: unknown): boolean {
   const name = (error as { name?: unknown } | null)?.name;
   return name === 'TimeoutError' || name === 'AbortError';
 }
 
-export interface WriteNotesOptions {
+export interface WriteNotesOptions extends NotesStyle {
   /** Defaults to the model named in NOTES_MODEL. null means use standard wording. */
   model?: NotesModel | null;
   /** The Learn lesson registry (BB-53). Only reviewed lessons are linked. */
@@ -60,12 +62,13 @@ export function standardNotes(
   f: NotesFacts,
   lesson: LessonLink | null,
   fallbackReason: FallbackReason,
+  style: NotesStyle = {},
 ): TeacherNotes {
   return {
-    childMessage: standardChildMessage(f),
-    whatHappened: standardWhatHappened(f),
-    whyFocus: standardWhyFocus(f),
-    homeActivity: standardActivity(f.focus),
+    childMessage: standardChildMessage(f, style),
+    whatHappened: standardWhatHappened(f, style),
+    whyFocus: standardWhyFocus(f, style),
+    homeActivity: standardActivity(f.focus, style),
     lesson,
     source: 'standard',
     fallbackReason,
@@ -74,23 +77,28 @@ export function standardNotes(
 
 /** How parents see where the wording came from. The AI label matches the parent screens. */
 export const NOTE_SOURCE_LABEL: Record<NotesSource, string> = {
-  ai: 'Notes written by the AI Teacher',
-  standard: 'Notes in standard wording',
+  ai: say('notes.source.ai'),
+  standard: say('notes.source.standard'),
 };
 
 /**
  * The `decisions` row for a set of notes, so every note is stored with its source and the facts
  * it was written from. The caller saves it with the learner id through the authorization layer.
  */
-export function notesDecision(notes: TeacherNotes, input: NotesInput): Decision {
+export function notesDecision(
+  notes: TeacherNotes,
+  input: NotesInput,
+  style: NotesStyle = {},
+): Decision {
+  const label = say(`notes.source.${notes.source}`, {}, { ...style, wording: 'standard' });
   return Decision.parse({
     kind: 'plan',
-    title: NOTE_SOURCE_LABEL[notes.source],
-    summary: `${NOTE_SOURCE_LABEL[notes.source]}. ${
-      input.focus == null
-        ? 'There was not enough evidence to pick a focus skill.'
-        : 'The focus skill was chosen by rule, not by the AI.'
-    }`,
+    title: label,
+    summary: `${label}. ${say(
+      input.focus == null ? 'notes.decision.noFocus' : 'notes.decision.rule',
+      {},
+      { ...style, wording: 'standard' },
+    )}`,
     evidence: {
       source: notes.source,
       fallbackReason: notes.fallbackReason,
@@ -116,21 +124,22 @@ export async function writeNotes(
 ): Promise<TeacherNotes> {
   const facts = NotesInput.parse(input);
   const lesson = lessonFor(facts, options.lessons ?? []);
+  const style: NotesStyle = { lang: options.lang, wording: options.wording };
   const model = options.model === undefined ? notesModelFromEnv() : options.model;
-  if (!model) return standardNotes(facts, lesson, 'not_configured');
+  if (!model) return standardNotes(facts, lesson, 'not_configured', style);
 
   // Built outside the try so a bug in the prompt is not mistaken for a model failure.
-  const prompt = buildNotesPrompt(facts);
+  const prompt = buildNotesPrompt(facts, style);
   let raw: unknown;
   try {
     raw = await model(prompt);
   } catch (error) {
     // Nothing is logged here: the error can echo the prompt back.
-    return standardNotes(facts, lesson, isTimeout(error) ? 'timeout' : 'call_failed');
+    return standardNotes(facts, lesson, isTimeout(error) ? 'timeout' : 'call_failed', style);
   }
 
   const checked = checkNotes(raw, facts);
-  if (!checked.ok) return standardNotes(facts, lesson, checked.reason);
+  if (!checked.ok) return standardNotes(facts, lesson, checked.reason, style);
   const n = checked.notes;
   return {
     childMessage: n.childMessage,

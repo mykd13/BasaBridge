@@ -91,7 +91,10 @@ const PERSONAL_REQUEST =
 const PHOTO_REQUEST =
   /\b(send|share|post|upload|take)\b[^.!?]*\b(photo|picture|selfie|video|litrato)\b/i;
 
-const COUNTING_AFTER = /^\s+(of|out|question|word|answer|point|level|time|try|tama|mali)\b/i;
+/** "level 7" in English, "antas 7" in Filipino. */
+const LEVEL_NUMBER = /\b(?:level|antas)\s+(\d+)/gi;
+const LEVEL_BEFORE = /\b(?:level|antas)\s+$/i;
+const COUNTING_AFTER = /^\s+(of|out|question|word|answer|point|level|antas|time|try|tama|mali)\b/i;
 
 function fields(n: ModelNotes): string[] {
   return [
@@ -118,7 +121,7 @@ function digitize(t: string): string {
     if (value === 1) {
       const counting =
         COUNTING_AFTER.test(whole.slice(offset + w.length)) ||
-        /\blevel\s+$/i.test(whole.slice(0, offset));
+        LEVEL_BEFORE.test(whole.slice(0, offset));
       if (!counting) return w;
     }
     return String(value);
@@ -192,10 +195,10 @@ export function toneProblems(n: ModelNotes, facts: NotesFacts): ToneProblem[] {
   );
   const levels = new Set([String(facts.levelBefore), String(facts.levelAfter)]);
   const parent = digitize(`${n.whatHappened} ${n.whyFocus}`);
-  for (const m of parent.matchAll(/\blevel\s+(\d+)/gi)) {
+  for (const m of parent.matchAll(LEVEL_NUMBER)) {
     if (!levels.has(m[1] ?? '')) problems.add('unknown_number');
   }
-  const withoutLevels = parent.replace(/\blevel\s+\d+/gi, ' ');
+  const withoutLevels = parent.replace(LEVEL_NUMBER, ' ');
   for (const m of withoutLevels.matchAll(/\d+/g)) {
     if (!counts.has(m[0])) problems.add('unknown_number');
   }

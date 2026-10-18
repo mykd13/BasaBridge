@@ -5,6 +5,7 @@
  */
 import { HomeActivity } from '@basabridge/contracts';
 import { NotesInput } from './schema';
+import type { NotesStyle } from './wording';
 import { SKILL_WORDS } from './standard';
 
 export interface NotesPrompt {
@@ -52,9 +53,28 @@ export function notesFacts(input: NotesInput) {
   };
 }
 
-export function buildNotesPrompt(input: NotesInput): NotesPrompt {
+const LINE_BREAK = '\n';
+
+/** Language and wording asks. Fixed text; nothing about the learner goes into it. */
+export function styleInstructions(style: NotesStyle = {}): string {
+  const lines: string[] = [];
+  if (style.lang === 'fil') {
+    lines.push('Write every field in simple Filipino (Tagalog). Keep the numbers as digits.');
+  }
+  if (style.wording === 'simple') {
+    lines.push('Use very short sentences and common words, especially in childMessage.');
+  }
+  return lines.join(LINE_BREAK);
+}
+
+export function buildNotesPrompt(input: NotesInput, style: NotesStyle = {}): NotesPrompt {
+  const extra = styleInstructions(style);
   return {
-    instructions: NOTES_INSTRUCTIONS,
+    instructions: extra
+      ? `${NOTES_INSTRUCTIONS}
+
+${extra}`
+      : NOTES_INSTRUCTIONS,
     prompt: `Facts about one finished story:\n${JSON.stringify(notesFacts(input), null, 2)}`,
   };
 }
