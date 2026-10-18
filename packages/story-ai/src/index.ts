@@ -5,6 +5,10 @@
 import type { Story, StoryQuestion } from '@basabridge/contracts';
 import { tierFor } from '@basabridge/levels';
 
+export * from './review';
+export * from './review-queue';
+export * from './content-rates';
+
 export function syllables(word: string): number {
   let w = word.toLowerCase().replace(/[^a-z]/g, '');
   if (!w) return 0;

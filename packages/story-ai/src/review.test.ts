@@ -6,6 +6,16 @@ import {
   type ReviewDecision,
 } from './review';
 
+describe('package entry', () => {
+  it('exports the review helpers', async () => {
+    const entry = await import('./index');
+    expect(typeof entry.checkReviewDecision).toBe('function');
+    expect(typeof entry.buildReviewQueue).toBe('function');
+    expect(typeof entry.needsEducatorReview).toBe('function');
+    expect(typeof entry.contentRates).toBe('function');
+  });
+});
+
 describe('report reasons', () => {
   it('are codes with no free text option', () => {
     for (const r of REPORT_REASONS) expect(r).toMatch(/^[a-z_]+$/);
