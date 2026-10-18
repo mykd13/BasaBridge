@@ -42,6 +42,8 @@ export const PLACEMENT_RULE = {
   /** Words right below this share on placement tries flags low decoding. */
   lowDecoding: 0.85,
   retakeAfterDays: 30,
+  /** Stories in the short re-check after a placement made without voice. */
+  recheckStories: 2,
   /** Where to start the first placement story, by grade. */
   gradeStart: { 1: 10, 2: 20, 3: 30, 4: 42, 5: 55, 6: 68 } as Record<number, number>,
   defaultStart: 25,
