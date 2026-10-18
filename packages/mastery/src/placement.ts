@@ -20,6 +20,9 @@ import {
   type Posterior,
 } from './ability';
 
+/** Spread of the starting belief, before any placement story. */
+const PRIOR_SD = 1.5;
+
 export function startLevelForGrade(grade: number | null | undefined): number {
   if (grade == null) return PLACEMENT_RULE.defaultStart;
   return PLACEMENT_RULE.gradeStart[Math.round(grade)] ?? PLACEMENT_RULE.defaultStart;
@@ -64,7 +67,7 @@ export interface PlacementState {
 
 /** Belief about ability after the stories read so far. */
 export function placementPosterior(state: PlacementState): Posterior {
-  let p = prior(levelToTheta(state.startLevel), 1.5);
+  let p = prior(levelToTheta(state.startLevel), PRIOR_SD);
   for (const story of state.stories) {
     for (const a of story.answers) {
       const e: ItemEvidence = {
@@ -87,13 +90,20 @@ export interface NextPlacement {
   sd: number;
 }
 
-/** Which story comes next, or whether the placement is finished. */
-export function nextPlacement(state: PlacementState): NextPlacement {
+/**
+ * Which story comes next, or whether the placement is finished.
+ * `maxStories` shortens the run for the re-check; it defaults to the full placement.
+ */
+export function nextPlacement(
+  state: PlacementState,
+  opts: { maxStories?: number } = {},
+): NextPlacement {
+  const maxStories = opts.maxStories ?? PLACEMENT_RULE.maxStories;
   const s = summarise(placementPosterior(state));
   const estimateLevel = thetaToLevel(s.mean);
   const count = state.stories.length;
   const enough = count >= PLACEMENT_RULE.minStories && s.sd <= PLACEMENT_RULE.stopSd;
-  if (count >= PLACEMENT_RULE.maxStories || enough) {
+  if (count >= maxStories || enough) {
     return { done: true, level: null, estimateLevel, sd: s.sd };
   }
   const last = state.stories[count - 1]?.level ?? state.startLevel;
@@ -134,4 +144,37 @@ export function finishPlacement(state: PlacementState, opts: { voice: boolean })
     flags,
     recommendedHelp: level <= 20 || lowDecoding ? 'more' : 'standard',
   };
+}
+
+/**
+ * "Do this later": start at the grade default with no evidence. Placement is offered again at the
+ * next sign-in (see `placementGate`).
+ */
+export function skipPlacement(grade: number | null | undefined): PlacementResult {
+  const level = startLevelForGrade(grade);
+  return {
+    level,
+    theta: levelToTheta(level),
+    sd: PRIOR_SD,
+    confidence: PLACEMENT_RULE.skipConfidence,
+    storiesRead: 0,
+    flags: [],
+    recommendedHelp: level <= 20 ? 'more' : 'standard',
+  };
+}
+
+/**
+ * A short re-check once voice is approved after a silent placement. It starts at the level the
+ * silent placement gave, and its result replaces it.
+ */
+export function startRecheck(previous: PlacementResult): PlacementState {
+  return { startLevel: previous.level, stories: [] };
+}
+
+export function nextRecheck(state: PlacementState): NextPlacement {
+  return nextPlacement(state, { maxStories: PLACEMENT_RULE.recheckStories });
+}
+
+export function finishRecheck(state: PlacementState): PlacementResult {
+  return finishPlacement(state, { voice: true });
 }
