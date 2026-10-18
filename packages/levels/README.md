@@ -74,6 +74,7 @@ The ability model keeps a probability over each learner's ability and updates it
 - **Weights.** A rushed answer and an answer after a supported try count for less than a normal answer, which counts 1.
 - **Rushed answers.** An answer is rushed when it comes faster than a base time plus an allowance for each word on screen.
 - **Sub-skill offsets.** Each sub-skill starts a little easier or harder than the story level. Real answers recalibrate them later (BB-45).
+- **Calibration.** Once a question has enough real answers, its difficulty is re-estimated, pulled a little toward its starting value. A question is retired when almost everyone gets it right, almost no one beats guessing, or stronger readers do no better on it than weaker ones. Sub-skill offsets are suggested only from enough calibrated questions (BB-45).
 
 ## Placement rules
 
@@ -94,53 +95,59 @@ The learner can hear the story read slowly with the words highlighted, then read
 
 Every number in the rules, in one place. A test checks that this table matches the data in `src/`, row for row.
 
-| Rule                                           | Value | Meaning                                                     |
-| ---------------------------------------------- | ----- | ----------------------------------------------------------- |
-| `PASS_RULE.minWordsRight`                      | 0.85  | Share of words right on the counted try to pass             |
-| `PASS_RULE.minQuestionsCorrect`                | 3     | Questions right to pass, as a count                         |
-| `PASS_RULE.passesToLevelUp`                    | 3     | Passes to move up, in the simple rule                       |
-| `PASS_RULE.veryWeakShare`                      | 0.4   | Share of questions right at or below which a result is weak |
-| `EVIDENCE_RULE.guess.multiple_choice`          | 0.25  | Guess rate for a multiple choice question                   |
-| `EVIDENCE_RULE.guess.choose_all`               | 0.1   | Guess rate for a choose-all question                        |
-| `EVIDENCE_RULE.guess.order_events`             | 1/24  | Guess rate for an order-the-events question                 |
-| `EVIDENCE_RULE.discrimination`                 | 1.5   | How sharply a question separates readers                    |
-| `EVIDENCE_RULE.weight.rushed`                  | 0.3   | Weight of a rushed answer                                   |
-| `EVIDENCE_RULE.weight.supportedTry`            | 0.7   | Weight of an answer after a supported try                   |
-| `EVIDENCE_RULE.up.probability`                 | 0.85  | Certainty needed to move up                                 |
-| `EVIDENCE_RULE.up.margin`                      | 0.25  | How far above the level ability must be to move up          |
-| `EVIDENCE_RULE.up.minItems`                    | 10    | Answers needed to move up                                   |
-| `EVIDENCE_RULE.up.minPasses`                   | 2     | Passed stories at the level needed to move up               |
-| `EVIDENCE_RULE.up.minWordsRight`               | 0.85  | Words right on the last two counted tries to move up        |
-| `EVIDENCE_RULE.down.probability`               | 0.85  | Certainty needed to move down                               |
-| `EVIDENCE_RULE.down.margin`                    | 0.5   | How far below the level ability must be to move down        |
-| `EVIDENCE_RULE.down.minItems`                  | 8     | Answers needed to move down                                 |
-| `EVIDENCE_RULE.rushed.baseMs`                  | 1200  | Base time in ms under which an answer is rushed             |
-| `EVIDENCE_RULE.rushed.perWordMs`               | 35    | Extra ms allowed for each word on screen                    |
-| `EVIDENCE_RULE.subskillOffset.word_in_context` | 0     | Difficulty offset for word in context                       |
-| `EVIDENCE_RULE.subskillOffset.word_parts`      | 0.2   | Difficulty offset for word parts                            |
-| `EVIDENCE_RULE.subskillOffset.key_detail`      | -0.3  | Difficulty offset for key detail                            |
-| `EVIDENCE_RULE.subskillOffset.sequence`        | -0.1  | Difficulty offset for sequence                              |
-| `EVIDENCE_RULE.subskillOffset.main_idea`       | 0.1   | Difficulty offset for main idea                             |
-| `EVIDENCE_RULE.subskillOffset.cause_effect`    | 0.3   | Difficulty offset for cause and effect                      |
-| `EVIDENCE_RULE.subskillOffset.feelings`        | 0.2   | Difficulty offset for feelings                              |
-| `EVIDENCE_RULE.subskillOffset.prediction`      | 0.4   | Difficulty offset for prediction                            |
-| `EVIDENCE_RULE.subskillOffset.conclusion`      | 0.5   | Difficulty offset for conclusion                            |
-| `PLACEMENT_RULE.minStories`                    | 2     | Fewest placement stories                                    |
-| `PLACEMENT_RULE.maxStories`                    | 4     | Most placement stories                                      |
-| `PLACEMENT_RULE.stopSd`                        | 0.45  | Uncertainty at or below which placement stops               |
-| `PLACEMENT_RULE.maxStep`                       | 25    | Most levels between one placement story and the next        |
-| `PLACEMENT_RULE.conservative`                  | 0.5   | Deviations below the estimate to start the course           |
-| `PLACEMENT_RULE.lowDecoding`                   | 0.85  | Words right share below which placement flags low decoding  |
-| `PLACEMENT_RULE.retakeAfterDays`               | 30    | Days before placement can be retaken                        |
-| `PLACEMENT_RULE.gradeStart.1`                  | 10    | First placement level for grade 1                           |
-| `PLACEMENT_RULE.gradeStart.2`                  | 20    | First placement level for grade 2                           |
-| `PLACEMENT_RULE.gradeStart.3`                  | 30    | First placement level for grade 3                           |
-| `PLACEMENT_RULE.gradeStart.4`                  | 42    | First placement level for grade 4                           |
-| `PLACEMENT_RULE.gradeStart.5`                  | 55    | First placement level for grade 5                           |
-| `PLACEMENT_RULE.gradeStart.6`                  | 68    | First placement level for grade 6                           |
-| `PLACEMENT_RULE.defaultStart`                  | 25    | First placement level with no known grade                   |
-| `LISTEN_THEN_READ.maxLevel`                    | 10    | Highest level where listen-then-read is offered             |
-| `LISTEN_THEN_READ.pace`                        | 0.7   | Model voice speed, where 1 is normal                        |
+| Rule                                            | Value | Meaning                                                               |
+| ----------------------------------------------- | ----- | --------------------------------------------------------------------- |
+| `PASS_RULE.minWordsRight`                       | 0.85  | Share of words right on the counted try to pass                       |
+| `PASS_RULE.minQuestionsCorrect`                 | 3     | Questions right to pass, as a count                                   |
+| `PASS_RULE.passesToLevelUp`                     | 3     | Passes to move up, in the simple rule                                 |
+| `PASS_RULE.veryWeakShare`                       | 0.4   | Share of questions right at or below which a result is weak           |
+| `EVIDENCE_RULE.guess.multiple_choice`           | 0.25  | Guess rate for a multiple choice question                             |
+| `EVIDENCE_RULE.guess.choose_all`                | 0.1   | Guess rate for a choose-all question                                  |
+| `EVIDENCE_RULE.guess.order_events`              | 1/24  | Guess rate for an order-the-events question                           |
+| `EVIDENCE_RULE.discrimination`                  | 1.5   | How sharply a question separates readers                              |
+| `EVIDENCE_RULE.weight.rushed`                   | 0.3   | Weight of a rushed answer                                             |
+| `EVIDENCE_RULE.weight.supportedTry`             | 0.7   | Weight of an answer after a supported try                             |
+| `EVIDENCE_RULE.up.probability`                  | 0.85  | Certainty needed to move up                                           |
+| `EVIDENCE_RULE.up.margin`                       | 0.25  | How far above the level ability must be to move up                    |
+| `EVIDENCE_RULE.up.minItems`                     | 10    | Answers needed to move up                                             |
+| `EVIDENCE_RULE.up.minPasses`                    | 2     | Passed stories at the level needed to move up                         |
+| `EVIDENCE_RULE.up.minWordsRight`                | 0.85  | Words right on the last two counted tries to move up                  |
+| `EVIDENCE_RULE.down.probability`                | 0.85  | Certainty needed to move down                                         |
+| `EVIDENCE_RULE.down.margin`                     | 0.5   | How far below the level ability must be to move down                  |
+| `EVIDENCE_RULE.down.minItems`                   | 8     | Answers needed to move down                                           |
+| `EVIDENCE_RULE.rushed.baseMs`                   | 1200  | Base time in ms under which an answer is rushed                       |
+| `EVIDENCE_RULE.rushed.perWordMs`                | 35    | Extra ms allowed for each word on screen                              |
+| `EVIDENCE_RULE.subskillOffset.word_in_context`  | 0     | Difficulty offset for word in context                                 |
+| `EVIDENCE_RULE.subskillOffset.word_parts`       | 0.2   | Difficulty offset for word parts                                      |
+| `EVIDENCE_RULE.subskillOffset.key_detail`       | -0.3  | Difficulty offset for key detail                                      |
+| `EVIDENCE_RULE.subskillOffset.sequence`         | -0.1  | Difficulty offset for sequence                                        |
+| `EVIDENCE_RULE.subskillOffset.main_idea`        | 0.1   | Difficulty offset for main idea                                       |
+| `EVIDENCE_RULE.subskillOffset.cause_effect`     | 0.3   | Difficulty offset for cause and effect                                |
+| `EVIDENCE_RULE.subskillOffset.feelings`         | 0.2   | Difficulty offset for feelings                                        |
+| `EVIDENCE_RULE.subskillOffset.prediction`       | 0.4   | Difficulty offset for prediction                                      |
+| `EVIDENCE_RULE.subskillOffset.conclusion`       | 0.5   | Difficulty offset for conclusion                                      |
+| `EVIDENCE_RULE.calibration.minAnswers`          | 30    | Answers a question needs before its difficulty is re-estimated        |
+| `EVIDENCE_RULE.calibration.priorWeight`         | 5     | Answers' worth of pull toward the starting difficulty                 |
+| `EVIDENCE_RULE.calibration.tooEasy`             | 0.95  | Share correct at or above which a question is retired                 |
+| `EVIDENCE_RULE.calibration.tooHard`             | 0.1   | Share correct beyond guessing at or below which a question is retired |
+| `EVIDENCE_RULE.calibration.minCorrelation`      | 0     | Ability link at or below which a question is retired                  |
+| `EVIDENCE_RULE.calibration.minItemsPerSubskill` | 5     | Calibrated questions needed to suggest a sub-skill offset             |
+| `PLACEMENT_RULE.minStories`                     | 2     | Fewest placement stories                                              |
+| `PLACEMENT_RULE.maxStories`                     | 4     | Most placement stories                                                |
+| `PLACEMENT_RULE.stopSd`                         | 0.45  | Uncertainty at or below which placement stops                         |
+| `PLACEMENT_RULE.maxStep`                        | 25    | Most levels between one placement story and the next                  |
+| `PLACEMENT_RULE.conservative`                   | 0.5   | Deviations below the estimate to start the course                     |
+| `PLACEMENT_RULE.lowDecoding`                    | 0.85  | Words right share below which placement flags low decoding            |
+| `PLACEMENT_RULE.retakeAfterDays`                | 30    | Days before placement can be retaken                                  |
+| `PLACEMENT_RULE.gradeStart.1`                   | 10    | First placement level for grade 1                                     |
+| `PLACEMENT_RULE.gradeStart.2`                   | 20    | First placement level for grade 2                                     |
+| `PLACEMENT_RULE.gradeStart.3`                   | 30    | First placement level for grade 3                                     |
+| `PLACEMENT_RULE.gradeStart.4`                   | 42    | First placement level for grade 4                                     |
+| `PLACEMENT_RULE.gradeStart.5`                   | 55    | First placement level for grade 5                                     |
+| `PLACEMENT_RULE.gradeStart.6`                   | 68    | First placement level for grade 6                                     |
+| `PLACEMENT_RULE.defaultStart`                   | 25    | First placement level with no known grade                             |
+| `LISTEN_THEN_READ.maxLevel`                     | 10    | Highest level where listen-then-read is offered                       |
+| `LISTEN_THEN_READ.pace`                         | 0.7   | Model voice speed, where 1 is normal                                  |
 
 ## How to tune
 
@@ -173,6 +180,7 @@ These are placeholders until the reading specialist reviews them (BB-74).
 - [ ] Rushed and supported-try weights
 - [ ] Move-up and move-down thresholds: certainty, margin, answers, passes, words right
 - [ ] Sub-skill difficulty offsets
+- [ ] Calibration: answers needed, pull toward the starting difficulty, retirement thresholds, questions needed per sub-skill offset
 - [ ] Rushed-answer timing: base time and per-word allowance
 - [ ] Placement: stories per test, stop certainty, step limit, start level per grade, default start, how far below the estimate to start, low-decoding share, retake period
 - [ ] Listen-then-read: highest level and voice speed

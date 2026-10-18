@@ -29,6 +29,21 @@ export const EVIDENCE_RULE = deepFreeze({
     prediction: 0.4,
     conclusion: 0.5,
   },
+  /** Item calibration and retirement from real answers (BB-45). */
+  calibration: {
+    /** Answers a question needs before its difficulty is re-estimated or it can be retired. */
+    minAnswers: 30,
+    /** How many answers' worth of pull toward the starting difficulty the estimate keeps. */
+    priorWeight: 5,
+    /** Retire when at least this share of answers is correct. */
+    tooEasy: 0.95,
+    /** Retire when the share correct beyond guessing is at most this. */
+    tooHard: 0.1,
+    /** Retire when the link between ability and a correct answer is at or below this. */
+    minCorrelation: 0,
+    /** A sub-skill offset is only suggested from at least this many calibrated questions. */
+    minItemsPerSubskill: 5,
+  },
 } as const);
 
 /** Placement test rules (docs/PLAN.md section 6.2). Placeholders to tune. */
