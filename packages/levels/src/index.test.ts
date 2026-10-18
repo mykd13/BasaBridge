@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_LEVEL,
   MIN_LEVEL,
+  PASS_RULE,
+  MIN_QUESTIONS_PER_STORY,
+  QUESTIONS_PER_STORY,
   TIERS,
   hasTriesLeft,
   isPass,
@@ -63,5 +66,18 @@ describe('pass rule', () => {
     expect(isVeryWeak({ wordsRightShare: 0.9, questionsCorrect: 3, questionsTotal: 5 })).toBe(
       false,
     );
+  });
+});
+
+describe('questions per story', () => {
+  it('asks enough questions for the pass rule to be reachable', () => {
+    expect(Number.isInteger(QUESTIONS_PER_STORY)).toBe(true);
+    expect(PASS_RULE.minQuestionsCorrect).toBeLessThanOrEqual(QUESTIONS_PER_STORY);
+  });
+
+  it('keeps the minimum between the pass rule and the questions asked', () => {
+    expect(Number.isInteger(MIN_QUESTIONS_PER_STORY)).toBe(true);
+    expect(PASS_RULE.minQuestionsCorrect).toBeLessThanOrEqual(MIN_QUESTIONS_PER_STORY);
+    expect(MIN_QUESTIONS_PER_STORY).toBeLessThanOrEqual(QUESTIONS_PER_STORY);
   });
 });

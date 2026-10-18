@@ -54,6 +54,7 @@ Stories have 200 to 260 words and stay at or below reading grade 10. Words are a
 - The 3 correct answers is a count, not a share. It holds whatever the question total, so a story cut to 4 questions still needs 3 right. This is kept on purpose until the specialist review.
 - A pass decides the message the learner sees and whether Learn is offered (docs/PLAN.md section 6).
 - A result is very weak when 40% or fewer of the questions are right.
+- Each story asks `QUESTIONS_PER_STORY` (5) questions. The story checks may drop a bad question, and a story still shows if it keeps at least `MIN_QUESTIONS_PER_STORY` (4). A test keeps the pass rule's 3 at or below that minimum.
 
 ## Level movement
 

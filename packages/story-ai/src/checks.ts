@@ -3,7 +3,7 @@
  * Pure functions: no model calls, no learner data.
  */
 import type { StoryQuestion } from '@basabridge/contracts';
-import { tierFor } from '@basabridge/levels';
+import { MIN_QUESTIONS_PER_STORY, tierFor } from '@basabridge/levels';
 
 export function syllables(word: string): number {
   let w = word.toLowerCase().replace(/[^a-z]/g, '');
@@ -96,8 +96,8 @@ export interface RawQuestion {
   evidence?: unknown;
 }
 
-/** A story needs at least this many valid questions to be shown. */
-export const MIN_QUESTIONS = 4;
+/** A story needs at least this many valid questions to be shown. The number lives in packages/levels. */
+export const MIN_QUESTIONS = MIN_QUESTIONS_PER_STORY;
 
 const OPTION_COUNT = 4;
 

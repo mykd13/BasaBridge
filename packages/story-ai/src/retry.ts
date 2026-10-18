@@ -5,6 +5,9 @@
  */
 import type { CheckFailure } from './checks';
 
+/** What retry feedback needs from a failure. A CheckFailure fits, and so do generation failures. */
+export type FeedbackItem = Pick<CheckFailure, 'message' | 'questionIndex'>;
+
 /** Tries to get a story that passes the checks. A pipeline setting, not a level rule. */
 export const MAX_STORY_TRIES = 3;
 
@@ -16,7 +19,7 @@ const MAX_FEEDBACK_LINES = 8;
  * own message (counts and limits only). Question-level failures use the question number and the
  * check's fixed wording.
  */
-export function failureFeedback(failures: CheckFailure[]): string {
+export function failureFeedback(failures: readonly FeedbackItem[]): string {
   const lines: string[] = [];
   for (const f of failures) {
     const line =
@@ -32,7 +35,9 @@ export function failureFeedback(failures: CheckFailure[]): string {
   );
 }
 
-type Checked = { ok: true } | { ok: false; failures: CheckFailure[] };
+type Checked = { ok: true } | { ok: false; failures: FeedbackItem[] };
+/** The failure list type of a check result, so callers keep their own failure codes. */
+type Failures<C> = Extract<C, { ok: false }>['failures' & keyof Extract<C, { ok: false }>];
 
 export interface RunWithChecksInput<T, C extends Checked> {
   /** Produces one candidate. Gets the feedback from the previous failed try, if any. */
@@ -45,7 +50,7 @@ export interface RunWithChecksInput<T, C extends Checked> {
 
 export type RunWithChecksResult<T, C extends Checked> =
   | { ok: true; value: T; checked: Extract<C, { ok: true }>; tries: number }
-  | { ok: false; failures: CheckFailure[]; tries: number };
+  | { ok: false; failures: Failures<C>; tries: number };
 
 /**
  * Calls `attempt` until a candidate passes `check`, up to `maxTries`. After the last failed try it
@@ -59,7 +64,7 @@ export async function runWithChecks<T, C extends Checked>({
 }: RunWithChecksInput<T, C>): Promise<RunWithChecksResult<T, C>> {
   const limit = Math.max(1, Math.floor(maxTries));
   let retryReason: string | undefined;
-  let failures: CheckFailure[] = [];
+  let failures: FeedbackItem[] = [];
   for (let tries = 1; tries <= limit; tries++) {
     const value = await attempt(retryReason);
     const checked = check(value);
@@ -67,5 +72,5 @@ export async function runWithChecks<T, C extends Checked>({
     failures = checked.failures;
     retryReason = failureFeedback(failures) || undefined;
   }
-  return { ok: false, failures, tries: limit };
+  return { ok: false, failures: failures as Failures<C>, tries: limit };
 }
