@@ -12,6 +12,10 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "grade-report": "tsx src/validation/run-grade-report.ts"
+  },
+  "devDependencies": {
+    "tsx": "4.23.15"
   }
 }
