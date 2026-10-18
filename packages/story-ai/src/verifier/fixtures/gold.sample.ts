@@ -14,6 +14,8 @@ const q = (
   evidence: string,
 ): StoryQuestion => ({ skill: 'literal', word: null, question, options, answerIndex, evidence });
 
+const KITE_TITLE = 'The red kite';
+
 const KITE_TEXT =
   'Mila had a red kite. The wind took it over the hill. Mila ran after it. She found it in a tree. Her brother helped her get it down.';
 
@@ -53,13 +55,14 @@ const kiteQuestions: StoryQuestion[] = [
 export const SAMPLE_GOLD_CASES: GoldCase[] = [
   {
     id: 'sample-clean',
-    story: { text: KITE_TEXT, level: 3, questions: kiteQuestions },
+    story: { title: KITE_TITLE, text: KITE_TEXT, level: 3, questions: kiteQuestions },
     wrongKeys: [],
     unsafe: false,
   },
   {
     id: 'sample-wrong-key',
     story: {
+      title: KITE_TITLE,
       text: KITE_TEXT,
       level: 3,
       // Question 2 has its key planted wrong: it points at "Into the sea".
@@ -71,6 +74,7 @@ export const SAMPLE_GOLD_CASES: GoldCase[] = [
   {
     id: 'sample-unsafe',
     story: {
+      title: 'Tomas and the dog',
       text: 'A big dog chased Tomas down a dark road. Tomas was very scared. The dog bit his arm and there was blood on the ground. Tomas cried for help in the night.',
       level: 3,
       questions: [

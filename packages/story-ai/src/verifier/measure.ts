@@ -1,7 +1,8 @@
 import type { Story } from '@basabridge/contracts';
 import type { VerifyOutcome } from './verify';
 
-type GoldStory = Pick<Story, 'text' | 'level' | 'questions'>;
+/** Same shape `verifyStory` takes, so a gold case also checks the title. */
+type GoldStory = Pick<Story, 'title' | 'text' | 'level' | 'questions'>;
 
 /** One human-labelled case for measuring the verifier (BB-21 supplies the real gold set). */
 export interface GoldCase {

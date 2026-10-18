@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE_GOLD_CASES } from './fixtures/gold.sample';
 import { measureVerifier, type GoldCase } from './measure';
-import type { VerifyOutcome } from './verify';
+import { verifyStory, type CallVerifierModel, type VerifyOutcome } from './verify';
 
 const record = (outcome: 'kept' | 'rejected_unsafe' | 'rejected_too_few', disagreed: number) => ({
   level: 3,
@@ -93,9 +93,27 @@ describe('measureVerifier', () => {
     });
   });
 
+  it('runs the real verifyStory on a gold case, title included', async () => {
+    const prompts: string[] = [];
+    const callModel: CallVerifierModel = async ({ prompt }) => {
+      prompts.push(prompt);
+      return {
+        answers: [0, 1, 2, 3, 0].map((answerIndex, i) => ({ question: i + 1, answerIndex })),
+        safety: { safe: true, categories: [], reason: 'ok' },
+      };
+    };
+    const m = await measureVerifier([byId(SAMPLE_GOLD_CASES, 'sample-clean')], (story) =>
+      verifyStory(story, { callModel }),
+    );
+    expect(prompts[0]).toContain('<title>The red kite</title>');
+    expect(m.goodKeyFalseAlarmRate).toBe(0);
+    expect(m.safeFalseAlarmRate).toBe(0);
+  });
+
   it('marks the fixtures as samples with sensible labels', () => {
     expect(SAMPLE_GOLD_CASES.every((c) => c.id.startsWith('sample-'))).toBe(true);
     expect(byId(SAMPLE_GOLD_CASES, 'sample-wrong-key').wrongKeys).toEqual([2]);
     expect(byId(SAMPLE_GOLD_CASES, 'sample-unsafe').unsafe).toBe(true);
+    expect(SAMPLE_GOLD_CASES.every((c) => c.story.title.length > 0)).toBe(true);
   });
 });
