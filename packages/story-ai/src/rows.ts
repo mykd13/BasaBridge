@@ -10,6 +10,7 @@ import type {
   StoryQuestion,
   SubSkill,
 } from '@basabridge/contracts';
+import { tagQuestions } from './tags';
 
 export interface QuestionRow {
   storyId: string;
@@ -33,20 +34,16 @@ export function toQuestionRows(
   questions: StoryQuestion[],
   tags: (QuestionTags | null)[],
 ): QuestionRow[] {
-  return questions.map((q, i) => {
-    const t = tags[i];
-    if (!t) throw new Error(`Question ${i + 1} has no tags.`);
-    return {
-      storyId,
-      skill: q.skill,
-      word: q.word,
-      text: q.question,
-      options: q.options,
-      answerIndex: q.answerIndex,
-      evidence: q.evidence,
-      subskill: t.subskill,
-      type: 'multiple_choice' as const,
-      distractors: t.distractors,
-    };
-  });
+  return tagQuestions(questions, tags).map((q) => ({
+    storyId,
+    skill: q.skill,
+    word: q.word,
+    text: q.question,
+    options: q.options,
+    answerIndex: q.answerIndex,
+    evidence: q.evidence,
+    subskill: q.subskill,
+    type: 'multiple_choice' as const,
+    distractors: q.distractors,
+  }));
 }
