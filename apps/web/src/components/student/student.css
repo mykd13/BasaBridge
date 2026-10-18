@@ -1,0 +1,229 @@
+/* Student screens. Built from the design tokens. Targets are at least 48px, phone width is 360px. */
+.bb-s-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+.bb-s-page--narrow {
+  max-width: 40rem;
+}
+.bb-s-page--center {
+  align-items: center;
+  text-align: center;
+}
+.bb-s-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.75rem, 5vw, 2.6rem);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.bb-s-lead {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.5;
+  max-width: 56ch;
+}
+.bb-s-muted {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.0625rem;
+}
+.bb-s-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+.bb-s-page--center .bb-s-actions {
+  justify-content: center;
+}
+.bb-s-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.bb-s-split {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 52rem) {
+  .bb-s-split--2 {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+  }
+}
+.bb-s-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.bb-s-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.bb-s-list > li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 1.125rem;
+}
+.bb-s-list strong {
+  font-variant-numeric: tabular-nums;
+}
+.bb-s-steps {
+  margin: 0;
+  padding-left: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 1.1875rem;
+}
+.bb-s-story {
+  font-size: 1.375rem;
+  line-height: 1.7;
+  margin: 0;
+  max-width: 60ch;
+}
+.bb-s-story-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem;
+}
+.bb-s-big {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+}
+.bb-s-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.bb-s-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 3rem;
+}
+.bb-s-meter {
+  width: 100%;
+  max-width: 28rem;
+  height: 1.125rem;
+  border-radius: 0.5625rem;
+  background: var(--accent-soft);
+  overflow: hidden;
+}
+.bb-s-meter__fill {
+  width: 100%;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left;
+  transition: transform 60ms linear;
+}
+.bb-s-excerpt {
+  margin: 0;
+  padding: 0.875rem 1.125rem;
+  border-radius: 0.875rem;
+  background: var(--mark-soft);
+  font-size: 1.1875rem;
+  line-height: 1.6;
+}
+.bb-s-excerpt mark {
+  background: transparent;
+  color: var(--mark-ink);
+  font-weight: 700;
+  text-decoration: underline;
+}
+.bb-s-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bb-s-word {
+  min-height: 48px;
+  min-width: 48px;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.bb-s-word[aria-pressed='true'] {
+  background: var(--good-soft);
+  border-color: var(--good);
+}
+.bb-s-chip-word {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.875rem;
+  border-radius: 999px;
+  background: var(--mark-soft);
+  color: var(--mark-ink);
+  font-weight: 700;
+}
+.bb-s-qhead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.bb-s-question {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.5rem, 4vw, 2.1rem);
+  line-height: 1.3;
+  margin: 0;
+}
+.bb-s-feedback {
+  padding: 1rem 1.25rem;
+  border-radius: 0.875rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.bb-s-feedback--good {
+  background: var(--good-soft);
+}
+.bb-s-feedback--bad {
+  background: var(--bad-soft);
+}
+.bb-s-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+.bb-s-bullets {
+  margin: 0;
+  padding-left: 1.4rem;
+  font-size: 1.1875rem;
+  line-height: 1.6;
+  text-align: left;
+}
+.bb-s-bullets > li + li {
+  margin-top: 0.4rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bb-s-meter__fill {
+    transition: none;
+  }
+}

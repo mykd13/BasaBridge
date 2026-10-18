@@ -1,4 +1,5 @@
 import type { Catalog } from '../types.ts';
+import { studentEn } from './student-en.ts';
 
 export const en = {
   app: {
@@ -115,6 +116,7 @@ export const en = {
     parentDecisions: { standard: 'AI decisions' },
     parentPrivacy: { standard: 'Linked children and privacy' },
   },
+  student: studentEn,
   language: {
     label: { standard: 'Language', simple: 'Language' },
     en: { standard: 'English' },

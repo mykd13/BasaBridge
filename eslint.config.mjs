@@ -60,6 +60,7 @@ export default tseslint.config(
               'size',
               'tone',
               'live',
+              'emphasis',
               'screen',
               'boards',
               'data-testid',

@@ -1,5 +1,6 @@
 import type { SameShape } from '../types.ts';
 import type { en } from './en.ts';
+import { studentFil } from './student-fil.ts';
 
 /**
  * Filipino wording. Every key starts with reviewed: false until a native speaker checks it.
@@ -185,6 +186,7 @@ export const fil = {
     parentDecisions: { standard: 'Mga desisyon ng AI', reviewed: false },
     parentPrivacy: { standard: 'Mga naka-link na anak at privacy', reviewed: false },
   },
+  student: studentFil,
   language: {
     label: { standard: 'Wika', simple: 'Wika', reviewed: false },
     en: { standard: 'English', reviewed: false },

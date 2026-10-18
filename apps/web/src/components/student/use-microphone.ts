@@ -17,12 +17,14 @@ const ENDPOINT = '/api/speech/chunks';
 /**
  * Drives microphone capture for the reading screen (BB-23).
  * Nothing is requested or uploaded until start() runs from a click.
- * The try id here is a placeholder made in the browser. The server will issue it with BB-24.
+ * The try id is made in the browser and handed to finishTry, which the server checks and counts.
  */
 export function useMicrophone() {
   const [phase, setPhase] = useState<MicPhase>('ready');
   const [level, setLevel] = useState(0);
   const [upload, setUpload] = useState<UploadStatus>('idle');
+  /** The id the chunks of the current take are uploaded under. The server finishes the try with it. */
+  const [tryId, setTryId] = useState<string | null>(null);
   const recorder = useRef<MicRecorder | null>(null);
   const uploader = useRef<ChunkUploader | null>(null);
   const mounted = useRef(true);
@@ -35,9 +37,11 @@ export function useMicrophone() {
     setUpload('idle');
     setPhase('requesting');
 
+    const id = newTryId();
+    setTryId(id);
     const up: ChunkUploader = new ChunkUploader({
       endpoint: ENDPOINT,
-      tryId: newTryId(),
+      tryId: id,
       onStatus: (status) => {
         if (!mounted.current || uploader.current !== up) return;
         setUpload(status);
@@ -93,5 +97,5 @@ export function useMicrophone() {
     };
   }, []);
 
-  return { phase, level, upload, start, stop, restart, noMicrophone };
+  return { phase, level, upload, tryId, start, stop, restart, noMicrophone };
 }
