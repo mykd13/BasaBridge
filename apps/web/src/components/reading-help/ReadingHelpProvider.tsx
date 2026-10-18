@@ -1,6 +1,14 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ReactNode } from 'react';
 import {
   DEFAULT_STATE,
@@ -42,6 +50,9 @@ export function ReadingHelpProvider({
 }) {
   const [state, setState] = useState<ReadingHelpState>(DEFAULT_STATE);
   const [persisted, setPersisted] = useState(true);
+  // Until the stored copy is read, state is only the default. Applying it would overwrite
+  // what ReadingHelpBoot already put on <html> and bring the reload flash back.
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let saved: ReadingHelpState | null = null;
@@ -51,14 +62,26 @@ export function ReadingHelpProvider({
       // Storage blocked: keep the defaults.
     }
     if (saved) setState(saved);
+    setLoaded(true);
   }, [learnerId]);
 
   useEffect(() => {
-    applyToRoot(document.documentElement, state);
-  }, [state]);
+    if (loaded) applyToRoot(document.documentElement, state);
+  }, [state, loaded]);
 
   // Leaving the student area (sign out) must not leave this learner's text size on the page.
-  useEffect(() => () => applyToRoot(document.documentElement, DEFAULT_STATE), []);
+  // StrictMode and Fast Refresh unmount and remount at once, so the reset waits a tick and
+  // skips if the provider came straight back. Otherwise it would flash the default size.
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      setTimeout(() => {
+        if (!mounted.current) applyToRoot(document.documentElement, DEFAULT_STATE);
+      }, 0);
+    };
+  }, []);
 
   const update = useCallback(
     (next: ReadingHelpState) => {
