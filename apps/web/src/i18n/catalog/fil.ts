@@ -668,6 +668,63 @@ export const fil = {
       },
     },
   },
+  progress: {
+    level: { standard: 'Aking antas', simple: 'Aking antas', reviewed: false },
+    levelOf: { standard: 'sa {max}', reviewed: false },
+    levelBar: {
+      standard: 'Progreso patungo sa susunod na antas',
+      simple: 'Hakbang sa susunod na antas',
+      reviewed: false,
+    },
+    toNext: {
+      standard:
+        '{count, plural, one {# kuwento pa para umabot sa Antas {level}} other {# kuwento pa para umabot sa Antas {level}}}',
+      simple:
+        '{count, plural, one {# kuwento pa sa Antas {level}} other {# kuwento pa sa Antas {level}}}',
+      reviewed: false,
+    },
+    topLevel: {
+      standard: 'Nasa pinakamataas ka nang antas.',
+      simple: 'Nasa pinakataas ka na.',
+      reviewed: false,
+    },
+    focus: {
+      standard: 'Ano ang susunod na pagtutuunan',
+      simple: 'Ito ang susunod',
+      reviewed: false,
+    },
+    focusNone: {
+      standard: 'Magbasa pa ng ilang kuwento at pipili kami ng kasanayan para sa iyo.',
+      simple: 'Magbasa pa para makakuha ng kasanayan.',
+      reviewed: false,
+    },
+    recent: { standard: 'Mga huling kuwento', simple: 'Aking mga kuwento', reviewed: false },
+    recentNone: {
+      standard: 'Lalabas dito ang iyong mga kuwento kapag may natapos ka na.',
+      simple: 'Lalabas dito ang mga natapos.',
+      reviewed: false,
+    },
+    score: { standard: '{correct} sa {total}', reviewed: false },
+    scoreLabel: {
+      standard: '{correct} sa {total} na tanong ang tama',
+      simple: '{correct} sa {total} ang tama',
+      reviewed: false,
+    },
+    empty: {
+      title: { standard: 'Wala pang kuwento', simple: 'Wala pang kuwento', reviewed: false },
+      body: {
+        standard: 'Magbasa ng una mong kuwento at lalabas dito ang iyong progreso.',
+        simple: 'Magbasa ng kuwento para makita ang hakbang mo.',
+        reviewed: false,
+      },
+      action: { standard: 'Pumunta sa Home', simple: 'Punta sa Home', reviewed: false },
+    },
+    skills: {
+      vocabulary: { standard: 'Kahulugan ng salita', reviewed: false },
+      literal: { standard: 'Paghahanap ng katotohanan', reviewed: false },
+      inferential: { standard: 'Pagbasa sa pagitan ng mga linya', reviewed: false },
+    },
+  },
   language: {
     label: { standard: 'Wika', simple: 'Wika', reviewed: false },
     en: { standard: 'English', reviewed: false },
