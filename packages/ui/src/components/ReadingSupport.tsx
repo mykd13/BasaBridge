@@ -153,6 +153,8 @@ export interface LineSpacingControlProps {
 }
 
 /** Normal or wide line spacing (I1). */
+const LINE_SPACING_VALUES = ['normal', 'wide'] as const;
+
 export function LineSpacingControl({
   legend,
   labels,
@@ -166,10 +168,7 @@ export function LineSpacingControl({
       hideLegend={hideLegend}
       value={value}
       onChange={onChange}
-      options={[
-        { value: 'normal', label: labels.normal },
-        { value: 'wide', label: labels.wide },
-      ]}
+      options={LINE_SPACING_VALUES.map((v) => ({ value: v, label: labels[v] }))}
     />
   );
 }

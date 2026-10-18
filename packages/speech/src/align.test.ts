@@ -495,8 +495,7 @@ describe('alignWords speed', () => {
     const result = alignWords(expected, heard);
     const elapsed = performance.now() - started;
     expect(result.filter((r) => r.expected !== null)).toHaveLength(600);
-    // Shared CI runners vary a lot (seen 700 to 1000 ms). This still catches a slow algorithm.
-    expect(elapsed).toBeLessThan(2000);
+    expect(elapsed).toBeLessThan(1000);
   });
 });
 
