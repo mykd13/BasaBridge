@@ -41,6 +41,8 @@ export const EVIDENCE_RULE = deepFreeze({
   focus: { switchMargin: 0.2 },
   /** Answers faster than this many ms, plus the per-word allowance, count as rushed. */
   rushed: { baseMs: 1200, perWordMs: 35 },
+  /** Longest response time the server records. The browser reports the time, so it is capped. */
+  maxResponseMs: 600_000,
   /** Difficulty offsets by sub-skill, added to the story level's difficulty. Calibrated later (BB-45). */
   subskillOffset: {
     word_in_context: 0,

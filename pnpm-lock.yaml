@@ -142,6 +142,9 @@ importers:
       '@basabridge/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@basabridge/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       '@basabridge/learn':
         specifier: workspace:*
         version: link:../../packages/learn
@@ -178,6 +181,9 @@ importers:
       react-dom:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@formatjs/icu-messageformat-parser':
         specifier: 3.5.21
@@ -222,6 +228,28 @@ importers:
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
+
+  packages/engine:
+    dependencies:
+      '@basabridge/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@basabridge/learn':
+        specifier: workspace:*
+        version: link:../learn
+      '@basabridge/levels':
+        specifier: workspace:*
+        version: link:../levels
+      '@basabridge/mastery':
+        specifier: workspace:*
+        version: link:../mastery
+      '@basabridge/speech':
+        specifier: workspace:*
+        version: link:../speech
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
 
   packages/learn:
     dependencies:
