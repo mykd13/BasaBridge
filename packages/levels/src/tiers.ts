@@ -3,6 +3,7 @@
  * Everything else (story-ai, mastery, the web app) reads these numbers and never copies them.
  * See packages/levels/README.md for what each tier means and how to tune it.
  */
+import { deepFreeze } from './freeze';
 
 export interface Tier {
   from: number;
@@ -16,13 +17,7 @@ export interface Tier {
   description: string;
 }
 
-function freezeTiers(tiers: Tier[]): readonly Readonly<Tier>[] {
-  for (const tier of tiers) Object.freeze(tier.words);
-  tiers.forEach((tier) => Object.freeze(tier));
-  return Object.freeze(tiers);
-}
-
-export const TIERS: readonly Readonly<Tier>[] = freezeTiers([
+export const TIERS: readonly Readonly<Tier>[] = deepFreeze<Tier[]>([
   {
     from: 1,
     to: 10,
@@ -79,7 +74,7 @@ export const MAX_LEVEL = 100;
 /** First level for a new learner. Everyone starts at the bottom. */
 export const STARTING_LEVEL = 1;
 
-export const PASS_RULE = {
+export const PASS_RULE = deepFreeze({
   /** Share of words read right on the counted try. */
   minWordsRight: 0.85,
   /** Questions correct out of five. */
@@ -88,4 +83,4 @@ export const PASS_RULE = {
   passesToLevelUp: 3,
   /** A result is very weak when the share of questions right is at or below this. */
   veryWeakShare: 0.4,
-} as const;
+} as const);
