@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { ESLint } from 'eslint';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 const root = resolve(__dirname, '../../..');
 const eslint = new ESLint({ cwd: root });
@@ -9,6 +9,9 @@ async function messages(code: string, filePath: string) {
   const [result] = await eslint.lintText(code, { filePath: resolve(root, filePath) });
   return result?.messages.filter((m) => m.ruleId === 'i18next/no-literal-string') ?? [];
 }
+
+// The first lint run loads typescript-eslint and can take several seconds on a cold start.
+vi.setConfig({ testTimeout: 30_000 });
 
 describe('hard-coded string rule', () => {
   it('fails on text in JSX', async () => {
