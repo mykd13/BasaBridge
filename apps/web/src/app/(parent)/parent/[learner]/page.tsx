@@ -1,5 +1,7 @@
-import { ScreenPlaceholder } from '@/components/states/ScreenPlaceholder';
+import { ProgressScreen } from '@/components/parent/ProgressScreen';
+import { loadProgress, toScreenState } from '@/server/parent/loaders';
 
-export default function Page() {
-  return <ScreenPlaceholder screen="parentProgress" boards="F2" />;
+export default async function Page({ params }: { params: Promise<{ learner: string }> }) {
+  const { learner } = await params;
+  return <ProgressScreen state={await toScreenState(() => loadProgress(learner))} />;
 }
