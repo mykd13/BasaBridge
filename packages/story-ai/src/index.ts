@@ -10,6 +10,7 @@ import { TaggedQuestion, tagProblem } from './tags';
 
 export * from './prompt';
 export * from './tags';
+export * from './verifier';
 
 export function syllables(word: string): number {
   let w = word.toLowerCase().replace(/[^a-z]/g, '');
