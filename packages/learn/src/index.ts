@@ -16,3 +16,4 @@ export * from './lesson';
 export * from './recheck';
 export * from './registry';
 export * from './status';
+export * from './store';

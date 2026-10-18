@@ -219,6 +219,9 @@ importers:
       '@basabridge/levels':
         specifier: workspace:*
         version: link:../levels
+      '@basabridge/mastery':
+        specifier: workspace:*
+        version: link:../mastery
       zod:
         specifier: ^4.6.7
         version: 4.6.7
