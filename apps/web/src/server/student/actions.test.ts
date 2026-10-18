@@ -105,6 +105,10 @@ describe('student actions', () => {
 
   it('fails visibly when the engine is not wired in', async () => {
     expect(await actions.submitAnswerAction(submission)).toEqual({ ok: false });
+    expect(
+      await actions.finishTryAction({ sessionId: fx.SESSION_ID, tryId: fx.TRY_ID, mode: 'audio' }),
+    ).toEqual({ ok: false });
+    expect(await actions.recordWordTapAction({ sessionId: fx.SESSION_ID })).toEqual({ ok: false });
     expect(await actions.startPlacementStoryAction()).toEqual({ ok: false });
   });
 
@@ -112,6 +116,19 @@ describe('student actions', () => {
     setStudentData(fx.fakeStudentData());
     await expect(actions.startPlacementStoryAction()).rejects.toThrow('REDIRECT:/read');
     await expect(actions.deferPlacementAction()).rejects.toThrow('REDIRECT:/home');
+  });
+
+  it('records a word tap on the session, for the learner in the session only', async () => {
+    const spy = vi.fn(async () => ({ ok: true as const, data: null }));
+    setStudentData(fx.fakeStudentData({ recordWordTap: spy }));
+    expect(
+      await actions.recordWordTapAction({ sessionId: fx.SESSION_ID, learnerId: 'someone-else' }),
+    ).toEqual({ ok: true, data: null });
+    expect(spy).toHaveBeenCalledWith(LEARNER, { sessionId: fx.SESSION_ID });
+    expect(await actions.recordWordTapAction({ sessionId: 'nope' })).toEqual({ ok: false });
+    user = null;
+    expect(await actions.recordWordTapAction({ sessionId: fx.SESSION_ID })).toEqual({ ok: false });
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 
   it('marks a word as misheard through the server', async () => {

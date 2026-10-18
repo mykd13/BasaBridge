@@ -54,6 +54,7 @@ export const triesUsed: Extract<Reading, { status: 'tries_used' }> = {
 };
 
 export const analysis: Analysis = {
+  sessionId: SESSION_ID,
   completed: true,
   tryNumber: 2,
   triesAllowed: 5,
@@ -155,6 +156,7 @@ export function fakeStudentData(overrides: Partial<StudentData> = {}): StudentDa
     getReading: ok(reading),
     finishTry: ok({ next: 'analysis' as const }),
     getAnalysis: ok(analysis),
+    recordWordTap: ok(null),
     markMisheard: ok(null),
     getQuestion: ok(question),
     submitAnswer: ok(feedbackWrong),

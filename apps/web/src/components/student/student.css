@@ -227,3 +227,8 @@
     transition: none;
   }
 }
+
+/* An h1 drawn as the small label above a hero level card (placement result). */
+.bb-s-eyebrow-title {
+  margin: 0;
+}

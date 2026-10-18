@@ -6,6 +6,7 @@ import { newTryId } from '@basabridge/speech/capture';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
+import { ReadingHelpText } from '@/components/reading-help/ReadingHelpText';
 import { useMicrophone } from './use-microphone';
 import { finishTryAction } from '@/server/student/actions';
 import type { Reading } from '@/server/student/schemas';
@@ -58,7 +59,9 @@ function Story({ reading }: { reading: ReadyReading }) {
   return (
     <Card aria-label={t('story')}>
       <h2 className="bb-s-story-title">{reading.title}</h2>
-      <p className="bb-s-story">{reading.text}</p>
+      <ReadingHelpText>
+        <p className="bb-s-story">{reading.text}</p>
+      </ReadingHelpText>
     </Card>
   );
 }

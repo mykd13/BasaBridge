@@ -80,6 +80,8 @@ export const Reading = z.discriminatedUnion('status', [
 export type Reading = z.infer<typeof Reading>;
 
 export const Analysis = z.object({
+  /** The session these words belong to. A word tap is recorded on that session's answers. */
+  sessionId: z.string().uuid(),
   completed: z.boolean(),
   tryNumber: z.number().int().positive(),
   triesAllowed: z.number().int().positive().nullable(),

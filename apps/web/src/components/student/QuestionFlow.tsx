@@ -9,19 +9,15 @@ import { useEffect, useRef, useState } from 'react';
 import { submitAnswerAction } from '@/server/student/actions';
 import type { AnswerFeedback, QuestionView } from '@/server/student/schemas';
 import { accommodationsUsed, letterFor, optionStates } from './question-state';
+import { canSpeak, speakText } from './speak';
 import './student.css';
 
 type Question = Extract<QuestionView, { status: 'question' }>;
 
-/** Read the question and its answers with the browser's own voice. Only text on screen is spoken. */
+/** Read the question and its answers aloud. Only text on screen is spoken. */
 function speak(question: Question, onEnd: () => void): void {
   const parts = [question.text, ...question.options.map((o, i) => `${letterFor(i)}. ${o}`)];
-  const utterance = new SpeechSynthesisUtterance(parts.join('. '));
-  utterance.lang = 'en';
-  utterance.onend = onEnd;
-  utterance.onerror = onEnd;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utterance);
+  speakText(parts.join('. '), onEnd);
 }
 
 /**
@@ -39,11 +35,11 @@ export function QuestionFlow({ question }: { question: Question }) {
   const [playing, setPlaying] = useState(false);
   const [usedReadAloud, setUsedReadAloud] = useState(false);
   const shownAt = useRef(Date.now());
-  const [canSpeak, setCanSpeak] = useState(false);
+  const [voice, setVoice] = useState(false);
 
   useEffect(() => {
-    const supported = 'speechSynthesis' in window;
-    setCanSpeak(supported);
+    const supported = canSpeak();
+    setVoice(supported);
     shownAt.current = Date.now();
     return () => {
       if (supported) window.speechSynthesis.cancel();
@@ -94,7 +90,7 @@ export function QuestionFlow({ question }: { question: Question }) {
       <p className="bb-s-muted">{t('hint')}</p>
       <div className="bb-s-qhead">
         <h1 className="bb-s-question">{question.text}</h1>
-        {question.readAloud && canSpeak ? (
+        {question.readAloud && voice ? (
           <SpeakerButton label={t('listen')} playing={playing} onClick={toggleListen} />
         ) : null}
       </div>

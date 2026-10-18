@@ -1,9 +1,14 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { withIntl } from '@/i18n/test-intl';
+import { DEFAULT_STATE } from '@/lib/reading-help/settings';
 import type { Lang, Wording } from '@/i18n/types';
 import * as fx from '@/server/student/test-fixtures';
 
+let helpState = DEFAULT_STATE;
+vi.mock('@/components/reading-help/ReadingHelpProvider', () => ({
+  useReadingHelp: () => ({ state: helpState, persisted: true, update: vi.fn() }),
+}));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
   usePathname: () => '/',
@@ -12,6 +17,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/server/student/actions', () => ({
   finishTryAction: vi.fn(),
   markMisheardAction: vi.fn(),
+  recordWordTapAction: vi.fn(),
   submitAnswerAction: vi.fn(),
   startPlacementStoryAction: vi.fn(),
   deferPlacementAction: vi.fn(),
@@ -305,5 +311,60 @@ describe('every screen has Filipino and simple wording', () => {
         expect(out).not.toMatch(/student\.[a-zA-Z.]+/);
       }
     }
+  });
+});
+
+describe('reading help on the story text (BB-59)', () => {
+  const stopped = { ...fx.stoppedEarly };
+
+  it('shows the story plainly when the ruler is off', () => {
+    helpState = DEFAULT_STATE;
+    expect(render(<ReadSession reading={fx.reading} />)).not.toContain('bb-ruler__band');
+  });
+
+  it('puts the story on the reading screen inside the ruler when it is on', () => {
+    helpState = { ...DEFAULT_STATE, readingRuler: true };
+    const out = render(<ReadSession reading={{ ...fx.reading, micAllowed: false }} />);
+    expect(out).toContain('bb-ruler__band');
+    expect(out).toContain('A tree stands by a road.');
+    helpState = DEFAULT_STATE;
+  });
+
+  it('puts the excerpt where the learner stopped inside the ruler too', () => {
+    helpState = { ...DEFAULT_STATE, readingRuler: true };
+    const out = render(<StoppedEarlyScreen analysis={stopped} />);
+    expect(out).toContain('bb-ruler__band');
+    expect(out).toContain(stopped.stoppedAt?.excerpt);
+    helpState = DEFAULT_STATE;
+  });
+});
+
+const resultStep = (() => {
+  if (fx.placementResult.step !== 'result') throw new Error('fixture');
+  return fx.placementResult;
+})();
+
+describe('one h1 and no main landmark of their own (the shell has the main)', () => {
+  const screens: [string, () => React.ReactNode][] = [
+    ['home', () => <HomeScreen home={fx.home} />],
+    ['empty', () => <StudentEmpty reason="unavailable" />],
+    ['mic step', () => <ReadSession reading={fx.reading} />],
+    ['silent reading', () => <ReadSession reading={{ ...fx.reading, micAllowed: false }} />],
+    ['tries used', () => <TriesUsedScreen reading={fx.triesUsed} />],
+    ['analysis', () => <AnalysisScreen analysis={fx.analysis} />],
+    ['stopped early', () => <StoppedEarlyScreen analysis={fx.stoppedEarly} />],
+    ['question', () => <QuestionFlow question={fx.question} />],
+    ['result', () => <ResultScreen result={fx.result} />],
+    ['level up', () => <LevelUpScreen view={fx.levelUp} />],
+    ['placement intro', () => <PlacementIntro step={{ step: 'intro', micApproved: true }} />],
+    ['placement between', () => <PlacementBetween step={{ step: 'between', storyNumber: 2 }} />],
+    ['placement result', () => <PlacementResultScreen step={resultStep} />],
+  ];
+
+  it.each(screens)('%s', (_name, screen) => {
+    const out = render(screen());
+    expect(out).not.toMatch(/<main[\s>]/);
+    expect(out).not.toMatch(/<header[\s>]/);
+    expect(out.match(/<h1[\s>]/g)).toHaveLength(1);
   });
 });

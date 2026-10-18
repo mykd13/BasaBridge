@@ -1,5 +1,6 @@
 import type { AnswerSubmission } from '@basabridge/contracts';
 import type { z } from 'zod';
+import { NotWiredError } from '../errors';
 import {
   Analysis,
   AnswerFeedback,
@@ -17,8 +18,8 @@ import {
  *
  * Screens never query a database. They call these functions, which call whatever
  * implementation is registered. The learning engine registers the real one; until then
- * every call answers `unavailable` and screens say "not ready yet" instead of showing
- * made-up data (AGENTS.md rule 8).
+ * every call throws NotWiredError and the page says "not ready yet" instead of showing
+ * made-up data (AGENTS.md rule 8). A call that fails or returns a bad payload is `unavailable`.
  *
  * Every method takes the learner id from the session, never from the request, so a learner
  * can only ever ask about themselves. The implementation goes through the authorization layer.
@@ -43,6 +44,11 @@ export interface StudentData {
     input: { sessionId: string; tryId: string; mode: 'audio' | 'silent' },
   ): Promise<Raw<typeof TryFinish>>;
   getAnalysis(learnerId: string): Promise<Raw<typeof Analysis>>;
+  /**
+   * The learner tapped a word to hear it (rule 12). The server records `word_tap` on the answers
+   * of that session. Allowed after a try only, never during one.
+   */
+  recordWordTap(learnerId: string, input: { sessionId: string }): Promise<Outcome<null>>;
   /** The learner says a hard to hear word was read right. */
   markMisheard(learnerId: string, input: { index: number }): Promise<Outcome<null>>;
   getQuestion(learnerId: string): Promise<Raw<typeof QuestionView>>;
@@ -57,20 +63,33 @@ export interface StudentData {
   deferPlacement(learnerId: string): Promise<Outcome<null>>;
 }
 
-/** The default until the learning engine is wired in. Answers "not ready" to everything. */
+const WAITS_ENGINE = 'the learning engine adapter (PR #53)';
+const WAITS_PLACEMENT = 'placement as its own session (Jhade, placement PRs)';
+
+const notWired =
+  (method: string, waitsFor = WAITS_ENGINE) =>
+  async (): Promise<never> => {
+    throw new NotWiredError(`StudentData.${method} waits for ${waitsFor}`);
+  };
+
+/**
+ * The default until the learning engine is wired in. Every method throws NotWiredError, so a
+ * page shows the "not ready yet" notice from its error boundary and never a made-up answer.
+ */
 export const unwiredStudentData: StudentData = {
-  getStudentHome: async () => unavailable,
-  getReading: async () => unavailable,
-  finishTry: async () => unavailable,
-  getAnalysis: async () => unavailable,
-  markMisheard: async () => unavailable,
-  getQuestion: async () => unavailable,
-  submitAnswer: async () => unavailable,
-  getResult: async () => unavailable,
-  getLevelUp: async () => unavailable,
-  getPlacementStep: async () => unavailable,
-  startPlacementStory: async () => unavailable,
-  deferPlacement: async () => unavailable,
+  getStudentHome: notWired('getStudentHome'),
+  getReading: notWired('getReading'),
+  finishTry: notWired('finishTry'),
+  getAnalysis: notWired('getAnalysis'),
+  recordWordTap: notWired('recordWordTap'),
+  markMisheard: notWired('markMisheard'),
+  getQuestion: notWired('getQuestion'),
+  submitAnswer: notWired('submitAnswer'),
+  getResult: notWired('getResult'),
+  getLevelUp: notWired('getLevelUp'),
+  getPlacementStep: notWired('getPlacementStep', WAITS_PLACEMENT),
+  startPlacementStory: notWired('startPlacementStory', WAITS_PLACEMENT),
+  deferPlacement: notWired('deferPlacement', WAITS_PLACEMENT),
 };
 
 let current: StudentData = unwiredStudentData;
@@ -95,7 +114,9 @@ async function load<S extends z.ZodType>(
   let result: Outcome<unknown>;
   try {
     result = await call();
-  } catch {
+  } catch (error) {
+    // A part that is not wired yet must be seen, so it goes to the route's error boundary.
+    if (error instanceof NotWiredError) throw error;
     return unavailable;
   }
   if (!result.ok) return result;
@@ -110,6 +131,13 @@ export const student = {
   finishTry: (id: string, input: { sessionId: string; tryId: string; mode: 'audio' | 'silent' }) =>
     load(TryFinish, () => current.finishTry(id, input)),
   analysis: (id: string) => load(Analysis, () => current.getAnalysis(id)),
+  recordWordTap: async (id: string, input: { sessionId: string }): Promise<Outcome<null>> => {
+    try {
+      return await current.recordWordTap(id, input);
+    } catch {
+      return unavailable;
+    }
+  },
   markMisheard: async (id: string, input: { index: number }): Promise<Outcome<null>> => {
     try {
       return await current.markMisheard(id, input);

@@ -395,6 +395,16 @@ export const studentFil = {
       reviewed: false,
     },
     wordsToPractise: { standard: 'Mga salitang dapat pagsanayan', reviewed: false },
+    wordTapHint: {
+      standard: 'I-tap ang salita para marinig ito.',
+      simple: 'I-tap ang salita para marinig.',
+      reviewed: false,
+    },
+    wordTapWord: {
+      standard: 'Pakinggan ang “{word}”',
+      simple: 'Pakinggan ang “{word}”',
+      reviewed: false,
+    },
     misheardLead: {
       standard:
         'Hindi ko malinaw na narinig ang mga salitang ito. Kung may mali ako, pindutin ito at aayusin ko.',

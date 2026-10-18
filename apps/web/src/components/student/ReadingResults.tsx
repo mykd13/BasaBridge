@@ -3,10 +3,12 @@
 import { Card, Chip, Eyebrow, Notice, ProgressBar } from '@basabridge/ui';
 import { ArrowRight, MicOff, RotateCcw } from '@basabridge/ui/icons';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
-import { markMisheardAction } from '@/server/student/actions';
+import { useEffect, useRef, useState } from 'react';
+import { ReadingHelpText } from '@/components/reading-help/ReadingHelpText';
+import { markMisheardAction, recordWordTapAction } from '@/server/student/actions';
 import type { Analysis, Reading, TryLine } from '@/server/student/schemas';
 import { LinkButton } from './common';
+import { canSpeak, speakText } from './speak';
 import './student.css';
 
 function TryList({ tries, label }: { tries: TryLine[]; label: string }) {
@@ -23,6 +25,66 @@ function TryList({ tries, label }: { tries: TryLine[]; label: string }) {
         ))}
       </ul>
     </Card>
+  );
+}
+
+/**
+ * Words worth practising. A tap says the word with the browser's voice, only here on the analysis
+ * screen and never during a try (ADR 0004). The first tap is recorded on the session's answers.
+ */
+function PracticeWords({ words, sessionId }: { words: string[]; sessionId: string }) {
+  const t = useTranslations('student.analysis');
+  const [speaking, setSpeaking] = useState<string | null>(null);
+  const recorded = useRef(false);
+  const [voice, setVoice] = useState(false);
+  useEffect(() => {
+    setVoice(canSpeak());
+    return () => {
+      if (canSpeak()) window.speechSynthesis.cancel();
+    };
+  }, []);
+  if (!voice) {
+    return (
+      <ul className="bb-s-words">
+        {words.map((word) => (
+          <li key={word}>
+            <span className="bb-s-chip-word">{word}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  const hear = (word: string) => {
+    setSpeaking(word);
+    speakText(word, () => setSpeaking(null));
+    if (!recorded.current) {
+      recorded.current = true;
+      // The server adds `word_tap` to the answers of this session. A failed save is tried again on
+      // the next tap, so the record is never silently lost.
+      void recordWordTapAction({ sessionId }).then((result) => {
+        if (!result.ok) recorded.current = false;
+      });
+    }
+  };
+  return (
+    <>
+      <p className="bb-s-muted">{t('wordTapHint')}</p>
+      <ul className="bb-s-words">
+        {words.map((word) => (
+          <li key={word}>
+            <button
+              type="button"
+              className="bb-s-word"
+              aria-pressed={speaking === word}
+              aria-label={t('wordTapWord', { word })}
+              onClick={() => hear(word)}
+            >
+              {word}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -43,13 +105,7 @@ function Note({ analysis }: { analysis: Analysis }) {
       {analysis.practiceWords.length > 0 ? (
         <>
           <Eyebrow>{t('wordsToPractise')}</Eyebrow>
-          <ul className="bb-s-words">
-            {analysis.practiceWords.map((word) => (
-              <li key={word}>
-                <span className="bb-s-chip-word">{word}</span>
-              </li>
-            ))}
-          </ul>
+          <PracticeWords words={analysis.practiceWords} sessionId={analysis.sessionId} />
         </>
       ) : null}
     </Card>
@@ -193,7 +249,11 @@ export function StoppedEarlyScreen({ analysis }: { analysis: Analysis }) {
           ? t('analysis.stopped.leadUnlimited')
           : t('analysis.stopped.lead', { n: analysis.tryNumber, total: analysis.triesAllowed })}
       </p>
-      {stop ? <p className="bb-s-excerpt">{stop.excerpt}</p> : null}
+      {stop ? (
+        <ReadingHelpText>
+          <p className="bb-s-excerpt">{stop.excerpt}</p>
+        </ReadingHelpText>
+      ) : null}
       <div className="bb-s-actions">
         <LinkButton href="/read?from=rest">{t('analysis.stopped.rest')}</LinkButton>
         <LinkButton href="/read?from=top" variant="secondary">
