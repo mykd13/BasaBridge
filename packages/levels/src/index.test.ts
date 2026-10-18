@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_LEVEL,
   MIN_LEVEL,
+  PLACEMENT_BANK,
+  placementStepFor,
+  placementSteps,
   TIERS,
   hasTriesLeft,
   isPass,
@@ -63,5 +66,43 @@ describe('pass rule', () => {
     expect(isVeryWeak({ wordsRightShare: 0.9, questionsCorrect: 3, questionsTotal: 5 })).toBe(
       false,
     );
+  });
+});
+
+describe('placement bank steps', () => {
+  it('has twenty steps of five from 5 to 100', () => {
+    const steps = placementSteps();
+    expect(steps).toHaveLength(20);
+    expect(steps[0]).toBe(5);
+    expect(steps[steps.length - 1]).toBe(MAX_LEVEL);
+    expect(steps.every((s) => s % PLACEMENT_BANK.stepSize === 0)).toBe(true);
+  });
+
+  it('needs about forty stories in all', () => {
+    expect(placementSteps().length * PLACEMENT_BANK.minStoriesPerStep).toBe(40);
+  });
+
+  it('rounds a level to the nearest step', () => {
+    expect(placementStepFor(MIN_LEVEL)).toBe(5);
+    expect(placementStepFor(2)).toBe(5);
+    expect(placementStepFor(7)).toBe(5);
+    expect(placementStepFor(8)).toBe(10);
+    expect(placementStepFor(42)).toBe(40);
+    expect(placementStepFor(43)).toBe(45);
+    expect(placementStepFor(97)).toBe(95);
+    expect(placementStepFor(98)).toBe(100);
+  });
+
+  it('clamps levels outside 1 to 100', () => {
+    expect(placementStepFor(-10)).toBe(5);
+    expect(placementStepFor(0)).toBe(5);
+    expect(placementStepFor(140)).toBe(100);
+  });
+
+  it('maps every level to a step in the bank', () => {
+    const steps = new Set(placementSteps());
+    for (let l = MIN_LEVEL; l <= MAX_LEVEL; l++) {
+      expect(steps.has(placementStepFor(l))).toBe(true);
+    }
   });
 });
