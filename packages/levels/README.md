@@ -71,7 +71,9 @@ The ability model keeps a probability over each learner's ability and updates it
 
 - **Guess rates.** The chance of a right answer from guessing alone. They fall as question types get harder to guess: multiple choice, then choose all, then order the events. A lucky guess moves the estimate far less than a real answer.
 - **Discrimination.** How sharply one question separates stronger readers from weaker ones.
-- **Weights.** A rushed answer and an answer after a supported try count for less than a normal answer, which counts 1.
+- **Weights.** A rushed answer and an answer after a supported try count for less than a normal answer, which counts 1. The item gates for moving up and down add up these weights over answers from stories at or above the level, so rushed answers cannot fill them.
+- **Fading.** After each finished story, every stored estimate is tempered by `storyDecay`. This keeps old answers from outweighing recent growth, like the 0.85 decay in the simple model.
+- **Focus switch margin.** The focus skill changes only when another skill is lower by more than `focus.switchMargin`.
 - **Rushed answers.** An answer is rushed when it comes faster than a base time plus an allowance for each word on screen.
 - **Sub-skill offsets.** Each sub-skill starts a little easier or harder than the story level. Real answers recalibrate them later (BB-45).
 
@@ -106,14 +108,17 @@ Every number in the rules, in one place. A test checks that this table matches t
 | `EVIDENCE_RULE.discrimination`                 | 1.5    | How sharply a question separates readers                    |
 | `EVIDENCE_RULE.weight.rushed`                  | 0.3    | Weight of a rushed answer                                   |
 | `EVIDENCE_RULE.weight.supportedTry`            | 0.7    | Weight of an answer after a supported try                   |
+| `EVIDENCE_RULE.storyDecay`                     | 0.9    | Power that fades stored estimates after each finished story |
 | `EVIDENCE_RULE.up.probability`                 | 0.85   | Certainty needed to move up                                 |
 | `EVIDENCE_RULE.up.margin`                      | 0.25   | How far above the level ability must be to move up          |
-| `EVIDENCE_RULE.up.minItems`                    | 10     | Answers needed to move up                                   |
+| `EVIDENCE_RULE.up.minItems`                    | 10     | Weighted answers at or above the level needed to move up    |
 | `EVIDENCE_RULE.up.minPasses`                   | 2      | Passed stories at the level needed to move up               |
 | `EVIDENCE_RULE.up.minWordsRight`               | 0.85   | Words right on the last two counted tries to move up        |
+| `EVIDENCE_RULE.up.recentTries`                 | 2      | Counted tries that must read well, this story's included    |
 | `EVIDENCE_RULE.down.probability`               | 0.85   | Certainty needed to move down                               |
 | `EVIDENCE_RULE.down.margin`                    | 0.5    | How far below the level ability must be to move down        |
-| `EVIDENCE_RULE.down.minItems`                  | 8      | Answers needed to move down                                 |
+| `EVIDENCE_RULE.down.minItems`                  | 8      | Weighted answers at or above the level needed to move down  |
+| `EVIDENCE_RULE.focus.switchMargin`             | 0.2    | How much lower another skill must be to change the focus    |
 | `EVIDENCE_RULE.rushed.baseMs`                  | 1200   | Base time in ms under which an answer is rushed             |
 | `EVIDENCE_RULE.rushed.perWordMs`               | 35     | Extra ms allowed for each word on screen                    |
 | `EVIDENCE_RULE.maxResponseMs`                  | 600000 | Longest response time the server records, in ms             |

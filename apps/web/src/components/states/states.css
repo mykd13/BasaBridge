@@ -1,0 +1,26 @@
+.bb-state {
+  align-items: flex-start;
+  gap: 0.875rem;
+  max-width: 40rem;
+}
+.bb-state__icon {
+  display: inline-flex;
+  color: var(--accent);
+}
+.bb-state__title {
+  font-size: 1.75rem;
+}
+.bb-state__body {
+  color: var(--muted);
+  font-size: 1.125rem;
+}
+.bb-state__action {
+  margin-top: 0.25rem;
+}
+.bb-state-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  max-width: 40rem;
+}
