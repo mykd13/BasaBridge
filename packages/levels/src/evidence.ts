@@ -2,7 +2,9 @@
  * Evidence rules for the ability model (docs/PLAN.md section 6.1, ADR 0003).
  * Placeholders to tune with real learners. Keep every number here and nowhere else.
  */
-export const EVIDENCE_RULE = {
+import { deepFreeze } from './freeze';
+
+export const EVIDENCE_RULE = deepFreeze({
   /** Chance of a correct answer from guessing alone, by question type. */
   guess: { multiple_choice: 0.25, choose_all: 0.1, order_events: 1 / 24 },
   /** How sharply a question separates stronger from weaker readers. */
@@ -27,10 +29,10 @@ export const EVIDENCE_RULE = {
     prediction: 0.4,
     conclusion: 0.5,
   },
-} as const;
+} as const);
 
 /** Placement test rules (docs/PLAN.md section 6.2). Placeholders to tune. */
-export const PLACEMENT_RULE = {
+export const PLACEMENT_RULE = deepFreeze({
   minStories: 2,
   maxStories: 4,
   /** Stop once the ability estimate is this certain. */
@@ -45,19 +47,19 @@ export const PLACEMENT_RULE = {
   /** Where to start the first placement story, by grade. */
   gradeStart: { 1: 10, 2: 20, 3: 30, 4: 42, 5: 55, 6: 68 } as Record<number, number>,
   defaultStart: 25,
-} as const;
+} as const);
 
 /**
  * Placement story bank (docs/PLAN.md section 6.2, BB-48). Reviewed stories sit at steps of five
  * levels, and placement only ever picks a story at a step. Placeholders to tune.
  */
-export const PLACEMENT_BANK = {
+export const PLACEMENT_BANK = deepFreeze({
   stepSize: 5,
   firstStep: 5,
   lastStep: 100,
   /** Stories needed at each step so a retake can get a different one. */
   minStoriesPerStep: 2,
-} as const;
+} as const);
 
 /** Every step in the placement bank, lowest first. */
 export function placementSteps(): number[] {
