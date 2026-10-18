@@ -11,3 +11,4 @@ export * from './answer-evidence';
 export * from './engine';
 export * from './decisions';
 export * from './store';
+export * from './score';

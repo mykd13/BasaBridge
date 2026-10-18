@@ -1,0 +1,363 @@
+import type { ChooseAllQuestion, OrderEventsQuestion, StoryQuestion } from '@basabridge/contracts';
+import { EVIDENCE_RULE } from '@basabridge/levels';
+import { describe, expect, it } from 'vitest';
+import { itemDifficulty, prior, summarise, updatePosterior } from './ability';
+import {
+  answerEvidence,
+  answerKey,
+  scoreResponse,
+  scoreChooseAll,
+  scoreMultipleChoice,
+  scoreOrderEvents,
+  scoreChosen,
+  type AnswerKey,
+  type AnswerResponse,
+  type ScorableQuestion,
+} from './score';
+
+const mc: StoryQuestion = {
+  skill: 'literal',
+  word: null,
+  question: 'Where did the cat sleep?',
+  options: ['On the bed', 'In a box', 'Under the car', 'In the tree'],
+  answerIndex: 1,
+  evidence: 'The cat slept in a box.',
+};
+
+const chooseAll: ChooseAllQuestion = {
+  type: 'choose_all',
+  subskill: 'key_detail',
+  question: 'Which things did Ana bring?',
+  options: ['A hat', 'A ball', 'A book', 'A kite', 'A cup'],
+  answerIndexes: [0, 2],
+  evidence: 'Ana brought a hat and a book.',
+};
+
+const order: OrderEventsQuestion = {
+  type: 'order_events',
+  subskill: 'sequence',
+  question: 'Put what happened in order.',
+  events: ['Ben woke up', 'Ben ate', 'Ben ran to school', 'Ben met Ana'],
+  evidence: 'Ben woke up, ate, and ran to school, where he met Ana.',
+};
+
+describe('scoreMultipleChoice', () => {
+  it('marks the right option correct and others wrong', () => {
+    expect(scoreMultipleChoice(mc, 1)).toMatchObject({ correct: true, valid: true, partsRight: 1 });
+    expect(scoreMultipleChoice(mc, 0)).toMatchObject({
+      correct: false,
+      valid: true,
+      partsRight: 0,
+    });
+  });
+
+  it('rejects an option that does not exist', () => {
+    expect(scoreMultipleChoice(mc, 4)).toMatchObject({ valid: false, reason: 'out_of_range' });
+    expect(scoreMultipleChoice(mc, -1)).toMatchObject({ valid: false, reason: 'out_of_range' });
+    expect(scoreMultipleChoice(mc, 1.5)).toMatchObject({ valid: false, reason: 'not_an_integer' });
+  });
+});
+
+describe('scoreChooseAll', () => {
+  it('is correct only for exactly the true options, in any order', () => {
+    expect(scoreChooseAll(chooseAll, [0, 2])).toMatchObject({
+      correct: true,
+      partsRight: 2,
+      partsTotal: 2,
+    });
+    expect(scoreChooseAll(chooseAll, [2, 0])).toMatchObject({ correct: true });
+  });
+
+  it('gives no credit for a missing or an extra option', () => {
+    expect(scoreChooseAll(chooseAll, [0])).toMatchObject({
+      correct: false,
+      valid: true,
+      partsRight: 1,
+      partsTotal: 2,
+    });
+    expect(scoreChooseAll(chooseAll, [0, 2, 3])).toMatchObject({ correct: false, partsRight: 1 });
+  });
+
+  it('never rewards picking every option', () => {
+    expect(scoreChooseAll(chooseAll, [0, 1, 2, 3, 4])).toMatchObject({
+      correct: false,
+      partsRight: 0,
+    });
+  });
+
+  it('counts no parts right for a single wrong pick, so feedback never says nearly right', () => {
+    // Before, every wrong option left alone counted as a part right, so this read as 3 of 5.
+    expect(scoreChooseAll(chooseAll, [1])).toMatchObject({
+      correct: false,
+      valid: true,
+      partsRight: 0,
+      partsTotal: 2,
+    });
+  });
+
+  it('reports a part right only when the answer gets closer to the key', () => {
+    const one = scoreChooseAll(chooseAll, [0]).partsRight;
+    const oneAndWrong = scoreChooseAll(chooseAll, [0, 1]).partsRight;
+    const both = scoreChooseAll(chooseAll, [0, 2]).partsRight;
+    expect(oneAndWrong).toBeLessThan(one);
+    expect(one).toBeLessThan(both);
+  });
+
+  it('rejects empty, repeated, out of range and non-integer picks', () => {
+    expect(scoreChooseAll(chooseAll, [])).toMatchObject({ valid: false, reason: 'empty' });
+    expect(scoreChooseAll(chooseAll, [0, 0, 2])).toMatchObject({
+      valid: false,
+      reason: 'duplicate',
+    });
+    expect(scoreChooseAll(chooseAll, [0, 5])).toMatchObject({
+      valid: false,
+      reason: 'out_of_range',
+    });
+    expect(scoreChooseAll(chooseAll, [0, 0.5])).toMatchObject({
+      valid: false,
+      reason: 'not_an_integer',
+    });
+  });
+});
+
+describe('scoreOrderEvents', () => {
+  it('is correct only when every event is in place', () => {
+    expect(scoreOrderEvents(order, [0, 1, 2, 3])).toMatchObject({ correct: true, partsRight: 4 });
+  });
+
+  it('gives no credit for one swap, but counts places for feedback', () => {
+    expect(scoreOrderEvents(order, [0, 2, 1, 3])).toMatchObject({
+      correct: false,
+      valid: true,
+      partsRight: 2,
+      partsTotal: 4,
+    });
+    expect(scoreOrderEvents(order, [3, 2, 1, 0])).toMatchObject({ correct: false, partsRight: 0 });
+  });
+
+  it('rejects an order that is not a full list of the events', () => {
+    expect(scoreOrderEvents(order, [0, 1, 2])).toMatchObject({
+      valid: false,
+      reason: 'not_a_full_order',
+    });
+    expect(scoreOrderEvents(order, [0, 1, 2, 3, 3])).toMatchObject({
+      valid: false,
+      reason: 'duplicate',
+    });
+    expect(scoreOrderEvents(order, [0, 1, 1, 3])).toMatchObject({
+      valid: false,
+      reason: 'duplicate',
+    });
+    expect(scoreOrderEvents(order, [0, 1, 2, 4])).toMatchObject({
+      valid: false,
+      reason: 'out_of_range',
+    });
+    expect(scoreOrderEvents(order, [])).toMatchObject({ valid: false, reason: 'empty' });
+  });
+});
+
+describe('scoreResponse', () => {
+  it('scores each question type with its own rule', () => {
+    expect(scoreResponse(mc, { type: 'multiple_choice', chosen: 1 }).correct).toBe(true);
+    expect(scoreResponse(chooseAll, { type: 'choose_all', chosen: [0, 2] }).correct).toBe(true);
+    expect(scoreResponse(order, { type: 'order_events', order: [0, 1, 2, 3] }).correct).toBe(true);
+  });
+
+  it('reports the question type on every score', () => {
+    expect(scoreResponse(mc, { type: 'multiple_choice', chosen: 0 }).type).toBe('multiple_choice');
+    expect(scoreResponse(chooseAll, { type: 'choose_all', chosen: [1] }).type).toBe('choose_all');
+    expect(scoreResponse(order, { type: 'order_events', order: [1, 0, 2, 3] }).type).toBe(
+      'order_events',
+    );
+  });
+
+  it('rejects a response of the wrong type', () => {
+    expect(scoreResponse(mc, { type: 'choose_all', chosen: [1] })).toMatchObject({
+      valid: false,
+      reason: 'type_mismatch',
+    });
+    expect(scoreResponse(order, { type: 'choose_all', chosen: [0, 1, 2, 3] })).toMatchObject({
+      valid: false,
+      reason: 'type_mismatch',
+      partsTotal: 4,
+    });
+    expect(scoreResponse(chooseAll, { type: 'multiple_choice', chosen: 0 })).toMatchObject({
+      valid: false,
+      reason: 'type_mismatch',
+    });
+  });
+
+  it('never throws on odd input from a request body', () => {
+    const odd = [
+      { type: 'multiple_choice', chosen: Number.NaN },
+      { type: 'multiple_choice', chosen: Number.MAX_SAFE_INTEGER },
+      { type: 'choose_all', chosen: [Number.NaN] },
+      { type: 'choose_all', chosen: null },
+      { type: 'order_events', order: [-1, 0, 1, 2] },
+      { type: 'order_events', order: 'abc' },
+    ] as unknown as AnswerResponse[];
+    for (const r of odd) {
+      for (const q of [mc, chooseAll, order]) {
+        const s = scoreResponse(q, r);
+        expect(s.correct).toBe(false);
+      }
+    }
+  });
+});
+
+describe('answerEvidence', () => {
+  const base = { storyLevel: 40, rushed: false, supportedTry: false };
+  const evidenceFor = (question: ScorableQuestion, response: AnswerResponse) => {
+    const e = answerEvidence({ ...base, question, score: scoreResponse(question, response) });
+    if (!e) throw new Error('expected evidence');
+    return e;
+  };
+
+  it('uses the guess rate in EVIDENCE_RULE for each question type', () => {
+    const cases: [ScorableQuestion, AnswerResponse][] = [
+      [mc, { type: 'multiple_choice', chosen: 1 }],
+      [chooseAll, { type: 'choose_all', chosen: [0, 2] }],
+      [order, { type: 'order_events', order: [0, 1, 2, 3] }],
+    ];
+    for (const [question, response] of cases) {
+      const e = evidenceFor(question, response);
+      expect(e.guess).toBe(EVIDENCE_RULE.guess[scoreResponse(question, response).type]);
+      expect(e.correct).toBe(true);
+    }
+  });
+
+  it('uses the sub-skill for difficulty when the question has one', () => {
+    const e = evidenceFor(chooseAll, { type: 'choose_all', chosen: [0, 2] });
+    expect(e.difficulty).toBeCloseTo(itemDifficulty(40, 'key_detail'), 10);
+  });
+
+  it('moves the estimate up more for a right ordering answer than a right multiple-choice one', () => {
+    const start = prior(0, 1);
+    const meanAfter = (question: ScorableQuestion, response: AnswerResponse) => {
+      const e = evidenceFor(question, response);
+      return summarise(updatePosterior(start, { ...e, difficulty: 0 })).mean;
+    };
+    const fromOrder = meanAfter(order, { type: 'order_events', order: [0, 1, 2, 3] });
+    const fromMc = meanAfter(mc, { type: 'multiple_choice', chosen: 1 });
+    expect(fromOrder).toBeGreaterThan(fromMc);
+  });
+
+  it('treats a nearly right answer exactly like any other wrong answer', () => {
+    const near = scoreResponse(order, { type: 'order_events', order: [0, 1, 3, 2] });
+    const far = scoreResponse(order, { type: 'order_events', order: [3, 2, 1, 0] });
+    expect(near.partsRight).toBeGreaterThan(far.partsRight);
+    expect(answerEvidence({ ...base, question: order, score: near })).toEqual(
+      answerEvidence({ ...base, question: order, score: far }),
+    );
+  });
+
+  it('weights rushed and supported answers with the shared evidence rule', () => {
+    const score = scoreResponse(mc, { type: 'multiple_choice', chosen: 1 });
+    const e = answerEvidence({ ...base, rushed: true, supportedTry: true, question: mc, score });
+    expect(e?.weight).toBeCloseTo(
+      EVIDENCE_RULE.weight.rushed * EVIDENCE_RULE.weight.supportedTry,
+      10,
+    );
+  });
+});
+
+describe('invalid input', () => {
+  const base = { storyLevel: 40, rushed: false, supportedTry: false };
+
+  it('gives no evidence for an invalid answer, so it cannot lower the estimate', () => {
+    const bad: [ScorableQuestion, AnswerResponse][] = [
+      [mc, { type: 'multiple_choice', chosen: 9 }],
+      [mc, { type: 'choose_all', chosen: [0] }],
+      [chooseAll, { type: 'choose_all', chosen: [] }],
+      [order, { type: 'order_events', order: [0, 1] }],
+    ];
+    for (const [question, response] of bad) {
+      const score = scoreResponse(question, response);
+      expect(score.valid).toBe(false);
+      expect(answerEvidence({ ...base, question, score })).toBeNull();
+    }
+  });
+
+  it('does not throw for a null or undefined response', () => {
+    for (const r of [null, undefined]) {
+      for (const q of [mc, chooseAll, order]) {
+        const score = scoreResponse(q, r as unknown as AnswerResponse);
+        expect(score).toMatchObject({ valid: false, correct: false, reason: 'type_mismatch' });
+      }
+    }
+  });
+
+  it('refuses a choose-all question whose key points past the options', () => {
+    const broken: ChooseAllQuestion = { ...chooseAll, answerIndexes: [0, 7] };
+    const score = scoreChooseAll(broken, [0, 1]);
+    expect(score).toMatchObject({ valid: false, correct: false, reason: 'malformed_question' });
+  });
+
+  it('derives the ordering guess rate from the number of events', () => {
+    const three: OrderEventsQuestion = { ...order, events: ['A', 'B', 'C'] };
+    const five: OrderEventsQuestion = { ...order, events: ['A', 'B', 'C', 'D', 'E'] };
+    const guess = (q: OrderEventsQuestion, n: number) =>
+      answerEvidence({
+        ...base,
+        question: q,
+        score: scoreResponse(q, {
+          type: 'order_events',
+          order: Array.from({ length: n }, (_, i) => i),
+        }),
+      })?.guess;
+    expect(guess(three, 3)).toBeCloseTo(1 / 6, 10);
+    expect(guess(order, 4)).toBeCloseTo(EVIDENCE_RULE.guess.order_events, 10);
+    expect(guess(five, 5)).toBeCloseTo(1 / 120, 10);
+  });
+});
+
+describe('scoreChosen', () => {
+  it('scores a stored key the same way as the question it came from', () => {
+    const cases: [ScorableQuestion, number[]][] = [
+      [mc, [1]],
+      [mc, [3]],
+      [chooseAll, [0, 2]],
+      [chooseAll, [0, 1]],
+      [order, [0, 1, 2, 3]],
+      [order, [1, 0, 2, 3]],
+    ];
+    for (const [question, chosen] of cases) {
+      const viaKey = scoreChosen(answerKey(question), chosen);
+      const viaQuestion =
+        question.type === 'choose_all'
+          ? scoreChooseAll(question, chosen)
+          : question.type === 'order_events'
+            ? scoreOrderEvents(question, chosen)
+            : scoreMultipleChoice(question, chosen[0] ?? Number.NaN);
+      expect(viaKey).toEqual(viaQuestion);
+    }
+  });
+
+  it('takes exactly one option for multiple choice', () => {
+    const key = answerKey(mc);
+    expect(scoreChosen(key, [1, 2])).toMatchObject({ valid: false, reason: 'not_one_choice' });
+    expect(scoreChosen(key, [])).toMatchObject({ valid: false, reason: 'empty' });
+  });
+
+  it('refuses a broken key instead of marking every answer wrong', () => {
+    const broken: AnswerKey[] = [
+      { type: 'multiple_choice', options: 4, answerIndex: 4 },
+      { type: 'choose_all', options: 4, answerIndexes: [] },
+      { type: 'choose_all', options: 4, answerIndexes: [1, 1] },
+      { type: 'order_events', events: 1 },
+    ];
+    for (const key of broken) {
+      expect(scoreChosen(key, [0])).toMatchObject({
+        valid: false,
+        correct: false,
+        reason: 'malformed_question',
+      });
+    }
+  });
+
+  it('does not throw for a missing key', () => {
+    for (const key of [null, undefined] as unknown as AnswerKey[]) {
+      expect(scoreChosen(key, [0])).toMatchObject({ valid: false, reason: 'malformed_question' });
+    }
+  });
+});

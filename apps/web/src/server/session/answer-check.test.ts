@@ -44,3 +44,10 @@ describe('order the events', () => {
     expect(checkAnswer(key, [0, 1, 1, 2])).toEqual({ valid: false });
   });
 });
+
+describe('one scoring path', () => {
+  it('refuses a broken key instead of marking every answer wrong', () => {
+    const key = { type: 'choose_all', options: 4, answerIndexes: [0, 7] } as const;
+    expect(checkAnswer(key, [0])).toEqual({ valid: false });
+  });
+});
