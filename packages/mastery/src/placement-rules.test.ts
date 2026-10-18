@@ -5,14 +5,15 @@ import {
   canRetakePlacement,
   finishPlacementSession,
   needsVoiceRecheck,
+  nextForSession,
   nextPlacement,
   parsePlacementProgress,
   recordPlacementStory,
   retakeAvailableAt,
-  skippedPlacement,
+  skipPlacement,
   startLevelForGrade,
   startPlacement,
-  startRecheck,
+  startRecheckSession,
   type PlacementSession,
 } from './placement';
 
@@ -51,20 +52,20 @@ describe('retake', () => {
 
 describe('skipped placement', () => {
   it('starts at the grade default with no confidence', () => {
-    const r = skippedPlacement(3);
+    const r = skipPlacement(3);
     expect(PlacementResult.safeParse(r).success).toBe(true);
     expect(r.level).toBe(startLevelForGrade(3));
     expect(r.confidence).toBe('none');
     expect(r.storiesRead).toBe(0);
-    expect(r.flags).toEqual(['few_stories']);
+    expect(r.flags).toEqual([]);
   });
 
   it('uses the default start without a grade', () => {
-    expect(skippedPlacement(null).level).toBe(PLACEMENT_RULE.defaultStart);
+    expect(skipPlacement(null).level).toBe(PLACEMENT_RULE.defaultStart);
   });
 
   it('does not ask for a voice re-check, since there is nothing to re-check', () => {
-    expect(needsVoiceRecheck(skippedPlacement(3), true)).toBe(false);
+    expect(needsVoiceRecheck(skipPlacement(3), true)).toBe(false);
   });
 });
 
@@ -79,37 +80,35 @@ describe('voice re-check', () => {
 
   it('is short, uses voice and starts from the earlier estimate', () => {
     const silent = silentPlacement();
-    const s = startRecheck(silent);
+    const s = startRecheckSession(silent);
     expect(s.kind).toBe('recheck');
     expect(s.voice).toBe(true);
-    expect(s.maxStories).toBe(PLACEMENT_RULE.recheckStories);
-    expect(s.prior).toEqual({ theta: silent.theta, sd: silent.sd, stories: silent.storiesRead });
-    expect(nextPlacement(s).level).toBe(s.startLevel);
+    expect(s.startLevel).toBe(silent.level);
+    expect(nextForSession(s).level).toBe(s.startLevel);
   });
 
   it('stops after the re-check length and clears the voice flag', () => {
     const silent = silentPlacement();
-    let s = startRecheck(silent);
+    let s = startRecheckSession(silent);
     let count = 0;
-    while (!nextPlacement(s).done) {
+    while (!nextForSession(s).done) {
       s = recordPlacementStory(s, {
         storyId: `r${count}`,
-        level: nextPlacement(s).level!,
+        level: nextForSession(s).level!,
         wordsRightShare: 0.95,
         answers: [{ correct: true }, { correct: false }, { correct: true }, { correct: true }],
       });
       count++;
     }
-    expect(count).toBeLessThanOrEqual(PLACEMENT_RULE.recheckStories);
+    expect(count).toBe(PLACEMENT_RULE.recheckStories);
     const r = finishPlacementSession(s);
     expect(r.flags).not.toContain('voice_missing');
-    expect(r.flags).not.toContain('few_stories');
-    expect(r.storiesRead).toBe(silent.storiesRead + count);
+    expect(r.storiesRead).toBe(count);
     expect(PlacementResult.safeParse(r).success).toBe(true);
   });
 
   it('survives a pause', () => {
-    const s = startRecheck(silentPlacement());
+    const s = startRecheckSession(silentPlacement());
     expect(parsePlacementProgress(JSON.parse(JSON.stringify(s)))).toEqual(s);
   });
 });

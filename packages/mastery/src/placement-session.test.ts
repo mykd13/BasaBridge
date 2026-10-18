@@ -192,21 +192,17 @@ describe('pause and resume', () => {
       },
     ],
     [
-      'more stories than allowed',
+      'more stories than a re-check allows',
       {
         kind: 'recheck',
         voice: true,
         startLevel: 30,
-        maxStories: 1,
         stories: [
           { storyId: 'a', level: 30, answers: [] },
           { storyId: 'b', level: 30, answers: [] },
+          { storyId: 'c', level: 30, answers: [] },
         ],
       },
-    ],
-    [
-      'bad prior',
-      { kind: 'recheck', voice: true, startLevel: 30, prior: { theta: 0, sd: 0 }, stories: [] },
     ],
   ])('refuses damaged progress: %s', (_, value) => {
     expect(parsePlacementProgress(value)).toBeNull();

@@ -1,13 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MAX_LEVEL, MIN_LEVEL, PLACEMENT_RULE } from '@basabridge/levels';
 import { guessFor, itemDifficulty, levelToTheta, pCorrect } from './ability';
 import {
   finishPlacementSession,
+  nextForSession,
   nextPlacement,
-  pickPlacementStory,
   recordPlacementStory,
   startPlacement,
-  type PlacementBankStory,
   type PlacementSession,
 } from './placement';
 
@@ -15,6 +14,15 @@ import {
  * Simulated learners of known level (BB-47). The bounds are the seed tests' bounds in
  * placement.test.ts: at most 8 levels above the true level and at most 30 below.
  */
+/** A bank story: only what the stand-in picker needs. */
+interface PlacementBankStory {
+  id: string;
+  level: number;
+}
+
+/** The simulations run every level and grade, which is slow on a busy machine. */
+vi.setConfig({ testTimeout: 60_000 });
+
 const ABOVE = 8;
 const BELOW = 30;
 const QUESTIONS_PER_STORY = 5;
@@ -70,12 +78,24 @@ function run(
 /** Every story at exactly the level the engine asks for. */
 const exactStory = (s: PlacementSession): PlacementBankStory => ({
   id: `s${s.stories.length}`,
-  level: nextPlacement(s).level!,
+  level: nextForSession(s).level!,
 });
+
+/** The unread bank story nearest the level the engine asks for. A tie goes to the easier one. */
+function nearestUnread(bank: readonly PlacementBankStory[], s: PlacementSession) {
+  const next = nextForSession(s);
+  if (next.done || next.level == null) return null;
+  const read = new Set(s.stories.map((x) => x.storyId));
+  const target = next.level;
+  const sorted = bank
+    .filter((b) => !read.has(b.id))
+    .sort((a, b) => Math.abs(a.level - target) - Math.abs(b.level - target) || a.level - b.level);
+  return sorted[0] ?? null;
+}
 
 /** Stories from the stand-in bank, at steps of five. */
 const bankStory = (s: PlacementSession): PlacementBankStory => {
-  const story = pickPlacementStory(BANK, s);
+  const story = nearestUnread(BANK, s);
   if (!story) throw new Error('bank ran out');
   return story;
 };

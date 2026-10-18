@@ -44,8 +44,10 @@ export const PLACEMENT_RULE = deepFreeze({
   /** Words right below this share on placement tries flags low decoding. */
   lowDecoding: 0.85,
   retakeAfterDays: 30,
-  /** Stories in the short re-check after a placement made without voice. */
+  /** Stories in the short re-check that runs once voice is approved after a silent placement. */
   recheckStories: 2,
+  /** Confidence for a learner who chose "Do this later": no evidence yet. */
+  skipConfidence: 'none',
   /** Where to start the first placement story, by grade. */
   gradeStart: { 1: 10, 2: 20, 3: 30, 4: 42, 5: 55, 6: 68 } as Record<number, number>,
   defaultStart: 25,
