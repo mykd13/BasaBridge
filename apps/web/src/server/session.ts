@@ -1,5 +1,6 @@
 import { Role } from '@basabridge/contracts';
 import { connection } from 'next/server';
+import { getCurrentUser } from '@/server/auth';
 
 export interface SessionUser {
   id: string;
@@ -24,13 +25,15 @@ export function devRoleFromEnv(env: Record<string, string | undefined>): Role | 
 
 /**
  * The signed-in user, or null.
- * Stub until BB-7 (PR #8) lands. Then this wraps `getCurrentUser()` and the dev override
- * stays as the only other branch.
+ * Reads the Better Auth session (BB-7). The dev override is the only other branch.
+ * Without DATABASE_URL (a fresh checkout) nobody is signed in, so the app still renders.
  */
 export async function getSessionUser(): Promise<SessionUser | null> {
   // The answer depends on the request, so never prerender a page that asks for it.
   await connection();
   const devRole = devRoleFromEnv(process.env);
   if (devRole) return { id: DEV_USER_IDS[devRole], role: devRole };
-  return null;
+  if (!process.env.DATABASE_URL) return null;
+  const user = await getCurrentUser();
+  return user ? { id: user.id, role: user.role } : null;
 }
