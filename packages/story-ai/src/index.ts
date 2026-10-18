@@ -9,6 +9,7 @@ import type { StoryPromptInput } from './prompt';
 import { TaggedQuestion, tagProblem } from './tags';
 
 export * from './prompt';
+export * from './rows';
 export * from './tags';
 export * from './verifier';
 
