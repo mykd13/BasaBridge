@@ -1,11 +1,15 @@
 import type { ChooseAllQuestion, OrderEventsQuestion, StoryQuestion } from '@basabridge/contracts';
+import { EVIDENCE_RULE } from '@basabridge/levels';
 import { describe, expect, it } from 'vitest';
+import { itemDifficulty, prior, summarise, updatePosterior } from './ability';
 import {
+  answerEvidence,
   scoreAnswer,
   scoreChooseAll,
   scoreMultipleChoice,
   scoreOrderEvents,
   type AnswerResponse,
+  type ScorableQuestion,
 } from './score';
 
 const mc: StoryQuestion = {
@@ -173,5 +177,58 @@ describe('scoreAnswer', () => {
         expect(s.correct).toBe(false);
       }
     }
+  });
+});
+
+describe('answerEvidence', () => {
+  const base = { storyLevel: 40, rushed: false, supportedTry: false };
+
+  it('uses the guess rate in EVIDENCE_RULE for each question type', () => {
+    const cases: [ScorableQuestion, AnswerResponse][] = [
+      [mc, { type: 'multiple_choice', chosen: 1 }],
+      [chooseAll, { type: 'choose_all', chosen: [0, 2] }],
+      [order, { type: 'order_events', order: [0, 1, 2, 3] }],
+    ];
+    for (const [question, response] of cases) {
+      const score = scoreAnswer(question, response);
+      const e = answerEvidence({ ...base, question, score });
+      expect(e.guess).toBe(EVIDENCE_RULE.guess[score.type]);
+      expect(e.correct).toBe(true);
+    }
+  });
+
+  it('uses the sub-skill for difficulty when the question has one', () => {
+    const score = scoreAnswer(chooseAll, { type: 'choose_all', chosen: [0, 2] });
+    const e = answerEvidence({ ...base, question: chooseAll, score });
+    expect(e.difficulty).toBeCloseTo(itemDifficulty(40, 'key_detail'), 10);
+  });
+
+  it('moves the estimate up more for a right ordering answer than a right multiple-choice one', () => {
+    const start = prior(0, 1);
+    const meanAfter = (question: ScorableQuestion, response: AnswerResponse) => {
+      const e = answerEvidence({ ...base, question, score: scoreAnswer(question, response) });
+      return summarise(updatePosterior(start, { ...e, difficulty: 0 })).mean;
+    };
+    const fromOrder = meanAfter(order, { type: 'order_events', order: [0, 1, 2, 3] });
+    const fromMc = meanAfter(mc, { type: 'multiple_choice', chosen: 1 });
+    expect(fromOrder).toBeGreaterThan(fromMc);
+  });
+
+  it('treats a nearly right answer exactly like any other wrong answer', () => {
+    const near = scoreAnswer(order, { type: 'order_events', order: [0, 1, 3, 2] });
+    const far = scoreAnswer(order, { type: 'order_events', order: [3, 2, 1, 0] });
+    expect(near.partsRight).toBeGreaterThan(far.partsRight);
+    expect(answerEvidence({ ...base, question: order, score: near })).toEqual(
+      answerEvidence({ ...base, question: order, score: far }),
+    );
+  });
+
+  it('weights rushed and supported answers with the shared evidence rule', () => {
+    const score = scoreAnswer(mc, { type: 'multiple_choice', chosen: 1 });
+    const e = answerEvidence({ ...base, rushed: true, supportedTry: true, question: mc, score });
+    expect(e.weight).toBeCloseTo(
+      EVIDENCE_RULE.weight.rushed * EVIDENCE_RULE.weight.supportedTry,
+      10,
+    );
   });
 });

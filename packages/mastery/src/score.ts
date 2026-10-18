@@ -14,6 +14,7 @@ import type {
   StoryQuestion,
 } from '@basabridge/contracts';
 import { SCORING_RULE } from '@basabridge/levels';
+import { evidenceWeight, guessFor, itemDifficulty, type ItemEvidence } from './ability';
 
 export type ScorableQuestion =
   (StoryQuestion & { type?: 'multiple_choice' }) | ChooseAllQuestion | OrderEventsQuestion;
@@ -120,4 +121,25 @@ export function scoreAnswer(q: ScorableQuestion, r: AnswerResponse): AnswerScore
   return r.type === 'multiple_choice'
     ? scoreMultipleChoice(q, r.chosen)
     : invalid('multiple_choice', 'type_mismatch', 1);
+}
+
+/**
+ * Turn a scored answer into evidence for the ability model. The guess rate comes from the question
+ * type, so a right ordering answer counts for far more than a right multiple-choice answer. Only
+ * `correct` is used: parts right never reach the model.
+ */
+export function answerEvidence(o: {
+  question: ScorableQuestion;
+  score: AnswerScore;
+  storyLevel: number;
+  rushed: boolean;
+  supportedTry: boolean;
+}): ItemEvidence {
+  const subskill = 'subskill' in o.question ? o.question.subskill : undefined;
+  return {
+    difficulty: itemDifficulty(o.storyLevel, subskill),
+    guess: guessFor(o.score.type),
+    correct: o.score.correct,
+    weight: evidenceWeight({ rushed: o.rushed, supportedTry: o.supportedTry }),
+  };
 }
