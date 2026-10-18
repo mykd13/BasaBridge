@@ -4,10 +4,13 @@ import { describe, expect, it } from 'vitest';
 import { itemDifficulty, prior, summarise, updatePosterior } from './ability';
 import {
   answerEvidence,
+  answerKey,
   scoreAnswer,
   scoreChooseAll,
   scoreMultipleChoice,
   scoreOrderEvents,
+  scoreChosen,
+  type AnswerKey,
   type AnswerResponse,
   type ScorableQuestion,
 } from './score';
@@ -57,7 +60,11 @@ describe('scoreMultipleChoice', () => {
 
 describe('scoreChooseAll', () => {
   it('is correct only for exactly the true options, in any order', () => {
-    expect(scoreChooseAll(chooseAll, [0, 2])).toMatchObject({ correct: true, partsRight: 5 });
+    expect(scoreChooseAll(chooseAll, [0, 2])).toMatchObject({
+      correct: true,
+      partsRight: 2,
+      partsTotal: 2,
+    });
     expect(scoreChooseAll(chooseAll, [2, 0])).toMatchObject({ correct: true });
   });
 
@@ -65,17 +72,35 @@ describe('scoreChooseAll', () => {
     expect(scoreChooseAll(chooseAll, [0])).toMatchObject({
       correct: false,
       valid: true,
-      partsRight: 4,
-      partsTotal: 5,
+      partsRight: 1,
+      partsTotal: 2,
     });
-    expect(scoreChooseAll(chooseAll, [0, 2, 3])).toMatchObject({ correct: false, partsRight: 4 });
+    expect(scoreChooseAll(chooseAll, [0, 2, 3])).toMatchObject({ correct: false, partsRight: 1 });
   });
 
   it('never rewards picking every option', () => {
     expect(scoreChooseAll(chooseAll, [0, 1, 2, 3, 4])).toMatchObject({
       correct: false,
-      partsRight: 2,
+      partsRight: 0,
     });
+  });
+
+  it('counts no parts right for a single wrong pick, so feedback never says nearly right', () => {
+    // Before, every wrong option left alone counted as a part right, so this read as 3 of 5.
+    expect(scoreChooseAll(chooseAll, [1])).toMatchObject({
+      correct: false,
+      valid: true,
+      partsRight: 0,
+      partsTotal: 2,
+    });
+  });
+
+  it('reports a part right only when the answer gets closer to the key', () => {
+    const one = scoreChooseAll(chooseAll, [0]).partsRight;
+    const oneAndWrong = scoreChooseAll(chooseAll, [0, 1]).partsRight;
+    const both = scoreChooseAll(chooseAll, [0, 2]).partsRight;
+    expect(oneAndWrong).toBeLessThan(one);
+    expect(one).toBeLessThan(both);
   });
 
   it('rejects empty, repeated, out of range and non-integer picks', () => {
@@ -283,5 +308,56 @@ describe('invalid input', () => {
     expect(guess(three, 3)).toBeCloseTo(1 / 6, 10);
     expect(guess(order, 4)).toBeCloseTo(EVIDENCE_RULE.guess.order_events, 10);
     expect(guess(five, 5)).toBeCloseTo(1 / 120, 10);
+  });
+});
+
+describe('scoreChosen', () => {
+  it('scores a stored key the same way as the question it came from', () => {
+    const cases: [ScorableQuestion, number[]][] = [
+      [mc, [1]],
+      [mc, [3]],
+      [chooseAll, [0, 2]],
+      [chooseAll, [0, 1]],
+      [order, [0, 1, 2, 3]],
+      [order, [1, 0, 2, 3]],
+    ];
+    for (const [question, chosen] of cases) {
+      const viaKey = scoreChosen(answerKey(question), chosen);
+      const viaQuestion =
+        question.type === 'choose_all'
+          ? scoreChooseAll(question, chosen)
+          : question.type === 'order_events'
+            ? scoreOrderEvents(question, chosen)
+            : scoreMultipleChoice(question, chosen[0] ?? Number.NaN);
+      expect(viaKey).toEqual(viaQuestion);
+    }
+  });
+
+  it('takes exactly one option for multiple choice', () => {
+    const key = answerKey(mc);
+    expect(scoreChosen(key, [1, 2])).toMatchObject({ valid: false, reason: 'not_one_choice' });
+    expect(scoreChosen(key, [])).toMatchObject({ valid: false, reason: 'empty' });
+  });
+
+  it('refuses a broken key instead of marking every answer wrong', () => {
+    const broken: AnswerKey[] = [
+      { type: 'multiple_choice', options: 4, answerIndex: 4 },
+      { type: 'choose_all', options: 4, answerIndexes: [] },
+      { type: 'choose_all', options: 4, answerIndexes: [1, 1] },
+      { type: 'order_events', events: 1 },
+    ];
+    for (const key of broken) {
+      expect(scoreChosen(key, [0])).toMatchObject({
+        valid: false,
+        correct: false,
+        reason: 'malformed_question',
+      });
+    }
+  });
+
+  it('does not throw for a missing key', () => {
+    for (const key of [null, undefined] as unknown as AnswerKey[]) {
+      expect(scoreChosen(key, [0])).toMatchObject({ valid: false, reason: 'malformed_question' });
+    }
   });
 });

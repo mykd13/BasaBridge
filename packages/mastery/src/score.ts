@@ -14,7 +14,7 @@ import type {
   QuestionType,
   StoryQuestion,
 } from '@basabridge/contracts';
-import { SCORING_RULE } from '@basabridge/levels';
+import { orderEventsGuess, SCORING_RULE } from '@basabridge/levels';
 import { evidenceWeight, guessFor, itemDifficulty, type ItemEvidence } from './ability';
 
 export type ScorableQuestion =
@@ -37,6 +37,8 @@ export type InvalidReason =
   | 'duplicate'
   | 'empty'
   | 'not_a_full_order'
+  /** Multiple choice takes exactly one option. */
+  | 'not_one_choice'
   /** The stored question is broken (for example an answer index with no option). */
   | 'malformed_question';
 
@@ -50,23 +52,41 @@ export interface AnswerScore {
   partsTotal: number;
 }
 
-function factorial(n: number): number {
-  let f = 1;
-  for (let i = 2; i <= n; i++) f *= i;
-  return f;
-}
-
 export function questionType(q: ScorableQuestion): QuestionType {
   return q.type ?? 'multiple_choice';
 }
 
-const invalid = (type: QuestionType, reason: InvalidReason, partsTotal: number): AnswerScore => ({
-  type,
+/**
+ * The part of a question that scoring needs, without any text. The session store keeps this shape,
+ * so the route can score from it without loading the story again.
+ */
+export type AnswerKey =
+  | { type: 'multiple_choice'; options: number; answerIndex: number }
+  | { type: 'choose_all'; options: number; answerIndexes: readonly number[] }
+  /** Events are stored in the right order and shuffled for display, so answers are event indexes. */
+  | { type: 'order_events'; events: number };
+
+export function answerKey(q: ScorableQuestion): AnswerKey {
+  if (q.type === 'choose_all') {
+    return { type: q.type, options: q.options.length, answerIndexes: q.answerIndexes };
+  }
+  if (q.type === 'order_events') return { type: q.type, events: q.events.length };
+  return { type: 'multiple_choice', options: q.options.length, answerIndex: q.answerIndex };
+}
+
+function partsTotalOf(key: AnswerKey): number {
+  if (key.type === 'choose_all') return new Set(key.answerIndexes).size;
+  if (key.type === 'order_events') return key.events;
+  return 1;
+}
+
+const invalid = (key: AnswerKey, reason: InvalidReason): AnswerScore => ({
+  type: key.type,
   correct: false,
   valid: false,
   reason,
   partsRight: 0,
-  partsTotal,
+  partsTotal: partsTotalOf(key),
 });
 
 /** Correct only when every part is right, unless the scoring rule allows partial credit. */
@@ -90,68 +110,82 @@ function indexProblem(indexes: unknown, size: number): InvalidReason | null {
   return null;
 }
 
-export function scoreMultipleChoice(q: StoryQuestion, chosen: number): AnswerScore {
-  const type = 'multiple_choice';
-  if (!Number.isInteger(chosen)) return invalid(type, 'not_an_integer', 1);
-  if (chosen < 0 || chosen >= q.options.length) return invalid(type, 'out_of_range', 1);
-  return scored(type, chosen === q.answerIndex ? 1 : 0, 1);
+/** A key no answer can match fairly, for example an answer index with no option. */
+function keyIsBroken(key: AnswerKey): boolean {
+  if (key.type === 'multiple_choice') {
+    return !Number.isInteger(key.options) || indexProblem([key.answerIndex], key.options) !== null;
+  }
+  if (key.type === 'choose_all') {
+    return !Number.isInteger(key.options) || indexProblem(key.answerIndexes, key.options) !== null;
+  }
+  return !Number.isInteger(key.events) || key.events < 2;
 }
 
-/** Right when the chosen set is exactly the true options. Each option is one part. */
-export function scoreChooseAll(q: ChooseAllQuestion, chosen: number[]): AnswerScore {
-  const type = 'choose_all';
-  const total = q.options.length;
-  const problem = indexProblem(chosen, total);
-  if (problem) return invalid(type, problem, total);
-  const picked = new Set(chosen);
-  const truth = new Set(q.answerIndexes);
-  // A key that points past the options cannot be scored fairly: the answer would never be right.
-  if (!q.answerIndexes.every((i) => Number.isInteger(i) && i >= 0 && i < total)) {
-    return invalid(type, 'malformed_question', total);
+/**
+ * Score the option or event indexes a learner sent against a stored key. This is the one scoring
+ * path: the question functions below and the answer route all use it.
+ *
+ * Multiple choice takes exactly one index. Choose-all is right when the set is exactly the true
+ * options. Ordering is right when every event is in its place.
+ */
+export function scoreChosen(key: AnswerKey, chosen: readonly number[]): AnswerScore {
+  if (typeof key !== 'object' || key === null) {
+    return invalid({ type: 'multiple_choice', options: 0, answerIndex: 0 }, 'malformed_question');
   }
-  let right = 0;
-  for (let i = 0; i < total; i++) if (picked.has(i) === truth.has(i)) right++;
-  return scored(type, right, total);
+  if (keyIsBroken(key)) return invalid(key, 'malformed_question');
+  const size = key.type === 'order_events' ? key.events : key.options;
+  const problem = indexProblem(chosen, size);
+  if (problem) return invalid(key, problem);
+
+  if (key.type === 'multiple_choice') {
+    if (chosen.length !== 1) return invalid(key, 'not_one_choice');
+    return scored(key.type, chosen[0] === key.answerIndex ? 1 : 0, 1);
+  }
+
+  if (key.type === 'choose_all') {
+    // Feedback parts: true options picked, less any wrong options picked. Options left alone do
+    // not count, so picking one wrong option never reads as nearly right.
+    const truth = new Set(key.answerIndexes);
+    const hits = chosen.filter((i) => truth.has(i)).length;
+    const wrongPicks = chosen.length - hits;
+    return scored(key.type, Math.max(0, hits - wrongPicks), truth.size);
+  }
+
+  if (chosen.length !== key.events) return invalid(key, 'not_a_full_order');
+  const inPlace = chosen.filter((event, position) => event === position).length;
+  return scored(key.type, inPlace, key.events);
+}
+
+export function scoreMultipleChoice(q: StoryQuestion, chosen: number): AnswerScore {
+  return scoreChosen(answerKey(q), [chosen]);
+}
+
+/** Right when the chosen set is exactly the true options. */
+export function scoreChooseAll(q: ChooseAllQuestion, chosen: readonly number[]): AnswerScore {
+  return scoreChosen(answerKey(q), chosen);
 }
 
 /** Right when every event is in its place. Each position is one part. */
-export function scoreOrderEvents(q: OrderEventsQuestion, order: number[]): AnswerScore {
-  const type = 'order_events';
-  const total = q.events.length;
-  const problem = indexProblem(order, total);
-  if (problem) return invalid(type, problem, total);
-  if (order.length !== total) return invalid(type, 'not_a_full_order', total);
-  const right = order.filter((event, position) => event === position).length;
-  return scored(type, right, total);
+export function scoreOrderEvents(q: OrderEventsQuestion, order: readonly number[]): AnswerScore {
+  return scoreChosen(answerKey(q), order);
 }
 
 export function scoreAnswer(q: ScorableQuestion, r: AnswerResponse): AnswerScore {
+  const key = answerKey(q);
   // A missing or malformed response is data from outside, so it must not throw.
-  if (typeof r !== 'object' || r === null) {
-    const total =
-      q.type === 'choose_all' ? q.options.length : q.type === 'order_events' ? q.events.length : 1;
-    return invalid(questionType(q), 'type_mismatch', total);
+  if (typeof r !== 'object' || r === null || r.type !== key.type) {
+    return invalid(key, 'type_mismatch');
   }
-  if (q.type === 'choose_all') {
-    return r.type === 'choose_all'
-      ? scoreChooseAll(q, r.chosen)
-      : invalid(q.type, 'type_mismatch', q.options.length);
-  }
-  if (q.type === 'order_events') {
-    return r.type === 'order_events'
-      ? scoreOrderEvents(q, r.order)
-      : invalid(q.type, 'type_mismatch', q.events.length);
-  }
-  return r.type === 'multiple_choice'
-    ? scoreMultipleChoice(q, r.chosen)
-    : invalid('multiple_choice', 'type_mismatch', 1);
+  if (r.type === 'multiple_choice') return scoreChosen(key, [r.chosen]);
+  if (r.type === 'choose_all') return scoreChosen(key, r.chosen);
+  return scoreChosen(key, r.order);
 }
 
 /**
  * Turn a scored answer into evidence for the ability model, or null when the answer was invalid.
  * An invalid answer (wrong type, out of range, a broken question) is refused, so it never lowers
  * the estimate. The guess rate comes from the question type; for ordering it follows the number of
- * events, one chance in n factorial. Only `correct` is used: parts right never reach the model.
+ * events, one chance in n factorial (`orderEventsGuess` in packages/levels). Only `correct` is used: parts right never reach the model.
  */
 export function answerEvidence(o: {
   question: ScorableQuestion;
@@ -164,7 +198,7 @@ export function answerEvidence(o: {
   const subskill = 'subskill' in o.question ? o.question.subskill : undefined;
   const guess =
     o.question.type === 'order_events'
-      ? 1 / factorial(o.question.events.length)
+      ? orderEventsGuess(o.question.events.length)
       : guessFor(o.score.type);
   return {
     difficulty: itemDifficulty(o.storyLevel, subskill),
