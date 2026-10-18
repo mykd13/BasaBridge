@@ -92,16 +92,7 @@ Every table with a learner id is protected by one authorization layer (BB-10). P
 
 ## 6. Learning engine (placeholders to tune)
 
-Levels 1 to 100 grouped in tiers.
-
-| Levels | Story length | Words and sentences | Tries per story |
-|---|---|---|---|
-| 1 to 10 | 5 to 15 words | everyday words, 5 to 8 words per sentence | unlimited |
-| 11 to 30 | 25 to 50 | a few new words explained by context | 5 |
-| 31 to 55 | 50 to 90 | joined sentences, some topic words | 4 |
-| 56 to 75 | 90 to 140 | varied sentences, several topic words | 3 |
-| 76 to 90 | 140 to 200 | long sentences, subject words | 2 |
-| 91 to 100 | 200 to 260 | advanced words, figurative language | 1 |
+Levels 1 to 100 are grouped in six tiers. Higher tiers have longer stories, a higher reading-grade cap and fewer tries. The tier table, the pass rule, the evidence and placement rules and every number in them live in [packages/levels/README.md](../packages/levels/README.md), which a test keeps in sync with the data. This plan does not copy them.
 
 - A try is one read-aloud. Only a try that reaches the end can count. When tries run out the best try counts, the learner answers the questions, then gets a new story at the same difficulty.
 - A story passes when words-right on the counted try is at least 85% and at least 3 of 5 questions are correct. A pass decides the message the learner sees and whether Learn is offered. Level movement uses the evidence rules in 6.1, not the pass count alone.
