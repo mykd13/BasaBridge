@@ -77,6 +77,12 @@ export const STARTING_LEVEL = 1;
 /** Questions asked after each story. The story generator and the pass rule both read this. */
 export const QUESTIONS_PER_STORY = 5;
 
+/**
+ * Fewest valid questions a story may keep after the checks drop bad ones. A story asks
+ * QUESTIONS_PER_STORY; the checks may drop one and still show the story.
+ */
+export const MIN_QUESTIONS_PER_STORY = 4;
+
 export const PASS_RULE = deepFreeze({
   /** Share of words read right on the counted try. */
   minWordsRight: 0.85,
