@@ -24,6 +24,7 @@ export interface VerificationRecord {
 
 export interface VerificationSummary {
   stories: number;
+  /** Questions the checker actually answered. Failed calls and invalid replies add none. */
   questions: number;
   /** Questions the checker disagreed on, out of questions that were checked. */
   disagreementRate: number;
@@ -64,7 +65,7 @@ export function summariseVerifications(records: VerificationRecord[]): Verificat
 
   return {
     stories: records.length,
-    questions: records.reduce((n, r) => n + r.questionsIn, 0),
+    questions: checked,
     disagreementRate: rate(disagreed, checked),
     rejectionRate: rate(rejected, records.length),
     outcomeCounts,

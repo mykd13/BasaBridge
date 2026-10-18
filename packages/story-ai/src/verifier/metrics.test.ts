@@ -18,17 +18,19 @@ describe('summariseVerifications', () => {
       rec({ agreed: 4, disagreed: 1 }),
       rec({ agreed: 3, disagreed: 2, outcome: 'rejected_too_few' }),
       rec({ outcome: 'rejected_unsafe', categories: ['fear', 'brands'] }),
-      rec({ questionsIn: 0, agreed: 0, outcome: 'model_call_failed' }),
+      rec({ agreed: 0, outcome: 'model_call_failed' }),
+      rec({ agreed: 0, outcome: 'invalid_reply' }),
     ]);
-    expect(s.stories).toBe(5);
+    expect(s.stories).toBe(6);
+    // The failed call and the invalid reply had 5 questions each, but none were checked.
     expect(s.questions).toBe(20);
     expect(s.disagreementRate).toBeCloseTo(3 / 20);
-    expect(s.rejectionRate).toBeCloseTo(3 / 5);
+    expect(s.rejectionRate).toBeCloseTo(4 / 6);
     expect(s.outcomeCounts).toEqual({
       kept: 2,
       rejected_unsafe: 1,
       rejected_too_few: 1,
-      invalid_reply: 0,
+      invalid_reply: 1,
       model_call_failed: 1,
     });
     expect(s.categoryCounts.fear).toBe(1);
