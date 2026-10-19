@@ -10,19 +10,34 @@ function clamp(value: number, max: number): number {
   return Math.min(Math.max(value, 0), max);
 }
 
-export interface ProgressBarProps {
+/** What a bar says to a screen reader: its own words, or nothing because text beside it does. */
+export type ProgressAnnouncement =
+  | {
+      /** What the bar measures, read by screen readers, such as "Level progress". */
+      label: string;
+      /** Read instead of the raw number, such as "6 of 10 stories". */
+      valueText?: string;
+      decorative?: false;
+    }
+  | {
+      /**
+       * Hide the bar from screen readers. Use it when visible text next to the bar already says
+       * the same thing, so the words are read once, not twice.
+       */
+      decorative: true;
+      label?: never;
+      valueText?: never;
+    };
+
+export type ProgressBarProps = {
   /** How far along, from 0 to max. The number comes from the server. */
   value: number;
   max?: number;
-  /** What the bar measures, read by screen readers, such as "Level progress". */
-  label: string;
-  /** Read instead of the raw number, such as "6 of 10 stories". */
-  valueText?: string;
   /** Split the bar into equal blocks, as on My progress (S14). */
   segments?: number;
   tone?: 'accent' | 'good' | 'mark';
   size?: 'sm' | 'md' | 'lg';
-}
+} & ProgressAnnouncement;
 
 /** The linear and segmented bars from S2, S6, S11 and S14. */
 export function ProgressBar({
@@ -30,20 +45,23 @@ export function ProgressBar({
   max = 100,
   label,
   valueText,
+  decorative,
   segments,
   tone = 'accent',
   size = 'md',
 }: ProgressBarProps) {
   const v = clamp(value, max);
   const pct = max > 0 ? (v / max) * 100 : 0;
-  const common = {
-    role: 'progressbar' as const,
-    'aria-label': label,
-    'aria-valuemin': 0,
-    'aria-valuemax': max,
-    'aria-valuenow': v,
-    'aria-valuetext': valueText,
-  };
+  const common = decorative
+    ? { 'aria-hidden': true as const }
+    : {
+        role: 'progressbar' as const,
+        'aria-label': label,
+        'aria-valuemin': 0,
+        'aria-valuemax': max,
+        'aria-valuenow': v,
+        'aria-valuetext': valueText,
+      };
 
   if (segments && segments > 0) {
     const filled = Math.round((pct / 100) * segments);
@@ -96,8 +114,11 @@ export interface LevelCardProps {
   level: number;
   /** Words after the number, such as "of 100". */
   suffix?: string;
-  /** Progress inside the level, from 0 to 1, with its label. */
-  progress?: { value: number; label: string; valueText?: string };
+  /**
+   * Progress inside the level, from 0 to 1. Give it a label, or mark it decorative when the
+   * card's own text says how far along the learner is.
+   */
+  progress?: { value: number } & ProgressAnnouncement;
   /** hero is the large centred number from Level up (S12) and the placement result (G3). */
   variant?: 'card' | 'hero';
   children?: ReactNode;
@@ -119,14 +140,7 @@ export function LevelCard({
         {level}
         {suffix ? <span className="bb-level__suffix"> {suffix}</span> : null}
       </p>
-      {progress ? (
-        <ProgressBar
-          value={progress.value}
-          max={1}
-          label={progress.label}
-          valueText={progress.valueText}
-        />
-      ) : null}
+      {progress ? <ProgressBar max={1} {...progress} /> : null}
       {children}
     </section>
   );

@@ -130,6 +130,19 @@ describe('filled content', () => {
     expect(html).not.toContain('notes are not ready yet');
   });
 
+  it('progress says how far along the learner is once, not twice (BB-37)', () => {
+    const html = progress.render(progress.ready);
+    expect(html).not.toContain('aria-valuetext');
+    expect(html.match(/stories passed toward Level/g)).toHaveLength(1);
+  });
+
+  it('readings puts each reading under an h2 so its sections are h3, not h3 under h1 (BB-37)', () => {
+    const html = readings.render(readings.ready);
+    expect(html).toMatch(/<h2 class="bb-reading__title">The Mango Tree<\/h2>/);
+    expect(html.indexOf('<h2')).toBeGreaterThan(-1);
+    expect(html.indexOf('<h2')).toBeLessThan(html.indexOf('<h3'));
+  });
+
   it('readings lists tries, words to check and questions with no control for audio', () => {
     const html = readings.render(readings.ready);
     expect(html).toContain('The Mango Tree');

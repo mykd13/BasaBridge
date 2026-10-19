@@ -86,6 +86,18 @@ describe('progress', () => {
     expect(out).toContain('width:100%');
   });
 
+  it('can stay silent when text beside it says the same thing (BB-37)', () => {
+    const bar = html(<ProgressBar value={3} max={10} decorative />);
+    expect(bar).toContain('aria-hidden="true"');
+    expect(bar).not.toContain('progressbar');
+    expect(bar).not.toContain('aria-valuetext');
+    const card = html(
+      <LevelCard eyebrow="Level" level={4} progress={{ value: 0.3, decorative: true }} />,
+    );
+    expect(card).toContain('aria-hidden="true"');
+    expect(card).not.toContain('progressbar');
+  });
+
   it('fills whole segments', () => {
     const out = html(<ProgressBar value={6} max={10} segments={5} label="Stories" />);
     expect(out.match(/bb-fill--accent/g)).toHaveLength(3);
@@ -266,6 +278,10 @@ describe('stylesheet', () => {
     const start = css.indexOf('@media (prefers-reduced-motion: reduce)');
     expect(start).toBeGreaterThan(-1);
     expect(css.slice(start)).toContain('animation: none');
+    // A catch-all, so a more specific rule such as `button.bb-option` cannot keep a transition.
+    expect(css.slice(start)).toMatch(
+      /\*,\s*\*::before,\s*\*::after\s*{[^}]*transition: none !important/,
+    );
   });
 });
 

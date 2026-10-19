@@ -47,8 +47,8 @@ export function ProgressScreen({ view }: { view: ProgressView | null }) {
             next
               ? {
                   value: next.progress,
-                  label: t('progress.levelBar'),
-                  valueText: t('progress.toNext', { count: next.storiesLeft, level: next.level }),
+                  // The paragraph below says the same words, so the bar stays silent.
+                  decorative: true,
                 }
               : undefined
           }

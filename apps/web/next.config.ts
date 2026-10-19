@@ -10,6 +10,9 @@ assertPrivacyContact(process.env);
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const config: NextConfig = {
+  // The e2e run starts a second dev server as a parent (BB_DEV_ROLE=parent) and gives it its own
+  // build folder, because two dev servers cannot share one. Unset, this is the default `.next`.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   // Workspace packages ship TypeScript source, so Next compiles them.
   transpilePackages: [
     '@basabridge/contracts',

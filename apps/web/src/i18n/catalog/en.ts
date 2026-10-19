@@ -282,7 +282,6 @@ export const en = {
       level: {
         eyebrow: { standard: 'Level' },
         of: { standard: 'of {max}' },
-        progressLabel: { standard: 'Stories passed at this level' },
         progressText: {
           standard: '{passes} of {needed} stories passed toward Level {next}',
         },
@@ -655,7 +654,6 @@ export const en = {
   progress: {
     level: { standard: 'My level', simple: 'My level' },
     levelOf: { standard: 'of {max}' },
-    levelBar: { standard: 'Progress to the next level', simple: 'Steps to the next level' },
     toNext: {
       standard:
         '{count, plural, one {# more story to reach Level {level}} other {# more stories to reach Level {level}}}',

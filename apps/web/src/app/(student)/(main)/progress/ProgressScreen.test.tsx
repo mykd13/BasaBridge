@@ -47,13 +47,20 @@ describe('ProgressScreen', () => {
     expect(html).toContain('My level');
     expect(html).toContain('24');
     expect(html).toContain('of 100');
-    expect(html).toContain('role="progressbar"');
     expect(html).toContain('1 more story to reach Level 25');
     expect(html).toContain('Word meanings');
     expect(html).toContain('The Mango Tree');
     expect(html).toContain('2 tries');
     expect(html).toContain('4 of 5');
     expect(html).toContain('Oct 17');
+  });
+
+  it('says how far along the learner is once, not twice (BB-37)', () => {
+    const html = render(<ProgressScreen view={filled} />);
+    // The visible line is read. The bar beside it is hidden from screen readers.
+    expect(html.match(/1 more story to reach Level 25/g)).toHaveLength(1);
+    expect(html).not.toContain('aria-valuetext');
+    expect(html).not.toContain('role="progressbar"');
   });
 
   it('has one h1 and no main landmark of its own', () => {
