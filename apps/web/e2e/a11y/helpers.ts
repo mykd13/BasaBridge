@@ -1,4 +1,4 @@
-import type { BrowserContext, Page, TestInfo } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 import { parentURL } from '../ports';
 import type { Audience, AuditRoute } from './routes';
 
@@ -61,5 +61,4 @@ export async function open(page: Page, route: AuditRoute, baseURL: string) {
   await page.locator('main').first().waitFor();
 }
 
-export const isChromium = (info: TestInfo) => info.project.use.defaultBrowserType === 'chromium';
 export type { Audience };

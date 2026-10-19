@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { isChromium, open, prepare, type Lang, type Scheme } from './helpers';
+import { open, prepare, type Lang, type Scheme } from './helpers';
 import { ALL_ROUTES } from './routes';
 
 /**
@@ -19,9 +19,9 @@ const CONTRAST = [false, true];
 
 for (const route of ALL_ROUTES) {
   test.describe(`axe ${route.name} (${route.audience})`, () => {
-    test.beforeEach((_fixtures, info) => {
+    test.beforeEach(({ browserName }, info) => {
       test.skip(
-        !isChromium(info) || info.project.name === 'mobile-360',
+        browserName !== 'chromium' || info.project.name === 'mobile-360',
         'Axe runs once, in Chromium',
       );
     });
@@ -70,8 +70,11 @@ for (const route of ALL_ROUTES) {
 }
 
 // Proves the harness can fail: a page with a known serious violation must be reported.
-test('axe reports a known low contrast page', async ({ page }, info) => {
-  test.skip(!isChromium(info) || info.project.name === 'mobile-360', 'Axe runs once, in Chromium');
+test('axe reports a known low contrast page', async ({ page, browserName }, info) => {
+  test.skip(
+    browserName !== 'chromium' || info.project.name === 'mobile-360',
+    'Axe runs once, in Chromium',
+  );
   await page.setContent(
     '<!doctype html><html lang="en"><head><title>t</title></head><body><main>' +
       '<h1>Title</h1><p style="color:#bbb;background:#fff">Pale text</p>' +
