@@ -1,0 +1,33 @@
+{
+  "id": "cause-effect-early",
+  "subject": "cause_effect",
+  "band": "early",
+  "title": {
+    "en": "Short title a child understands",
+    "fil": ""
+  },
+  "goal": {
+    "en": "One sentence that starts with I can, in the learner's words.",
+    "fil": ""
+  },
+  "steps": [
+    {
+      "kind": "explain",
+      "text": {
+        "en": "Two or three short sentences that explain the idea.",
+        "fil": ""
+      }
+    },
+    {
+      "kind": "example",
+      "passage": "A tiny English passage, one to three sentences.",
+      "point": {
+        "en": "One sentence that shows the idea in the passage.",
+        "fil": ""
+      }
+    },
+    { "kind": "practice", "items": 3 },
+    { "kind": "check", "items": 2 }
+  ],
+  "status": "draft"
+}

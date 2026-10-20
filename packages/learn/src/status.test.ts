@@ -19,16 +19,17 @@ const file = (id: string, subject: string, band: string, status = 'reviewed') =>
   id,
   subject,
   band,
-  title: id,
-  goal: 'goal',
+  title: { en: id, fil: id },
+  goal: { en: 'goal', fil: 'layunin' },
   steps: [
-    { kind: 'explain', text: 'text' },
-    { kind: 'example', passage: 'passage', point: 'point' },
+    { kind: 'explain', text: { en: 'text', fil: 'teksto' } },
+    { kind: 'example', passage: 'passage', point: { en: 'point', fil: 'punto' } },
     { kind: 'practice', items: 3 },
     { kind: 'check', items: 2 },
   ],
   status,
   reviewedBy: 'reviewer',
+  reviewedAt: '2026-10-18',
 });
 
 describe('lessonStatus', () => {

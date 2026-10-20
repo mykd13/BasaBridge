@@ -18,9 +18,9 @@ const lesson = (
   id,
   subject,
   band,
-  title: id,
-  goal: 'goal',
-  steps: [{ kind: 'explain', text: 'text' }],
+  title: { en: id, fil: id },
+  goal: { en: 'goal', fil: 'layunin' },
+  steps: [{ kind: 'explain', text: { en: 'text', fil: 'teksto' } }],
   status,
 });
 

@@ -11,6 +11,7 @@
  * - Learners never chat freely with a model. Lessons follow a fixed shape.
  */
 export * from './core';
+export * from './coverage';
 export * from './gaps';
 export * from './lesson';
 export * from './recheck';
