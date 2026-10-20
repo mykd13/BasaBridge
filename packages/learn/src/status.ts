@@ -12,6 +12,11 @@ export interface LessonProgressRow {
   completedAt: Date | null;
   recheckCorrect: number;
   recheckTotal: number;
+  /**
+   * The last real story counted toward this lesson's recheck. A story whose id matches is skipped,
+   * so a retry or double submit cannot add the same evidence twice.
+   */
+  lastRecheckStoryId: string | null;
 }
 
 export type LessonProgressStatus =

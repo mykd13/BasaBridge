@@ -13,7 +13,13 @@ const row = (
   completedAt: Date | null,
   recheckCorrect = 0,
   recheckTotal = 0,
-): LessonProgressRow => ({ lessonId, completedAt, recheckCorrect, recheckTotal });
+): LessonProgressRow => ({
+  lessonId,
+  completedAt,
+  recheckCorrect,
+  recheckTotal,
+  lastRecheckStoryId: null,
+});
 
 const file = (id: string, subject: string, band: string, status = 'reviewed') => ({
   id,

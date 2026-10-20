@@ -32,6 +32,7 @@ const registry = createRegistry([
   file('decode', 'decoding'),
 ]);
 
+const STORY = '00000000-0000-4000-8000-0000000000a1';
 const t = (minutes: number) => new Date(Date.UTC(2026, 9, 18, 9, minutes));
 const finished = (lessonId: string, at: Date): LessonProgressRow =>
   completeLesson(startLesson(lessonId), at);
@@ -54,17 +55,25 @@ describe('startLesson and completeLesson', () => {
       completedAt: t(0),
       recheckCorrect: 0,
       recheckTotal: 2,
+      lastRecheckStoryId: null,
     };
     expect(completeLesson(failed, t(5))).toEqual({
       lessonId: 'cause',
       completedAt: t(5),
       recheckCorrect: 0,
       recheckTotal: 0,
+      lastRecheckStoryId: null,
     });
   });
 
   it('a learned lesson stays learned when done again', () => {
-    const learned = { lessonId: 'cause', completedAt: t(0), recheckCorrect: 2, recheckTotal: 2 };
+    const learned = {
+      lessonId: 'cause',
+      completedAt: t(0),
+      recheckCorrect: 2,
+      recheckTotal: 2,
+      lastRecheckStoryId: null,
+    };
     expect(completeLesson(learned, t(9))).toBe(learned);
   });
 });
@@ -80,7 +89,13 @@ describe('rechecksForNextStory', () => {
 
   it('asks only for what is still missing, and nothing for decoding or unknown lessons', () => {
     const rows: LessonProgressRow[] = [
-      { lessonId: 'cause', completedAt: t(0), recheckCorrect: 1, recheckTotal: 1 },
+      {
+        lessonId: 'cause',
+        completedAt: t(0),
+        recheckCorrect: 1,
+        recheckTotal: 1,
+        lastRecheckStoryId: null,
+      },
       finished('decode', t(0)),
       finished('gone', t(0)),
     ];
@@ -94,6 +109,7 @@ describe('applyStoryToProgress', () => {
   it('learns a lesson from two right answers on its skill in the next story', () => {
     const rows = [finished('cause', t(0))];
     const changed = applyStoryToProgress(rows, registry, {
+      storyId: STORY,
       finishedAt: t(10),
       answers: [
         { subskill: 'key_detail', correct: false },
@@ -102,12 +118,15 @@ describe('applyStoryToProgress', () => {
         { subskill: 'cause_effect', correct: false },
       ],
     });
-    expect(changed).toEqual([{ ...rows[0], recheckCorrect: 2, recheckTotal: 2 }]);
+    expect(changed).toEqual([
+      { ...rows[0], recheckCorrect: 2, recheckTotal: 2, lastRecheckStoryId: STORY },
+    ]);
     expect(lessonStatus(changed[0])).toBe('learned');
   });
 
   it('does not learn a lesson when the fresh questions go badly', () => {
     const [row] = applyStoryToProgress([finished('cause', t(0))], registry, {
+      storyId: STORY,
       finishedAt: t(10),
       answers: [
         { subskill: 'cause_effect', correct: false },
@@ -119,10 +138,11 @@ describe('applyStoryToProgress', () => {
 
   it('keeps waiting when the story had only one question on the skill', () => {
     const [row] = applyStoryToProgress([finished('cause', t(0))], registry, {
+      storyId: STORY,
       finishedAt: t(10),
       answers: [{ subskill: 'cause_effect', correct: true }],
     });
-    expect(row).toMatchObject({ recheckCorrect: 1, recheckTotal: 1 });
+    expect(row).toMatchObject({ recheckCorrect: 1, recheckTotal: 1, lastRecheckStoryId: STORY });
     expect(lessonStatus(row)).toBe('waiting_for_story');
   });
 
@@ -130,6 +150,7 @@ describe('applyStoryToProgress', () => {
     const rows = [finished('cause', t(20)), startLesson('detail')];
     expect(
       applyStoryToProgress(rows, registry, {
+        storyId: STORY,
         finishedAt: t(10),
         answers: [
           { subskill: 'cause_effect', correct: true },
@@ -142,12 +163,72 @@ describe('applyStoryToProgress', () => {
   it('checks decoding lessons on the counted try', () => {
     const rows = [finished('decode', t(0))];
     const good = applyStoryToProgress(rows, registry, {
+      storyId: STORY,
       finishedAt: t(10),
       answers: [],
       countedTry: { wordsRight: 45, wordsTotal: 50 },
     });
-    expect(good).toEqual([{ ...rows[0], recheckCorrect: 1, recheckTotal: 1 }]);
-    const silent = applyStoryToProgress(rows, registry, { finishedAt: t(10), answers: [] });
+    expect(good).toEqual([
+      { ...rows[0], recheckCorrect: 1, recheckTotal: 1, lastRecheckStoryId: STORY },
+    ]);
+    const silent = applyStoryToProgress(rows, registry, {
+      storyId: STORY,
+      finishedAt: t(10),
+      answers: [],
+    });
     expect(silent).toEqual([]);
+  });
+});
+
+describe('one story counts once (BB-52 review B1)', () => {
+  const OTHER = '00000000-0000-4000-8000-0000000000a2';
+  // Apply a story, then apply it again to the rows as they are after the first time.
+  const twice = (rows: LessonProgressRow[], story: Parameters<typeof applyStoryToProgress>[2]) => {
+    const first = applyStoryToProgress(rows, registry, story);
+    const after = rows.map((r) => first.find((c) => c.lessonId === r.lessonId) ?? r);
+    return { first, second: applyStoryToProgress(after, registry, story), after };
+  };
+
+  it('a decoding lesson is not learned from one counted try applied twice', () => {
+    const { second, after } = twice([finished('decode', t(0))], {
+      storyId: STORY,
+      finishedAt: t(10),
+      answers: [],
+      countedTry: { wordsRight: 20, wordsTotal: 20 },
+    });
+    expect(second).toEqual([]);
+    expect(after[0]).toMatchObject({ recheckCorrect: 1, recheckTotal: 1 });
+    expect(lessonStatus(after[0])).toBe('waiting_for_story');
+  });
+
+  it('a skill lesson is not learned from one right answer applied twice', () => {
+    const { second, after } = twice([finished('detail', t(0))], {
+      storyId: STORY,
+      finishedAt: t(10),
+      answers: [{ subskill: 'key_detail', correct: true }],
+    });
+    expect(second).toEqual([]);
+    expect(lessonStatus(after[0])).toBe('waiting_for_story');
+  });
+
+  it('a different story still counts', () => {
+    const { after } = twice([finished('decode', t(0))], {
+      storyId: STORY,
+      finishedAt: t(10),
+      answers: [],
+      countedTry: { wordsRight: 20, wordsTotal: 20 },
+    });
+    const [next] = applyStoryToProgress(after, registry, {
+      storyId: OTHER,
+      finishedAt: t(20),
+      answers: [],
+      countedTry: { wordsRight: 20, wordsTotal: 20 },
+    });
+    expect(next).toMatchObject({ recheckCorrect: 2, recheckTotal: 2, lastRecheckStoryId: OTHER });
+    expect(lessonStatus(next)).toBe('learned');
+  });
+
+  it('opening a lesson starts with no story counted', () => {
+    expect(startLesson('cause').lastRecheckStoryId).toBeNull();
   });
 });

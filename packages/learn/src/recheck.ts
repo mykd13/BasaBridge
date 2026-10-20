@@ -14,12 +14,21 @@ import { rechecksRemaining, toProgress, type LessonProgressRow } from './status'
 
 /** The row for a lesson the learner has just opened. Opening again keeps what is there. */
 export function startLesson(lessonId: string, row?: LessonProgressRow): LessonProgressRow {
-  return row ?? { lessonId, completedAt: null, recheckCorrect: 0, recheckTotal: 0 };
+  return (
+    row ?? {
+      lessonId,
+      completedAt: null,
+      recheckCorrect: 0,
+      recheckTotal: 0,
+      lastRecheckStoryId: null,
+    }
+  );
 }
 
 /**
  * The learner reached the end of the lesson. Earlier recheck results are cleared, so a lesson
  * redone after a recheck that did not go well is checked again. A learned lesson stays learned.
+ * The last counted story is kept, so that story cannot count again toward the redone lesson.
  */
 export function completeLesson(row: LessonProgressRow, at: Date): LessonProgressRow {
   if (isLearned(toProgress(row))) return row;
@@ -54,6 +63,8 @@ export function rechecksForNextStory(
 
 /** What a finished real story contributes to rechecks. Never a Learn practice or check item. */
 export interface StoryRecheckEvidence {
+  /** The story these answers came from. One story counts toward a lesson at most once. */
+  storyId: string;
   /** When the story's questions were finished. Only lessons finished before this are checked. */
   finishedAt: Date;
   /** Answers in the order given, with each question's sub-skill. */
@@ -73,6 +84,7 @@ export function applyStoryToProgress(
   const waiting = rows
     .filter((r) => r.completedAt !== null && r.completedAt < story.finishedAt)
     .filter((r) => rechecksRemaining(r) > 0)
+    .filter((r) => r.lastRecheckStoryId !== story.storyId)
     .sort((a, b) => a.completedAt!.getTime() - b.completedAt!.getTime());
 
   for (const row of waiting) {
@@ -99,6 +111,7 @@ export function applyStoryToProgress(
       ...row,
       recheckCorrect: row.recheckCorrect + correct,
       recheckTotal: row.recheckTotal + total,
+      lastRecheckStoryId: story.storyId,
     });
   }
   return changed;

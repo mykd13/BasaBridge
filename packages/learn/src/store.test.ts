@@ -44,6 +44,7 @@ describe('lesson progress through the store', () => {
     expect(lessonStatus(waiting)).toBe('waiting_for_story');
 
     await recordStoryRechecks(store, registry, learner, {
+      storyId: '00000000-0000-4000-8000-0000000000a1',
       finishedAt: at(30),
       answers: [
         { subskill: 'cause_effect', correct: true },
@@ -93,7 +94,24 @@ describe('practice inside Learn never changes the level', () => {
     const saves = calls.filter((c) => c.startsWith('save'));
     expect(saves.length).toBe(2);
     for (const s of saves) {
-      expect(s).toBe('save:completedAt,lessonId,recheckCorrect,recheckTotal');
+      expect(s).toBe('save:completedAt,lastRecheckStoryId,lessonId,recheckCorrect,recheckTotal');
     }
+  });
+});
+
+describe('recordStoryRechecks with a repeated story (BB-52 review B1)', () => {
+  it('a double submit of one story does not learn a lesson', async () => {
+    const store = memoryLessonProgressStore();
+    await finishLesson(store, registry, learner, 'cause', at(5));
+    const story = {
+      storyId: '00000000-0000-4000-8000-0000000000a1',
+      finishedAt: at(30),
+      answers: [{ subskill: 'cause_effect', correct: true }],
+    };
+    await recordStoryRechecks(store, registry, learner, story);
+    expect(await recordStoryRechecks(store, registry, learner, story)).toEqual([]);
+    const [row] = await store.list(learner);
+    expect(row).toMatchObject({ recheckCorrect: 1, recheckTotal: 1 });
+    expect(lessonStatus(row)).toBe('waiting_for_story');
   });
 });
