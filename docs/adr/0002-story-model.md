@@ -9,6 +9,8 @@ Status: accepted. Date: 2026-10-17.
 - Teacher notes use a small, fast model chosen in BB-20.
 - All calls go through the Vercel AI Gateway with plain `provider/model` strings, using the Vercel AI SDK.
 - Model names are never written in code. They come from `STORY_MODEL`, `VERIFIER_MODEL` and `NOTES_MODEL` (see `example.env`), so a model can change without a release.
+- Each role also has a fallback model (`STORY_FALLBACK_MODEL`, `VERIFIER_FALLBACK_MODEL`, `NOTES_FALLBACK_MODEL`). It is tried when the first model fails or times out, and the choice is logged with the role, the model and the reason only (BB-73).
+- Neither verifier model may equal either story model. `assertModelRoles` in `packages/story-ai` checks this when the server starts and stops it if the rule is broken (BB-73).
 
 ## Why
 
