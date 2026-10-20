@@ -346,8 +346,12 @@ const withQuestion = (
   questions: TIER_2.questions.map((question, i) => (i === index ? change(question) : question)),
 });
 
+/** Common words, so only the reading grade fails: long words in one long sentence. */
 const HARD_SENTENCE =
-  'The enormous, unpredictable thunderstorm approached the village, frightening every inhabitant considerably.';
+  'Actually, the government already understood the important information about every different company.';
+
+/** Short words, so only the vocabulary fails: three words a tier 1 learner does not know. */
+const RARE_SENTENCE = 'Sam saw a puce kite soar aloft.';
 
 /** Each bad version breaks exactly one thing in a good story. */
 export const BAD_VERSIONS: BadVersion[] = [
@@ -374,10 +378,29 @@ export const BAD_VERSIONS: BadVersion[] = [
       text: HARD_SENTENCE,
       questions: TIER_1.questions.map((question) => ({
         ...question,
-        word: question.word ? 'thunderstorm' : null,
+        word: question.word ? 'company' : null,
         evidence: HARD_SENTENCE,
       })),
     },
+  },
+  {
+    code: 'too_many_new_words',
+    name: 'rare words in a tier 1 story',
+    story: {
+      name: 'too many new words',
+      level: TIER_1.level,
+      text: RARE_SENTENCE,
+      questions: TIER_1.questions.map((question) => ({
+        ...question,
+        word: question.word ? 'kite' : null,
+        evidence: RARE_SENTENCE,
+      })),
+    },
+  },
+  {
+    code: 'idiom_not_allowed',
+    name: 'an idiom added to a tier 2 story',
+    story: { ...TIER_2, name: 'idiom', text: `${TIER_2.text} Time flies.` },
   },
   {
     code: 'too_few_questions',

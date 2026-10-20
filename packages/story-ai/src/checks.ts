@@ -4,6 +4,8 @@
  */
 import type { StoryQuestion } from '@basabridge/contracts';
 import { tierFor } from '@basabridge/levels';
+import { countIdioms } from './vocab/idioms';
+import { vocabularyProfile } from './vocab/profile';
 
 export function syllables(word: string): number {
   let w = word.toLowerCase().replace(/[^a-z]/g, '');
@@ -54,7 +56,13 @@ const normalise = (s: string) =>
   s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
 
 /** Why a story or one of its questions failed. Codes are stable: tests and retry feedback use them. */
-export type StoryFailureCode = 'too_short' | 'too_long' | 'too_hard' | 'too_few_questions';
+export type StoryFailureCode =
+  | 'too_short'
+  | 'too_long'
+  | 'too_hard'
+  | 'too_many_new_words'
+  | 'idiom_not_allowed'
+  | 'too_few_questions';
 
 export type QuestionFailureCode =
   | 'bad_shape'
@@ -136,9 +144,18 @@ function containsWord(normalisedPassage: string, word: string): boolean {
   return new RegExp(`(?<![a-z])(?:${forms.join('|')})(?![a-z])`).test(normalisedPassage);
 }
 
+/** Whether a passage meets the vocabulary limits of the tier for its level (BB-72). */
+export function vocabularyCheck(passage: string, level: number) {
+  const { maxRank, minKnownShare, maxNewWords } = tierFor(level).vocabulary;
+  const profile = vocabularyProfile(passage, maxRank);
+  const ok = profile.knownShare >= minKnownShare && profile.newWords.length <= maxNewWords;
+  return { ok, profile };
+}
+
 /**
- * Deterministic checks on a generated story: length range, reading grade cap, valid questions,
- * distinct options, evidence is a whole sentence (or adjacent sentences) of the passage,
+ * Deterministic checks on a generated story: length range, reading grade cap, vocabulary limits
+ * and no idioms where the tier does not allow them (BB-72), valid questions, distinct options,
+ * evidence is a whole sentence (or adjacent sentences) of the passage,
  * vocabulary word present on word boundaries, no repeated questions.
  * At least four valid questions must remain. Every failure is reported, not just the first.
  */
@@ -159,6 +176,23 @@ export function checkStory(text: string, rawQuestions: RawQuestion[], level: num
     failures.push({
       code: 'too_hard',
       message: `The passage was too hard (reading grade ${grade.toFixed(1)}, maximum ${tier.maxReadingGrade}).`,
+    });
+  }
+
+  const { ok: vocabOk, profile: vocab } = vocabularyCheck(passage, level);
+  if (!vocabOk) {
+    const { minKnownShare, maxNewWords } = tier.vocabulary;
+    const known = Math.floor(vocab.knownShare * 100);
+    failures.push({
+      code: 'too_many_new_words',
+      message: `The passage had ${vocab.newWords.length} new words and ${known}% known words, but may have at most ${maxNewWords} new words and needs at least ${Math.round(minKnownShare * 100)}% known words. Use simpler, more common words.`,
+    });
+  }
+  const idioms = tier.idiomsAllowed ? 0 : countIdioms(passage);
+  if (idioms > 0) {
+    failures.push({
+      code: 'idiom_not_allowed',
+      message: `The passage used ${idioms} idioms, which are not allowed at this level. Say what you mean in plain words.`,
     });
   }
 

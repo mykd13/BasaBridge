@@ -2,6 +2,8 @@
 
 The story checks cap the reading grade of each passage by tier. The cap comes from `maxReadingGrade` in `packages/levels`. The grade comes from `readingGrade` in `src/checks.ts`, a Flesch-Kincaid formula that is noisy on short texts. This folder checks that formula against people.
 
+Flesch-Kincaid was built for native English readers. Since BB-72 the checks also apply a vocabulary check: most words must come from the tier's share of the NGSL word list (see `src/vocab/README.md`). The report compares both checks with the rater, and with each other, on the same passages.
+
 ## Who rates
 
 An educator who knows the target age group, such as a teacher or reading specialist. Aim for about 50 passages spread over all six tiers, so each tier has at least 5.
@@ -33,13 +35,21 @@ pnpm --filter @basabridge/story-ai grade-report
 It prints:
 
 - the mean absolute error and the correlation between the measured and the rated grade;
-- for each tier, how many rated passages the cap would reject although the rater says they fit (wrongly rejected), and how many it would accept although the rater says they are too hard (wrongly accepted).
+- for each tier, how many rated passages the cap would reject although the rater says they fit (wrongly rejected), and how many it would accept although the rater says they are too hard (wrongly accepted);
+- the same two counts for the vocabulary check;
+- how many passages the two checks disagree on, and on those, whether the rater sides with the reading grade or with the vocabulary.
 
 ## When to change a cap
 
 - If the mean absolute error is over 1 grade, or the correlation is under 0.7, the measure is too noisy for the caps to mean much. Open an issue to change the measure.
 - If a tier has wrongly rejected passages in more than 1 of 5 rated, the cap is too low for that tier. Raise `maxReadingGrade` for it.
 - If a tier has wrongly accepted passages in more than 1 of 5 rated, the cap is too high. Lower it.
+
+## When the two checks disagree
+
+- If the rater sides with the vocabulary on most disagreements in a tier, the reading-grade cap is the weaker signal there. Raise or lower `maxReadingGrade` until the cap agrees with the rater.
+- If the rater sides with the reading grade, adjust the vocabulary limits for that tier instead: `maxRank`, `minKnownShare` or `maxNewWords`.
+- If the vocabulary check wrongly rejects passages because of one everyday word, add it to `CHILD_WORDS` or `LOCAL_WORDS` rather than loosening the tier.
 
 These limits are starting points. The decision belongs to Jhade. A cap change is its own commit in `packages/levels`, with the report pasted in the pull request.
 

@@ -13,7 +13,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
-    "grade-report": "tsx src/validation/run-grade-report.ts"
+    "grade-report": "tsx src/validation/run-grade-report.ts",
+    "word-list": "node scripts/build-word-list.mjs"
   },
   "devDependencies": {
     "tsx": "4.23.15"

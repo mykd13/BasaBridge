@@ -74,6 +74,8 @@ describe('failureFeedback privacy', () => {
       /^The last try failed these checks\. Fix them and write the story again\.$/,
       /^- The passage had \d+ words but must have \d+-\d+\.$/,
       /^- The passage was too hard \(reading grade \d+\.\d, maximum [\d.]+\)\.$/,
+      /^- The passage had \d+ new words and \d+% known words, but may have at most \d+ new words and needs at least \d+% known words\. Use simpler, more common words\.$/,
+      /^- The passage used \d+ idioms, which are not allowed at this level\. Say what you mean in plain words\.$/,
       /^- Only \d+ valid questions; need at least \d+\.$/,
       /^- Question \d+: (The question is missing a field or has the wrong number of options\.|The question has options that repeat\.|The answer does not point at one of the options\.|The evidence is not in the passage word for word\.|The evidence must be a whole sentence from the passage\.|The vocabulary word is not in the passage\.|The question repeats an earlier question\.)$/,
       /^- \d+ more problems\.$/,

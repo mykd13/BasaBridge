@@ -62,6 +62,29 @@ describe('gradeReport', () => {
     expect(r.tiers.filter((t) => t.rated > 0)).toHaveLength(1);
   });
 
+  it('compares the vocabulary check with the rater and with the reading-grade cap', () => {
+    const cap = tierFor(5).maxReadingGrade;
+    // Short words, so the grade is fine, but three words a tier 1 learner does not know.
+    const RARE = 'Sam saw a puce kite soar aloft.';
+    expect(readingGrade(RARE)).toBeLessThanOrEqual(cap);
+    const r = gradeReport([
+      entry({ id: 'a', text: RARE, ratedGrade: cap + 2 }), // rater: too hard; only vocab rejects
+      entry({ id: 'b', text: RARE, ratedGrade: 1 }), // rater: fits; vocab wrongly rejects
+      entry({ id: 'c', text: EASY, ratedGrade: cap + 2 }), // rater: too hard; both accept
+      entry({ id: 'd', text: EASY, ratedGrade: 1 }), // all agree
+    ]);
+    expect(r.tiers[0]).toMatchObject({
+      rated: 4,
+      wronglyRejected: 0,
+      wronglyAccepted: 2,
+      vocabWronglyRejected: 1,
+      vocabWronglyAccepted: 1,
+      disagree: 2,
+      raterSidesWithGrade: 1,
+      raterSidesWithVocab: 1,
+    });
+  });
+
   it('puts each passage in the tier of its level', () => {
     const r = gradeReport([entry({ level: 12 }), entry({ level: 100 })]);
     expect(r.tiers.map((t) => t.rated)).toEqual([0, 1, 0, 0, 0, 1]);

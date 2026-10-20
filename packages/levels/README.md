@@ -15,14 +15,16 @@ The UI, the prompts and the other packages import these numbers from here. They 
 
 There are 100 levels in six tiers. Higher tiers have longer stories, harder reading and fewer tries.
 
-| Levels    | Story length (words) | Max reading grade | Tries per story | Stories are like                          |
-| --------- | -------------------- | ----------------- | --------------- | ----------------------------------------- |
-| 1 to 10   | 5 to 15              | 2                 | unlimited       | Everyday words, 5 to 8 words per sentence |
-| 11 to 30  | 25 to 50             | 3.5               | 5               | A few new words explained by context      |
-| 31 to 55  | 50 to 90             | 5                 | 4               | Joined sentences, some topic words        |
-| 56 to 75  | 90 to 140            | 6.5               | 3               | Varied sentences, several topic words     |
-| 76 to 90  | 140 to 200           | 8                 | 2               | Long sentences, subject words             |
-| 91 to 100 | 200 to 260           | 10                | 1               | Advanced words, figurative language       |
+| Levels    | Story length (words) | Max reading grade | Tries per story | Stories are like                          | Known words up to rank | Min known share | Max new words | Idioms |
+| --------- | -------------------- | ----------------- | --------------- | ----------------------------------------- | ---------------------- | --------------- | ------------- | ------ |
+| 1 to 10   | 5 to 15              | 2                 | unlimited       | Everyday words, 5 to 8 words per sentence | 500                    | 95%             | 1             | no     |
+| 11 to 30  | 25 to 50             | 3.5               | 5               | A few new words explained by context      | 1000                   | 95%             | 2             | no     |
+| 31 to 55  | 50 to 90             | 5                 | 4               | Joined sentences, some topic words        | 1500                   | 90%             | 5             | no     |
+| 56 to 75  | 90 to 140            | 6.5               | 3               | Varied sentences, several topic words     | 2000                   | 90%             | 6             | yes    |
+| 76 to 90  | 140 to 200           | 8                 | 2               | Long sentences, subject words             | 2809                   | 90%             | 12            | yes    |
+| 91 to 100 | 200 to 260           | 10                | 1               | Advanced words, figurative language       | 2809                   | 88%             | 18            | yes    |
+
+The last four columns drive the vocabulary check in `story-ai` (BB-72). Words up to the rank on the NGSL 1.2 word list count as known, together with early child words, common Filipino words and names. At least the known share of words must be known, and no more than the max new words may be new. Where idioms are not allowed, the check rejects common English idioms. See `packages/story-ai/src/vocab/README.md`.
 
 ### Levels 1 to 10
 
@@ -168,6 +170,7 @@ These are placeholders until the reading specialist reviews them (BB-74).
 - [ ] The 6 tier boundaries: levels 10, 30, 55, 75 and 90 end a tier
 - [ ] Story length in words for each tier
 - [ ] Max reading grade for each tier
+- [ ] Vocabulary limits for each tier: known rank, known share, new words, and the first tier that allows idioms (BB-72)
 - [ ] Tries per story for each tier
 - [ ] 85% of words right to pass
 - [ ] 3 questions right to pass, and whether that should be a share instead of a count
